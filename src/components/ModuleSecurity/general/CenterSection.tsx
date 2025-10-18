@@ -1,0 +1,237 @@
+import React, { useState } from "react";
+import type { Center } from '../../../Api/types/Modules/general.types';
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
+import Paginator from "../../Paginator";
+import ModalFormGeneric from "../ModalFormGeneric";
+import ConfirmModal from "../../ConfirmModal";
+import NotificationModal from "../../NotificationModal";
+import { getCenters, createCenter, updateCenter, softDeleteCenter } from "../../../Api/Services/Center";
+import { getRegionales } from "../../../Api/Services/Regional";
+
+const cardsPerPage = 9;
+
+/**
+ * Props for CenterSection component
+ */
+interface CenterSectionProps {
+  /** Whether the section is expanded */
+  open: boolean;
+  /** Callback to toggle section visibility */
+  onToggle: () => void;
+}
+
+/**
+ * CenterSection component for managing training centers
+ * Displays a collapsible section with centers in a paginated grid
+ * Supports CRUD operations: create, read, update, soft delete
+ */
+const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
+  // State for centers data and loading
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  // Modal states for adding centers
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [pendingData, setPendingData] = useState<Center | null>(null);
+  const [showAddConfirm, setShowAddConfirm] = useState(false);
+
+  // Modal states for editing centers
+  const [editData, setEditData] = useState<Center | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [pendingEditData, setPendingEditData] = useState<Center | null>(null);
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+
+  // Modal states for disabling centers
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [pendingDisable, setPendingDisable] = useState<Center | null>(null);
+
+  // Notification modal state
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifType, setNotifType] = useState<'success' | 'info' | 'warning' | 'password-changed' | 'email-sent' | 'pending' | 'completed'>('success');
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+
+  // Regional options for select dropdown
+  const [regionals, setRegionals] = useState<{ value: string; label: string }[]>([]);
+
+  /**
+   * Refresh centers list from server
+   */
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const data = await getCenters();
+      setCenters(data);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al cargar centros");
+    }
+    setLoading(false);
+  };
+
+  React.useEffect(() => {
+    refresh();
+    // Load regional options for dropdown
+    (async () => {
+      try {
+        const data = await getRegionales();
+  const opts = Array.isArray(data) ? data.map((r: { id: number; name?: string }) => ({ value: String(r.id), label: r.name || `Regional ${r.id}` })) : [];
+        setRegionals(opts);
+      } catch (e) {
+        setRegionals([]);
+      }
+    })();
+  }, []);
+
+  /**
+   * InfoCard component for displaying individual center information
+   * Shows center details with edit and toggle buttons
+   */
+  const InfoCard = ({ center }: { center: Center }) => (
+    <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 relative">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-900">{center.name || `Centro ${center.id}`}</h3>
+          {center.address && <p className="text-sm text-gray-600 mt-1">{center.address}</p>}
+        </div>
+        {/* Status indicator showing active/inactive state */}
+        <div className={`px-2 py-1 rounded-full text-xs font-medium ${center.active ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900"}`}>
+          {center.active ? "Activo" : "Inactivo"}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {/* Edit button to modify center details */}
+        <button onClick={() => { setEditData(center); setShowEditModal(true); }} className="px-5 py-1 text-base rounded-3xl border border-gray-400 bg-gray-100 text-gray-800 font-semibold transition-colors hover:bg-gray-200">Editar</button>
+        {/* Toggle button to enable/disable center */}
+        <button onClick={() => { setPendingDisable(center); setShowDisableConfirm(true); }} className={`px-5 py-1 text-base rounded-3xl border font-semibold transition-colors ${center.active ? "bg-red-100 text-red-900 border-red-700 hover:bg-red-200" : "bg-green-100 text-green-900 border-green-700 hover:bg-green-200"}`}>{center.active ? "Deshabilitar" : "Habilitar"}</button>
+      </div>
+    </div>
+  );
+
+  // Handler functions for add operations
+  const handleAdd = () => setShowAddModal(true);
+  const handleSubmitAdd = (values: Center) => { setPendingData(values); setShowAddConfirm(true); };
+  const handleConfirmAdd = async () => {
+    try {
+      const payload = { ...pendingData, regional: pendingData?.regional ? Number(pendingData.regional) : pendingData.regional };
+      await createCenter(payload);
+      setShowAddModal(false);
+      setShowAddConfirm(false);
+      setPendingData(null);
+      await refresh();
+      setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Centro creado correctamente.'); setNotifOpen(true);
+    } catch (e) {
+      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear centro'); setNotifOpen(true);
+    }
+  };
+
+  // Handler functions for edit operations
+  const handleSubmitEdit = (values: Center) => { setPendingEditData(values); setShowEditConfirm(true); };
+  const handleConfirmEdit = async () => {
+    try {
+      const payload = { ...pendingEditData, regional: pendingEditData?.regional ? Number(pendingEditData.regional) : pendingEditData.regional };
+      await updateCenter(editData.id, payload);
+      setShowEditModal(false);
+      setShowEditConfirm(false);
+      setPendingEditData(null);
+      setEditData(null);
+      await refresh();
+      setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Centro actualizado correctamente.'); setNotifOpen(true);
+    } catch (e) {
+      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar centro'); setNotifOpen(true);
+    }
+  };
+
+  // Handler function for disable operations
+  const handleConfirmDisable = async () => {
+    try {
+      await softDeleteCenter(pendingDisable.id);
+      setShowDisableConfirm(false);
+      setPendingDisable(null);
+      await refresh();
+      setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
+    } catch (e) {
+      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar centro'); setNotifOpen(true);
+    }
+  };
+
+  // Loading and error states
+  if (loading) return <div className="p-8">Cargando...</div>;
+  if (error) return <div className="p-8 text-red-500">{error}</div>;
+
+  return (
+    <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      {/* Section header with toggle button and record count */}
+      <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-gray-900">Centros</h3>
+          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{centers.length} registros</span>
+        </div>
+        {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+      </button>
+      {open && (
+        <>
+          {/* Add center button */}
+          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
+            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Centro</button>
+          </div>
+
+          {/* Centers grid with pagination */}
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {centers.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((center) => (
+              <InfoCard key={center.id} center={center} />
+            ))}
+
+            {/* Edit modal */}
+            <ModalFormGeneric
+              isOpen={showEditModal}
+              title="Editar Centro"
+              fields={[
+                { label: "Nombre", name: "name", type: "text", placeholder: "Ingrese el nombre", required: true },
+                { label: "Código", name: "codeCenter", type: "number", placeholder: "Código del centro", required: true },
+                { label: "Dirección", name: "address", type: "text", placeholder: "Ingrese la dirección", required: true },
+                { label: "Regional", name: "regional", type: "select", customSelect: true, options: regionals, placeholder: "Seleccione la regional", required: true },
+              ]}
+              onClose={() => { setShowEditModal(false); setEditData(null); setPendingEditData(null); }}
+              onSubmit={handleSubmitEdit}
+              submitText="Actualizar"
+              cancelText="Cancelar"
+              initialValues={editData || {}}
+              customRender={undefined}
+              onProgramChange={undefined}
+            />
+
+            {/* Edit confirmation modal */}
+            <ConfirmModal isOpen={showEditConfirm} title="¿Confirmar actualización?" message="¿Estás seguro de que deseas actualizar este centro?" confirmText="Sí, actualizar" cancelText="Cancelar" onConfirm={handleConfirmEdit} onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }} />
+
+            {/* Disable confirmation modal */}
+            <ConfirmModal isOpen={showDisableConfirm} title="¿Confirmar acción?" message="¿Estás seguro de que deseas deshabilitar este centro?" confirmText="Sí, continuar" cancelText="Cancelar" onConfirm={handleConfirmDisable} onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); }} />
+          </div>
+
+          {/* Pagination component */}
+          {Math.ceil(centers.length / cardsPerPage) > 1 && (
+            <Paginator page={page} totalPages={Math.ceil(centers.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
+          )}
+
+          {/* Add modal */}
+          <ModalFormGeneric isOpen={showAddModal} title="Agregar Centro" fields={[
+            { label: "Nombre", name: "name", type: "text", placeholder: "Ingrese el nombre", required: true },
+            { label: "Código", name: "codeCenter", type: "number", placeholder: "Código del centro", required: true },
+            { label: "Dirección", name: "address", type: "text", placeholder: "Ingrese la dirección", required: true },
+            { label: "Regional", name: "regional", type: "select", customSelect: true, options: regionals, placeholder: "Seleccione la regional", required: true },
+          ]} onClose={() => setShowAddModal(false)} onSubmit={handleSubmitAdd} submitText="Registrar" cancelText="Cancelar" customRender={undefined} onProgramChange={undefined} />
+
+          {/* Add confirmation modal */}
+          <ConfirmModal isOpen={showAddConfirm} title="¿Confirmar registro?" message="¿Estás seguro de que deseas registrar este centro?" confirmText="Sí, registrar" cancelText="Cancelar" onConfirm={handleConfirmAdd} onCancel={() => { setShowAddConfirm(false); setPendingData(null); }} />
+
+          {/* Notification modal */}
+          <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} type={notifType} title={notifTitle} message={notifMessage} />
+        </>
+      )}
+    </div>
+  );
+};
+
+export default CenterSection;
