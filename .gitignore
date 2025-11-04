@@ -46,3 +46,8 @@ docker-compose.override.yml
 docker-compose.local.yml
 *.sql
 bdautogestion.sql
+
+# ignorar archivos de entorno
+.env
+.env.local
+.env.*.local

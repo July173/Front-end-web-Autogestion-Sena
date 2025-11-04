@@ -65,3 +65,14 @@ export async function putApprentice(id: string, data: CreateApprentice) {
   return response.json();
 }
 
+/**
+ * Gets a single apprentice by person id.
+ * Uses the existing filtered endpoint and returns the first match or null.
+ * @param personId - Person ID to look up
+ */
+export async function getApprenticeById(personId: string | number) {
+  const apprentices = await getApprenticesByPerson(personId);
+  if (Array.isArray(apprentices) && apprentices.length > 0) return apprentices[0];
+  return null;
+}
+

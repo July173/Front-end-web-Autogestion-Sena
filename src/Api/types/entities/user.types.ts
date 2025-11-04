@@ -33,6 +33,7 @@ export interface User {
 }
 
 export interface RegisterResponse {
+  detail: string;
   person: import('./person.types').Person;
   user: User;
   success: string;

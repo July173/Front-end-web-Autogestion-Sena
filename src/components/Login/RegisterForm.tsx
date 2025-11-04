@@ -112,30 +112,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onNavigate }) => {
     e.preventDefault();
     if (validate()) {
       setLoading(true);
-  // Split names and surnames and capitalize
+      // Split names and surnames and capitalize
       const [first_name, ...restNames] = capitalizeWords(formData.names.trim()).split(' ');
       const second_name = restNames.join(' ');
       const [first_last_name, ...restSurnames] = capitalizeWords(formData.surnames.trim()).split(' ');
       const second_last_name = restSurnames.join(' ');
-          const payload: RegisterPayload = {
-            email: formData.email,
-            first_name,
-            second_name,
-            first_last_name,
-            second_last_name,
-            type_identification: Number(formData.documentType), // send id as number
-            number_identification: Number(formData.documentNumber),
-            phone_number: Number(formData.phone),
-            password: formData.documentNumber, // For now, use document number as password
-            image: formData.image || undefined,
-          };
+      const payload: RegisterPayload = {
+        email: formData.email,
+        first_name,
+        second_name,
+        first_last_name,
+        second_last_name,
+        type_identification: Number(formData.documentType),
+        number_identification: Number(formData.documentNumber),
+        phone_number: Number(formData.phone),
+        password: formData.documentNumber,
+        image: formData.image || undefined,
+      };
       try {
         const response = await registerApprentice(payload);
-  // Show success notification
-        showRegistrationSuccess();
-  setShowPending(true); // To show pending notification after
+        // Show success notification with backend message
+        showNotification('success', 'Registro exitoso', response.detail || 'El registro se completó correctamente.');
+        setShowPending(true);
       } catch (error) {
-  // Show error notification
+        // Log backend response for debugging
+        console.error('Error capturado:', error); // Depuración
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         showNotification('warning', 'Error en el registro', errorMessage);
       } finally {
