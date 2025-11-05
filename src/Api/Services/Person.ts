@@ -45,7 +45,6 @@ export async function getPersonById(id: string): Promise<Person> {
   return response.json();
 }
 
-
 /**
  * Registers a new apprentice in the system.
  * @param payload - Apprentice data to register
