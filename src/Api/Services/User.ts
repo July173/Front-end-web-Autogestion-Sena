@@ -1,6 +1,23 @@
 import { ENDPOINTS } from "../config/ConfigApi";
-import { ValidateLoginResponse ,UserStatus} from "../types/entities/user.types";
+import { ValidateLoginResponse ,UserStatus, User} from "../types/entities/user.types";
 
+
+// methodo post for send code 2fa
+export async function verifySecondFactorCode({ email, code }: { email: string; code: string }): Promise<{ success: boolean; message?: string; user?: User }> {
+	const response = await fetch(ENDPOINTS.user.validateSecondFactor, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ email, code }),
+	});
+	const data = await response.json();
+	if (response.ok) {
+		return { success: true, user: data.user };
+	} else {
+		return { success: false, message: data.error || "Código inválido" };
+	}
+}
 
 /**
  * Gets a user by ID, including nested person and role data.

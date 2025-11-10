@@ -2,6 +2,14 @@ import React, { useEffect, useState } from "react";
 import DashboardCharts from "./DashboardCharts";
 import { getApprentices } from "../../Api/Services/Apprentice";
 import { getAllRequests, getRequestAsignationById } from "../../Api/Services/RequestAssignaton";
+import { User } from "../../Api/types/entities/user.types";
+
+interface RequestData {
+  fecha_solicitud?: string;
+  request_date?: string;
+  date?: string;
+  request_state: "ASIGNADO" | "SIN_ASIGNAR";
+}
 
 /**
  * Admin dashboard home view (extracted from Figma design).
@@ -12,7 +20,25 @@ const AdminDashboardView: React.FC = () => {
   const [solicitudesSinAsignar, setSolicitudesSinAsignar] = useState<number | null>(null);
   const [solicitudesAsignadas, setSolicitudesAsignadas] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [requestsData, setRequestsData] = useState<any[]>([]);
+  const [requestsData, setRequestsData] = useState<RequestData[]>([]);
+  const [userData, setUserData] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Leer los datos del usuario desde el localStorage
+    const storedUser = localStorage.getItem("user_dashboard");
+    
+    if (storedUser) {
+      try {
+        const parsedUser: User = JSON.parse(storedUser);
+        
+        setUserData(parsedUser);
+      } catch (error) {
+        console.error("Error al parsear los datos del usuario desde el localStorage en AdminDashboardView:", error);
+      }
+    } else {
+      console.warn("No se encontraron datos del usuario en localStorage en AdminDashboardView."); // Log de depuración
+    }
+  }, []);
 
   useEffect(() => {
     /**
@@ -21,16 +47,17 @@ const AdminDashboardView: React.FC = () => {
      */
     async function fetchData() {
       setLoading(true);
+     
       try {
         // Apprentices
         const aprendices = await getApprentices();
-        console.log("Aprendices recibidos:", aprendices);
+       
         const activos = Array.isArray(aprendices) ? aprendices.filter(a => a.active).length : 0;
         setAprendicesCount(activos);
 
         // Requests
         const solicitudes = await getAllRequests();
-        console.log("Solicitudes recibidas:", solicitudes);
+      
         
         // Validate that requests is an array
         const solicitudesArray = Array.isArray(solicitudes) ? solicitudes : [];
@@ -44,7 +71,6 @@ const AdminDashboardView: React.FC = () => {
         );
 
         const requestAsignations = await Promise.all(requestAsignationPromises);
-        console.log("Request asignations obtenidos:", requestAsignations);
 
         // Filter out nulls
         const validRequestAsignations = requestAsignations.filter(r => r !== null);
@@ -69,20 +95,29 @@ const AdminDashboardView: React.FC = () => {
 
       } catch (err) {
         console.error("Error al cargar datos del dashboard:", err);
-        // Only set to 0 if aprendices failed
-        setAprendicesCount(prev => prev ?? 0);
-        setSolicitudesSinAsignar(0);
-        setSolicitudesAsignadas(0);
       } finally {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+
+    if (userData) {
+      fetchData();
+    } else {
+      console.warn("No se encontró userData para cargar el dashboard."); // Log de depuración
+    }
+  }, [userData]);
+
+  if (!userData) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg p-8 w-full">
-      <h1 className="text-3xl font-bold text-green-700 mb-6">BIENVENIDO A AUTOGESTIÓN SENA</h1>
+      <h1 className="text-3xl font-bold text-green-700 mb-6">BIENVENIDO, {userData.person?.first_name?.toUpperCase()}!</h1>
       <div className="flex flex-wrap gap-6 justify-center mb-8">
         <div className="bg-white rounded-xl shadow p-4 w-56">
           <p className="text-gray-600 text-sm">Registro de</p>
@@ -111,7 +146,7 @@ const AdminDashboardView: React.FC = () => {
           </p>
         </div>
       </div>
-  <DashboardCharts requestsData={requestsData} />
+      <DashboardCharts requestsData={requestsData} />
     </div>
   );
 };

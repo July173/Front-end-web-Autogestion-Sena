@@ -1,5 +1,6 @@
-import React from "react";
-import { BsCalendar2Week, BsClockHistory, BsMortarboardFill, BsPersonCheck, BsPersonLinesFill } from "react-icons/bs";
+import React, { useEffect, useState } from "react";
+import { BsCalendar2Week, BsClockHistory, BsMortarboardFill, BsPersonCheck } from "react-icons/bs";
+import { User } from "../../Api/types/entities/user.types";
 
 
 /**
@@ -42,6 +43,20 @@ const InstructorDashboardCard: React.FC<InstructorDashboardCardProps> = ({ title
  * Replace static data with real backend data as needed.
  */
 export const InstructorDashboard: React.FC = () => {
+  const [userData, setUserData] = useState<User | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user_dashboard");
+    if (storedUser) {
+      try {
+        const parsedUser: User = JSON.parse(storedUser);
+        setUserData(parsedUser);
+      } catch (error) {
+        console.error("Error al parsear los datos del usuario desde el localStorage:", error);
+      }
+    }
+  }, []);
+
   // Real backend data should be consumed here
   // Example static data:
   const cards = [
@@ -78,7 +93,9 @@ export const InstructorDashboard: React.FC = () => {
   return (
     <div className="w-full flex flex-col items-center">
       <div className="bg-white rounded-[10px] px-8 md:px-52 py-8 flex flex-col items-center mb-7 w-full max-w-5xl">
-        <h1 className="text-green-700/80 text-4xl font-bold font-roboto leading-relaxed text-center">BIENVENIDO A AUTOGESTIÓN SENA</h1>
+        <h1 className="text-green-700/80 text-4xl font-bold font-roboto leading-relaxed text-center">
+          BIENVENIDO, {userData?.person?.first_name?.toUpperCase() || "INSTRUCTOR"}!
+        </h1>
       </div>
       <div className="w-full flex flex-wrap gap-7 justify-center items-start mb-7 max-w-5xl">
         {cards.map((card, idx) => (

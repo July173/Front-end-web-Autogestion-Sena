@@ -55,6 +55,7 @@ export const ENDPOINTS = {
   /** Endpoints for users (login, recovery, CRUD) */
   user: {
     validateLogin: `${API_BASE_URL}security/users/validate-institutional-login/`,
+    validateSecondFactor: `${API_BASE_URL}security/users/validate-2fa-code/`,
     // Sends the code and compares it  // Updates the password  
     getUser: `${API_BASE_URL}security/users/`,
     requestPasswordReset: `${API_BASE_URL}security/users/request-password-reset/`, // Envia el código y lo compara

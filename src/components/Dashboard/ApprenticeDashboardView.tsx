@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getApprenticeDashboard } from "@/Api/Services/RequestAssignaton";
+import { User } from "../../Api/types/entities/user.types";
 
 
 /**
@@ -57,6 +58,20 @@ interface DashboardData {
 const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprenticeId }) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<User | null>(null);
+
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user_dashboard");
+    if (storedUser) {
+      try {
+        const parsedUser: User = JSON.parse(storedUser);
+        setUserData(parsedUser);
+      } catch (error) {
+        console.error("Error al parsear los datos del usuario desde el localStorage:", error);
+      }
+    }
+  }, []);
 
 
   /**
@@ -77,10 +92,10 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
   }, [apprenticeId]);
 
   useEffect(() => {
-    if (apprenticeId) {
+    if (userData?.person?.id) {
       loadDashboardData();
     }
-  }, [apprenticeId, loadDashboardData]);
+  }, [userData, loadDashboardData]);
 
 
   /**
@@ -156,7 +171,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
         </div>
         <div className="flex flex-col text-white">
           <p className="text-3xl font-bold mb-0">¡ Bienvenido !</p>
-          <p className="text-2xl font-normal mb-0">{name || "Aprendiz"}</p>
+          <p className="text-2xl font-normal mb-0">{userData?.person?.first_name || "Aprendiz"}</p>
           <p className="text-lg font-normal">Gestione Desde Aquí Tus Procesos De Formación</p>
         </div>
       </div>

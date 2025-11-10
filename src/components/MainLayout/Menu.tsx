@@ -41,6 +41,7 @@ import { menu } from '../../Api/Services/Menu';
 import { MenuItem, MenuUserInfo, SidebarMenuProps } from '../../Api/types/entities/menu.types';
 import { useUserData } from '../../hook/useUserData';
 import { useNavigate } from "react-router-dom";
+import { User } from '../../Api/types/entities/user.types';
 import logo from '/public/logo.png';
 
 const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
@@ -76,6 +77,7 @@ const Menu: React.FC<SidebarMenuProps> = ({
   const [activeModule, setActiveModule] = useState<string | null>(null);
   const [openModule, setOpenModule] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [localUserData, setLocalUserData] = useState<User | null>(null);
 
   // Get real user email
   const { userData } = useUserData();
@@ -86,6 +88,8 @@ const Menu: React.FC<SidebarMenuProps> = ({
 
   const handleLogout = () => {
     localStorage.removeItem('user_data');
+    localStorage.removeItem('user_dashboard');
+    localStorage.removeItem('user_email');
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     if (onNavigate) {
@@ -95,14 +99,42 @@ const Menu: React.FC<SidebarMenuProps> = ({
     }
   };
 
+  // Efecto para cargar los datos del usuario desde localStorage
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user_dashboard");
+    if (storedUser) {
+      try {
+        const parsedUser: User = JSON.parse(storedUser);
+        setLocalUserData(parsedUser);
+      } catch (error) {
+        console.error("Error al parsear los datos del usuario en Menu:", error);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const fetchMenuData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await menu.getMenuItems(userId, userName);
+        
+        // Usar los datos del localStorage para obtener el menú
+        const userIdFromStorage = localUserData?.id?.toString() || userId;
+        const userNameFromStorage = localUserData?.person?.first_name || userName;
+        
+        
+        const data = await menu.getMenuItems(userIdFromStorage, userNameFromStorage);
         setMenuItems(data.menuItems);
-        setUserInfo(data.userInfo);
+        
+        // Actualizar la información del usuario con los datos del localStorage
+        const updatedUserInfo = {
+          name: localUserData?.person?.first_name 
+            ? `${localUserData.person.first_name} ${localUserData.person.first_last_name || ''}`.trim()
+            : data.userInfo.name,
+          role: localUserData?.role?.type_role || data.userInfo.role
+        };
+        
+        setUserInfo(updatedUserInfo);
       } catch (err) {
         setError('Error al cargar el menú');
         console.error('Error loading menu:', err);
@@ -110,10 +142,12 @@ const Menu: React.FC<SidebarMenuProps> = ({
         setLoading(false);
       }
     };
-    if (userId) {
+    
+    // Solo cargar el menú si tenemos datos del usuario (ya sea del localStorage o de las props)
+    if (localUserData || userId) {
       fetchMenuData();
     }
-  }, [userId, userName]);
+  }, [localUserData, userId, userName]);
 
   const groupedModules: Record<string, MenuItem[]> = {};
   menuItems.forEach(item => {
@@ -293,9 +327,13 @@ const Menu: React.FC<SidebarMenuProps> = ({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-medium truncate">{userInfo.name}</p>
+              <p className="text-white font-medium truncate">
+                {localUserData?.person?.first_name 
+                  ? `${localUserData.person.first_name} ${localUserData.person.first_last_name || ''}`.trim()
+                  : userInfo.name}
+              </p>
               <div className="inline-block bg-[#0F172A] text-[#61F659] text-xs px-2 py-1 rounded-full mt-1">
-                {userInfo.role}
+                {localUserData?.role?.type_role || userInfo.role}
               </div>
             </div>
           </div>
@@ -311,10 +349,12 @@ const Menu: React.FC<SidebarMenuProps> = ({
           {/* User information: name and email */}
           <div className="flex flex-col items-start mb-4">
             <span className="text-gray-800 font-semibold text-base leading-tight">
-              {userInfo.name}
+              {localUserData?.person?.first_name 
+                ? `${localUserData.person.first_name} ${localUserData.person.first_last_name || ''}`.trim()
+                : userInfo.name}
             </span>
             <span className="text-gray-500 text-sm leading-tight break-all">
-              {userData?.email || ''}
+              {localUserData?.email || userData?.email || ''}
             </span>
           </div>
 
@@ -333,8 +373,8 @@ const Menu: React.FC<SidebarMenuProps> = ({
           {/* Rol */}
           <div className="flex items-center gap-2 text-gray-700 text-sm font-medium mb-4 pl-1">
             <PersonCheck className="w-4 h-4" />
-            {userInfo.role}
-            {userInfo.role && (
+            {localUserData?.role?.type_role || userInfo.role}
+            {(localUserData?.role?.type_role || userInfo.role) && (
               <span className="ml-1 w-2 h-2 bg-green-500 rounded-full inline-block"></span>
             )}
           </div>

@@ -58,3 +58,8 @@ export interface UserStatus {
   is_active?: boolean;
   estado?: string;
 }
+
+export interface SecondFactorRequest {
+  email: string;
+  code: string;
+}

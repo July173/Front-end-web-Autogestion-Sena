@@ -5,11 +5,15 @@ import GenericDashboardView from "../components/Dashboard/GenericDashboardView";
 import { useUserData } from "../hook/useUserData";
 import { useState, useEffect } from "react";
 import { getApprenticeById } from "../Api/Services/Apprentice";
+import { User } from "../Api/types/entities/user.types"; // Importar el tipo User
+import { useNavigate } from "react-router-dom"; // Importar navigate
 
 export const Home = () => {
   const { userData, isLoading } = useUserData();
   const [apprenticeId, setApprenticeId] = useState<number | undefined>(undefined);
   const [loadingApprentice, setLoadingApprentice] = useState(false);
+  const [localUserData, setLocalUserData] = useState<User | null>(null); // Estado local para manejar los datos del usuario
+  const navigate = useNavigate();
 
   const getUserName = () => {
     if (userData?.email) {
@@ -44,6 +48,31 @@ export const Home = () => {
     fetchApprenticeId();
   }, [userData]);
 
+  useEffect(() => {
+    // Leer los datos del usuario desde el localStorage
+    const storedUser = localStorage.getItem("user_dashboard");
+    
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        
+        if (parsedUser && parsedUser.role) {
+          
+          setLocalUserData(parsedUser); // Asignar los datos al estado local
+        } else {
+          console.warn("El usuario no tiene un rol definido en los datos parseados."); // Log de depuración
+        }
+      } catch (error) {
+        console.error("Error al parsear los datos del usuario desde el localStorage:", error);
+        localStorage.removeItem("user_dashboard");
+        navigate("/login");
+      }
+    } else {
+      console.warn("No se encontraron datos del usuario en localStorage. Redirigiendo a login."); // Log de depuración
+      navigate("/login");
+    }
+  }, [navigate]);
+
   if (isLoading || loadingApprentice) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -65,26 +94,32 @@ export const Home = () => {
     "coordinator": "coordinator"
   };
 
-  const roleRaw = userData?.role;
-  const role = roleMap[roleRaw] || null;
 
-  // Render view according to role
+
+const roleRaw = localUserData?.role; // Acceder directamente al rol (es un número, no un objeto)
+
+
+const role = roleMap[roleRaw] || null;
+
   if (role === "admin") {
+  
     return <AdminDashboardView />;
   }
   if (role === "aprendiz") {
+  
     return <ApprenticeDashboardView name={getUserName()} apprenticeId={apprenticeId} />;
   }
   if (role === "instructor") {
+  
     return <InstructorDashboard />;
   }
   if (role === "coordinator") {
-    // If you have a specific view for coordinator, put it here
-    // return <CoordinatorDashboardView nombre={getUserName()} />;
+  
     return <AdminDashboardView/>;
   }
 
   // Generic view for unrecognized roles
+  
   return <GenericDashboardView name={getUserName()} />;
 };
 
