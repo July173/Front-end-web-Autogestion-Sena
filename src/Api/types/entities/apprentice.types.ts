@@ -23,6 +23,6 @@ export interface CreateApprentice {
   phone_number: string;
   email: string;
   program: number;
-  ficha: string;
+  ficha_id: string;
   role?: number;
 }

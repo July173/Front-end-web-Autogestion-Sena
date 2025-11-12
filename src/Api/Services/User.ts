@@ -173,3 +173,20 @@ export function getUserStatus(user: UserStatus) {
 }
 
 
+/**
+ * Filters users using the backend filter endpoint.
+ * Endpoint: GET /security/users/filter/?role=...&search=...
+ * @param params - Filter params { role?: string, search?: string }
+ * @returns Promise with the array of filtered users
+ */
+export async function filterUsers(params: { role?: string; search?: string }) {
+	const { role, search } = params || {};
+	const base = ENDPOINTS.user.filter;
+	let url = `${base}?`;
+	if (role) url += `role=${encodeURIComponent(String(role))}&`;
+	if (search) url += `search=${encodeURIComponent(String(search))}&`;
+	url = url.replace(/&$/, '');
+	const response = await fetch(url);
+	if (!response.ok) throw new Error('Error al filtrar usuarios');
+	return response.json();
+}

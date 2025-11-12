@@ -1,7 +1,7 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { getUsers, deleteUser, getUserStatus } from '../../Api/Services/User';
+import { getUsers, deleteUser, getUserStatus, filterUsers } from '../../Api/Services/User';
 import { User, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import ModalCreateUser from './ModalCreateUser';
 import ConfirmModal from '../ConfirmModal';
@@ -105,15 +105,10 @@ const Users = () => {
     setLoading(true);
     setError('');
     try {
-      const { ENDPOINTS } = await import('../../Api/config/ConfigApi');
-      let url = `${ENDPOINTS.user.filter}?`;
-      if (role) url += `role=${encodeURIComponent(role)}&`;
-      if (search) url += `search=${encodeURIComponent(search)}&`;
-      url = url.replace(/&$/, '');
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Error al filtrar usuarios');
-      const filteredUsers = await response.json();
-      setUsers(filteredUsers);
+      const filteredUsers = await filterUsers({ role, search });
+      if (!Array.isArray(filteredUsers)) {
+        throw new Error('Respuesta de filtrado inválida');
+      } setUsers(filteredUsers);
     } catch (err) {
       setError('No se pudo filtrar usuarios');
     } finally {

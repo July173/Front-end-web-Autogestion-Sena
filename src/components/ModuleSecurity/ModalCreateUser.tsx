@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {  postApprentice } from '../../Api/Services/Apprentice';
+import { postApprentice } from '../../Api/Services/Apprentice';
 import { postInstructor } from '../../Api/Services/Instructor';
 import { getRegionales } from '../../Api/Services/Regional';
 import { getSedes } from '../../Api/Services/Sede';
@@ -18,52 +18,54 @@ import type {
   KnowledgeArea,
   Ficha,
 } from '../../Api/types/Modules/general.types';
-import type {Role} from '../../Api/types/entities/role.types';
-import type {CreateApprentice} from '../../Api/types/entities/apprentice.types';
-import type {CreateInstructor} from '../../Api/types/entities/instructor.types';
+import type { Role } from '../../Api/types/entities/role.types';
+import type { CreateApprentice } from '../../Api/types/entities/apprentice.types';
+import type { CreateInstructor } from '../../Api/types/entities/instructor.types';
 import CustomSelect from '../CustomSelect';
- 
- /**
-  * Validations for learner (aprendiz)
-  * @param data - Learner data to validate
-  * @returns Error message if validation fails, null otherwise
-  */
-  const validateApprentice = (data) => {
-    if (!data.type_identification || !data.number_identification || !data.first_name || !data.first_last_name || !data.phone_number || !data.email || !data.program_id || !data.ficha_id) {
-      return 'Todos los campos con * son obligatorios.';
-    }
-    if (isNaN(Number(data.number_identification))) {
-      return 'El número de documento debe ser numérico.';
-    }
-    if (!/^[0-9]{10}$/.test(data.phone_number)) {
-      return 'El teléfono debe tener 10 dígitos.';
-    }
-    if (!data.email.endsWith('@soy.sena.edu.co')) {
-      return 'El correo de aprendiz debe terminar en @soy.sena.edu.co';
-    }
-    return null;
-  };
 
-  /**
-   * Validations for instructor
-   * @param data - Instructor data to validate
-   * @returns Error message if validation fails, null otherwise
-   */
-  const validateInstructor = (data) => {
-    if (!data.type_identification || !data.number_identification || !data.first_name || !data.first_last_name || !data.phone_number || !data.email || !data.role_id || !data.contractType || !data.contractStartDate || !data.contractEndDate || !data.knowledgeArea || !data.center_id || !data.sede_id || !data.regional_id) {
-      return 'Todos los campos son obligatorios excepto segundo nombre y segundo apellido.';
-    }
-    if (isNaN(Number(data.number_identification))) {
-      return 'El número de documento debe ser numérico.';
-    }
-    if (!/^[0-9]{10}$/.test(data.phone_number)) {
-      return 'El teléfono debe tener 10 dígitos.';
-    }
-    if (!data.email.endsWith('@sena.edu.co')) {
-      return 'El correo de instructor debe terminar en @sena.edu.co';
-    }
-    return null;
-  };
+/**
+ * Validations for learner (aprendiz)
+ * @param data - Learner data to validate
+ * @returns Error message if validation fails, null otherwise
+ */
+const validateApprentice = (data) => {
+  // Note: apprentice shape uses `program` and `ficha` (not program_id / ficha_id)
+  if (!data.type_identification || !data.number_identification || !data.first_name || !data.first_last_name || !data.phone_number || !data.email || !data.program || !data.ficha_id) {
+    return 'Todos los campos con * son obligatorios.';
+  }
+  if (isNaN(Number(data.number_identification))) {
+    return 'El número de documento debe ser numérico.';
+  }
+  if (!/^[0-9]{10}$/.test(data.phone_number)) {
+    return 'El teléfono debe tener 10 dígitos.';
+  }
+  if (!data.email.endsWith('@soy.sena.edu.co')) {
+    return 'El correo de aprendiz debe terminar en @soy.sena.edu.co';
+  }
+  return null;
+};
+
+/**
+ * Validations for instructor
+ * @param data - Instructor data to validate
+ * @returns Error message if validation fails, null otherwise
+ */
+const validateInstructor = (data) => {
+  // Use the keys present in CreateInstructor state: role, contract_type, contract_start_date, contract_end_date, knowledge_area, center, sede, regional
+  if (!data.type_identification || !data.number_identification || !data.first_name || !data.first_last_name || !data.phone_number || !data.email || !data.role || !data.contract_type || !data.contract_start_date || !data.contract_end_date || !data.knowledge_area || !data.center || !data.sede || !data.regional) {
+    return 'Todos los campos son obligatorios excepto segundo nombre y segundo apellido.';
+  }
+  if (isNaN(Number(data.number_identification))) {
+    return 'El número de documento debe ser numérico.';
+  }
+  if (!/^[0-9]{10}$/.test(data.phone_number)) {
+    return 'El teléfono debe tener 10 dígitos.';
+  }
+  if (!data.email.endsWith('@sena.edu.co')) {
+    return 'El correo de instructor debe terminar en @sena.edu.co';
+  }
+  return null;
+};
 
 /**
  * Modal component for creating new users (learners or instructors) in the SENA system.
@@ -113,7 +115,7 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
     phone_number: '',
     email: '',
     program: 0,
-    ficha: '',
+    ficha_id: '',
   });
 
   // State for instructor form data
@@ -123,7 +125,7 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
     first_last_name: '',
     second_last_name: '',
     phone_number: '',
-    type_identification: '',
+    type_identification: 0,
     number_identification: '',
     email: '',
     role: 0,
@@ -168,7 +170,7 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
     } else {
       setFichas([]);
     }
-    // Clear selected ficha if program changes
+    // Clear selected ficha_id if program changes
     setApprentice(prev => ({ ...prev, ficha_id: '' }));
   }, [apprentice.program]);
 
@@ -352,18 +354,18 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
               </div>
               <div>
                 <label className="block text-sm">Teléfono <span className="text-red-600">*</span></label>
-                <input 
+                <input
                   type="tel"
                   inputMode="numeric"
                   pattern="\d*"
-                  name="phone_number" 
-                  value={apprentice.phone_number} 
+                  name="phone_number"
+                  value={apprentice.phone_number}
                   onChange={e => {
                     const onlyNumbers = e.target.value.replace(/\D/g, '');
                     setApprentice(prev => ({ ...prev, phone_number: onlyNumbers }));
-                  }} 
-                  className="w-full border rounded-lg px-2 py-1 placeholder:text-xs" 
-                  placeholder="ej: 3102936537" 
+                  }}
+                  className="w-full border rounded-lg px-2 py-1 placeholder:text-xs"
+                  placeholder="ej: 3102936537"
                   maxLength={10}
                 />
               </div>
@@ -371,8 +373,7 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
                 <label className="block text-sm">Programa de formación <span className="text-red-600">*</span></label>
                 <CustomSelect
                   value={apprentice.program ? String(apprentice.program) : ""}
-                  onChange={value => setApprentice(prev => ({ ...prev, program_id: Number(value) }))}
-                  options={programas.filter(opt => opt.active).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
+                  onChange={value => setApprentice(prev => ({ ...prev, program: Number(value) }))} options={programas.filter(opt => opt.active).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
                   placeholder="Seleccionar ..."
                   classNames={{
                     trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
@@ -383,10 +384,10 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
               <div>
                 <label className="block text-sm">Ficha <span className="text-red-600">*</span></label>
                 <CustomSelect
-                  value={apprentice.ficha}
+                  value={apprentice.ficha_id}
                   onChange={value => setApprentice(prev => ({ ...prev, ficha_id: value }))}
                   options={fichas.filter(opt => opt.active).map(opt => ({ value: String(opt.id), label: String(opt.file_number || opt.id) }))}
-                  placeholder="Seleccionar ..."
+                  placeholder="Seleccion  ar ..."
                   classNames={{
                     trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
                     label: "hidden",
@@ -395,17 +396,16 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
               </div>
             </div>
 
-            
+
           ) : (
             // Instructor form fields with hierarchical selections
             <div className="grid grid-cols-2 gap-3">
-              
+
               <div>
                 <label className="block text-sm">Tipo de documento <span className="text-red-600">*</span></label>
                 <CustomSelect
-                  value={instructor.type_identification}
-                  onChange={value => setInstructor(prev => ({ ...prev, type_identification: value }))}
-                  options={documentTypesOptions}
+                  value={String(instructor.type_identification || '')}
+                  onChange={value => setInstructor(prev => ({ ...prev, type_identification: Number(value) }))} options={documentTypesOptions}
                   placeholder="Seleccionar ..."
                   classNames={{
                     trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
@@ -432,18 +432,18 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
               </div>
               <div>
                 <label className="block text-sm">Teléfono <span className="text-red-600">*</span></label>
-                <input 
+                <input
                   type="tel"
                   inputMode="numeric"
                   pattern="\d*"
-                  name="phone_number" 
-                  value={instructor.phone_number} 
+                  name="phone_number"
+                  value={instructor.phone_number}
                   onChange={e => {
                     const onlyNumbers = e.target.value.replace(/\D/g, '');
                     setInstructor(prev => ({ ...prev, phone_number: onlyNumbers }));
-                  }} 
-                  className="w-full border rounded px-2 py-1 placeholder:text-xs" 
-                  placeholder="ej: 3102936537" 
+                  }}
+                  className="w-full border rounded px-2 py-1 placeholder:text-xs"
+                  placeholder="ej: 3102936537"
                   maxLength={10}
                 />
               </div>
@@ -452,7 +452,7 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
                 <label className="block text-sm">Regional <span className="text-red-600">*</span></label>
                 <CustomSelect
                   value={instructor.regional ? String(instructor.regional) : ""}
-                  onChange={value => setInstructor(prev => ({ ...prev, regional_id: Number(value), center_id: 0, sede_id: 0 }))}
+                  onChange={value => setInstructor(prev => ({ ...prev, regional: Number(value), center: 0, sede: 0 }))}
                   options={regionales.filter(opt => opt.id != null).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
                   placeholder="Seleccionar ..."
                   classNames={{
@@ -478,7 +478,7 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
                 <label className="block text-sm">Sede <span className="text-red-600">*</span></label>
                 <CustomSelect
                   value={instructor.sede ? String(instructor.sede) : ""}
-                  onChange={value => setInstructor(prev => ({ ...prev, sede_id: Number(value) }))}
+                  onChange={value => setInstructor(prev => ({ ...prev, sede: Number(value) }))}
                   options={sedesFiltradas.map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
                   placeholder="Seleccionar ..."
                   classNames={{
@@ -500,31 +500,31 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
                   }}
                 />
               </div>
-                <div>
-                   <label className="block text-sm">Tipo de contrato <span className="text-red-600">*</span></label>
+              <div>
+                <label className="block text-sm">Tipo de contrato <span className="text-red-600">*</span></label>
                 <CustomSelect
                   value={instructor.contract_type}
                   onChange={value => setInstructor(prev => ({ ...prev, contract_type: value }))}
                   options={contractTypesOptions}
                   placeholder="Seleccionar ..."
                   classNames={{
-                  trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
-                  label: "hidden",
+                    trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
+                    label: "hidden",
                   }}
                 />
-                </div>
+              </div>
               <div>
                 <label className="block text-sm">Fecha inicio contrato <span className="text-red-600">*</span></label>
-                <input type="date" name="contractStartDate" value={instructor.contract_start_date} onChange={e => handleChange(e, 'instructor')} className="w-full border rounded-lg px-2 py-2 text-xs" />
+                <input type="date" name="contract_start_date" value={instructor.contract_start_date} onChange={e => handleChange(e, 'instructor')} className="w-full border rounded-lg px-2 py-2 text-xs" />
               </div>
               <div>
                 <label className="block text-sm">Fecha fin de contrato <span className="text-red-600">*</span></label>
-                <input 
-                  type="date" 
-                  name="contractEndDate" 
-                  value={instructor.contract_end_date} 
-                  onChange={e => handleChange(e, 'instructor')} 
-                  className="w-full border rounded-lg px-2 py-2 text-xs" 
+                <input
+                  type="date"
+                  name="contract_end_date"
+                  value={instructor.contract_end_date}
+                  onChange={e => handleChange(e, 'instructor')}
+                  className="w-full border rounded-lg px-2 py-2 text-xs"
                   min={instructor.contract_start_date || undefined}
                 />
               </div>
@@ -532,7 +532,7 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
                 <label className="block text-sm">Rol <span className="text-red-600">*</span></label>
                 <CustomSelect
                   value={instructor.role ? String(instructor.role) : ""}
-                  onChange={value => setInstructor(prev => ({ ...prev, role_id: Number(value) }))}
+                  onChange={value => setInstructor(prev => ({ ...prev, role: Number(value) }))}
                   options={roles.filter(opt => opt.active && opt.type_role?.toLowerCase() !== 'aprendiz').map(opt => ({ value: String(opt.id), label: String(opt.type_role) }))}
                   placeholder="Seleccionar ..."
                   classNames={{

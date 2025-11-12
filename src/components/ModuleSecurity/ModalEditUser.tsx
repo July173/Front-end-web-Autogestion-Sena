@@ -306,13 +306,33 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
         second_last_name: apellidos.slice(1).join(' '),
         role_id: userData?.role?.id || userData?.apprentice?.role_id || 0,
         program_id: Number(apprentice.program_id),
-        ficha_id: Number(apprentice.ficha_id),
+        ficha_id: String(apprentice.ficha_id ?? ''),
       };
       // Use learner id if available
       const apprenticeId = userData?.apprentice?.id ? userData.apprentice.id : userId;
       try {
-        const putResult = await putApprentice(String(apprenticeId), payload);
-        console.debug('PUT apprentice response', putResult);
+        // Debug payload to inspect what is being sent to the server
+        console.debug('PUT apprentice payload (pre-send)', payload);
+        // Build minimal API payload matching CreateApprentice shape
+        const apiPayload = {
+          type_identification: String(payload.type_identification || ''),
+          number_identification: String(payload.number_identification || ''),
+          first_name: String(payload.first_name || ''),
+          second_name: String(payload.second_name || ''),
+          first_last_name: String(payload.first_last_name || ''),
+          second_last_name: String(payload.second_last_name || ''),
+          phone_number: String(payload.phone_number || ''),
+          email: String(payload.email || ''),
+          // CreateApprentice expects `program` (not program_id)
+          program: Number(payload.program_id || payload.program || 0),
+          // Include both `ficha` (numeric) and `ficha_id` (string) so we satisfy whichever field the API expects
+          ficha: Number(payload.ficha_id ?? 0),
+          ficha_id: String(payload.ficha_id ?? ''),
+          // Role field name expected is `role`
+          role: Number(payload.role_id || payload.role || 0),
+        };
+        console.debug('PUT apprentice payload (for API)', apiPayload);
+        const putResult = await putApprentice(String(apprenticeId), apiPayload as unknown as CreateApprentice); console.debug('PUT apprentice response', putResult);
         // Re-fetch full user to verify persistence and update UI
         try {
           const refreshedUser = await getUserById(String(apprenticeId));
@@ -321,7 +341,26 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
             const refreshedApprentice = refreshedUser.apprentice || null;
             const refreshedPerson = refreshedUser.person || null;
             if (refreshedApprentice) {
-              setApprentice(prev => prev ? ({ ...prev, ...(refreshedApprentice as CreateApprentice) }) : (refreshedApprentice as CreateApprentice & { programa_obj?: Program | null; ficha_obj?: Ficha | null; }));
+              // Normalize refreshed apprentice: backend may return ficha or ficha_id or ficha object
+              const ra = refreshedApprentice as unknown as Record<string, unknown>;
+              let fichaIdVal: string | number | undefined = undefined;
+              let fichaObj: Ficha | null = null;
+              if (ra['ficha_id'] !== undefined && ra['ficha_id'] !== null) {
+                fichaIdVal = ra['ficha_id'] as string | number;
+              } else if (ra['ficha'] !== undefined && ra['ficha'] !== null) {
+                const fichaField = ra['ficha'];
+                if (typeof fichaField === 'object') {
+                  const fichaObjCandidate = fichaField as unknown as Ficha;
+                  fichaIdVal = fichaObjCandidate.id as number | string; // id exists on Ficha
+                  fichaObj = fichaObjCandidate;
+                } else {
+                  fichaIdVal = fichaField as string | number;
+                }
+              }
+              const normalizedAp: Record<string, unknown> = { ...(ra as Record<string, unknown>) };
+              if (fichaIdVal !== undefined) normalizedAp['ficha_id'] = String(fichaIdVal);
+              if (fichaObj) normalizedAp['ficha_obj'] = fichaObj;
+              setApprentice(prev => prev ? ({ ...prev, ...(normalizedAp as unknown as Partial<CreateApprentice & { programa_obj?: Program | null; ficha_obj?: Ficha | null; }>) }) : (normalizedAp as unknown as CreateApprentice & { programa_obj?: Program | null; ficha_obj?: Ficha | null; }));
             }
             if (refreshedPerson) {
               setUserData(prev => prev ? ({ ...prev, person: refreshedPerson, apprentice: refreshedApprentice || prev?.apprentice }) : ({ ...refreshedUser }));
@@ -632,13 +671,13 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
               </div>
               <div>
                 <label className="block text-sm">Fecha inicio contrato <span className="text-red-600">*</span></label>
-                <input type="date" name="contractStartDate" value={instructor.contract_start_date} onChange={e => handleChange(e, 'instructor')} className="w-full border rounded-lg px-2 py-2 text-xs" />
+                <input type="date" name="contract_start_date" value={instructor.contract_start_date} onChange={e => handleChange(e, 'instructor')} className="w-full border rounded-lg px-2 py-2 text-xs" />
               </div>
               <div>
                 <label className="block text-sm">Fecha fin de contrato <span className="text-red-600">*</span></label>
                 <input
                   type="date"
-                  name="contractEndDate"
+                  name="contract_end_date"
                   value={instructor.contract_end_date}
                   onChange={e => handleChange(e, 'instructor')}
                   className="w-full border rounded-lg px-2 py-2 text-xs"
