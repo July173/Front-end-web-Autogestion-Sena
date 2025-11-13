@@ -41,7 +41,7 @@ const Users = () => {
 
   // Main state for users and roles data
   const [users, setUsers] = useState<UsuarioRegistrado[]>([]);
-  const [roles, setRoles] = useState<Array<{ id: number; type_role: string }>>([]);
+  const [roles, setRoles] = useState<Array<{ id: number; name: string }>>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [rolesError, setRolesError] = useState('');
 
@@ -288,14 +288,15 @@ const Users = () => {
       ) : rolesError ? (
         <div className="mb-6 text-red-500">{rolesError}</div>
       ) : (
-        <FilterBar
+          <FilterBar
           onFilter={handleFilter}
           inputWidth="710px"
           searchPlaceholder="Buscar por nombre, apellido o documento"
           selects={[{
             name: 'role',
             value: '',
-            options: roles.map(r => ({ value: r.type_role, label: r.type_role })),
+            // map service `name` to select value/label
+            options: roles.map(r => ({ value: String(r.name), label: String(r.name) })),
             placeholder: 'Todos los roles',
           }]}
         />

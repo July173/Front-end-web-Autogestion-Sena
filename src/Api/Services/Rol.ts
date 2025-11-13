@@ -117,7 +117,10 @@ export async function getRoles() {
 			const id = (o['id'] as number) ?? Number(String(o['id'] ?? 0));
 			return {
 				id,
-				name: (o['nombre'] as string) ?? (o['name'] as string) ?? String(id),
+				// Prefer localized 'nombre', then 'name', then legacy 'type_role', finally id as string
+				name: (o['nombre'] as string) ?? (o['name'] as string) ?? (o['type_role'] as string) ?? String(id),
+				// keep legacy `type_role` for components that expect it
+				type_role: (o['type_role'] as string) ?? (o['nombre'] as string) ?? (o['name'] as string) ?? String(id),
 				description: (o['descripcion'] as string) ?? (o['description'] as string) ?? '',
 				active: typeof o['active'] === 'boolean' ? (o['active'] as boolean) : ((o['active'] as boolean) ?? true),
 				user_count: (o['cantidad_usuarios'] as number) ?? (o['user_count'] as number) ?? 0,
