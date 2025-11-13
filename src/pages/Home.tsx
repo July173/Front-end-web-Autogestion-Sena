@@ -4,7 +4,7 @@ import InstructorDashboard from "../components/Dashboard/InstructorDashboard";
 import GenericDashboardView from "../components/Dashboard/GenericDashboardView";
 import { useUserData } from "../hook/useUserData";
 import { useState, useEffect } from "react";
-import { getApprenticeById } from "../Api/Services/Apprentice";
+import { getApprenticesByPerson } from "../Api/Services/Apprentice";
 import { User } from "../Api/types/entities/user.types"; // Importar el tipo User
 import { useNavigate } from "react-router-dom"; // Importar navigate
 
@@ -32,10 +32,10 @@ export const Home = () => {
       if (userData?.person && userData?.role === 2) {
         setLoadingApprentice(true);
         try {
-          const apprentice = await getApprenticeById(userData.person);
-          if (apprentice) {
-            setApprenticeId(apprentice.id);
-            console.log("Apprentice ID encontrado:", apprentice.id);
+            const apprentices = await getApprenticesByPerson(userData.person);
+          if (apprentices && apprentices.length > 0) {
+            setApprenticeId(apprentices[0].id);
+            console.log("Apprentice ID encontrado:", apprentices[0].id);
           }
         } catch (error) {
           console.error("Error al obtener aprendiz ID:", error);
