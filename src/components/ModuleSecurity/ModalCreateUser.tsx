@@ -237,15 +237,25 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
       // Separate first and last names
       const nombres = apprentice.first_name.trim().split(' ');
       const apellidos = apprentice.first_last_name.trim().split(' ');
+      const fichaNumeric = apprentice.ficha_id ? Number(apprentice.ficha_id) : undefined;
       const payload = {
         ...apprentice,
         first_name: nombres[0] || '',
         second_name: nombres.slice(1).join(' '),
         first_last_name: apellidos[0] || '',
         second_last_name: apellidos.slice(1).join(' '),
-      };
+        // Normalize ficha: some backend implementations expect ficha as an object
+        // with an `id` attribute (e.g. { id: 123 }), others expect a numeric id.
+        // Include both forms to maximize compatibility.
+        ficha_id: fichaNumeric ?? apprentice.ficha_id,
+        ficha: fichaNumeric ?? apprentice.ficha_id,
+        ficha_obj: fichaNumeric ? { id: fichaNumeric } : undefined,
+      } as unknown;
+      // Debug payload so developers can paste the exact body when errors occur
+      // (remove or guard this in production)
+      console.debug('Creating apprentice payload', payload);
       try {
-        await postApprentice(payload);
+        await postApprentice(payload as unknown as CreateApprentice);
       } catch (err) {
         setError(getBackendErrorMsg(err));
         setLoading(false);
