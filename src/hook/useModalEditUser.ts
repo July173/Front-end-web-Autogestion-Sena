@@ -244,18 +244,18 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
       const apprenticeId = getObjProp<number>(userData?.apprentice, 'id') ?? userId;
       try {
         console.debug('PUT apprentice payload (pre-send)', payload);
+        // Build API payload matching UpdateApprenticeSerializer expected fields
         const apiPayload = {
-          type_identification: String(payload.type_identification || ''),
-          number_identification: String(payload.number_identification || ''),
+          type_identification: Number(payload.type_identification || 0),
+          number_identification: Number(payload.number_identification || 0),
           first_name: String(payload.first_name || ''),
           second_name: String(payload.second_name || ''),
           first_last_name: String(payload.first_last_name || ''),
           second_last_name: String(payload.second_last_name || ''),
-          phone_number: String(payload.phone_number || ''),
+          phone_number: payload.phone_number ? Number(payload.phone_number) : undefined,
           email: String(payload.email || ''),
-          program: Number(payload.program_id || payload.program || 0),
+          // send only `ficha` as the backend update serializer expects (integer id)
           ficha: Number(payload.ficha_id ?? 0),
-          ficha_id: String(payload.ficha_id ?? ''),
           role: Number(payload.role_id || payload.role || 0),
         };
         console.debug('PUT apprentice payload (for API)', apiPayload);

@@ -4,6 +4,7 @@ import ConfirmModal from '../ConfirmModal';
 import CustomSelect from '../CustomSelect';
 import { useDocumentTypes } from '../../hook/useDocumentTypes';
 import { useContractTypes } from '../../hook/useContractTypes';
+import type { Ficha } from '../../Api/types/Modules/general.types';
 import useModalEditUser from '../../hook/useModalEditUser';
 import type { CreateApprentice } from '../../Api/types/entities/apprentice.types';
 import type { CreateInstructor } from '../../Api/types/entities/instructor.types';
@@ -47,11 +48,34 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, tipo: 'aprendiz' | 'instructor') => {
     const { name, value } = e.target;
     if (tipo === 'aprendiz') {
-      setApprentice(prev => prev ? ({ ...(prev as Record<string, unknown>), [name]: value } as unknown as typeof prev) : prev);
+      setApprentice(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), [name]: value } as unknown as typeof prev) : prev);
     } else {
-      setInstructor(prev => prev ? ({ ...(prev as Record<string, unknown>), [name]: value } as unknown as typeof prev) : prev);
+      setInstructor(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), [name]: value } as unknown as typeof prev) : prev);
     }
   };
+
+  // Determine if the modal is editing the logged-in admin (to prevent changing own role)
+  // Support multiple possible localStorage keys/shapes: 'user_dashboard', 'user_data', and 'user_email'
+  const rawLogged = typeof window !== 'undefined' ? (localStorage.getItem('user_dashboard') || localStorage.getItem('user_data') || null) : null;
+  const rawLoggedEmail = typeof window !== 'undefined' ? (localStorage.getItem('user_email') || null) : null;
+  let loggedUserId: number | null = null;
+  let loggedUserEmail: string | null = null;
+  let loggedUserPersonId: number | null = null;
+  try {
+    if (rawLogged) {
+      const parsed = JSON.parse(rawLogged);
+      loggedUserId = parsed?.id ?? parsed?.user?.id ?? parsed?.user_id ?? null;
+      loggedUserEmail = parsed?.email ?? parsed?.user?.email ?? parsed?.user_email ?? null;
+      loggedUserPersonId = parsed?.person ?? parsed?.person_id ?? parsed?.user?.person ?? parsed?.user?.person_id ?? null;
+    }
+  } catch (e) {
+    // ignore
+  }
+  if (!loggedUserEmail && rawLoggedEmail) loggedUserEmail = rawLoggedEmail;
+  const ud = userData as unknown as { email?: string; person?: { id?: number } };
+  const isEditingSelf = Number(userId) === Number(loggedUserId) || (ud?.email && loggedUserEmail && String(ud.email) === String(loggedUserEmail)) || (ud?.person?.id && loggedUserPersonId && Number(ud.person.id) === Number(loggedUserPersonId));
+  const editingUserRoleName = ((userData as unknown) as { role?: { type_role?: string } })?.role?.type_role || '';
+  const isEditingAdminSelf = isEditingSelf && String(editingUserRoleName).toLowerCase() === 'administrador';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +142,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                   onChange={value => {
                     // update canonical program field used by hooks and also keep programa_obj for display
                     handleAprChange('program' as keyof CreateApprentice, Number(value));
-                    setApprentice(prev => prev ? ({ ...(prev as Record<string, unknown>), programa_obj: programas.find(p => p.id === Number(value)) || null, ficha_id: '' } as unknown as typeof prev) : prev);
+                    setApprentice(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), programa_obj: programas.find(p => p.id === Number(value)) || null, ficha_id: '' } as unknown as typeof prev) : prev);
                   }}
                   options={programas.filter(opt => opt.active).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
                   placeholder="Seleccionar ..."
@@ -130,16 +154,57 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
               </div>
               <div>
                 <label className="block text-sm">Ficha <span className="text-red-600">*</span></label>
-                <CustomSelect
-                  value={apprentice.ficha_id ? String(apprentice.ficha_id) : ""}
-                  onChange={value => handleAprChange('ficha_id' as keyof CreateApprentice, value)}
-                  options={fichas.filter(opt => opt.active).map(opt => ({ value: String(opt.id), label: String(opt.file_number || opt.id) }))}
-                  placeholder="Seleccionar ..."
-                  classNames={{
-                    trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
-                    label: "hidden",
-                  }}
-                />
+                {/* Include the current ficha in options even if it's inactive or not present in the fetched list */}
+                {(() => {
+                  const base = fichas || [];
+                  // Try to get ficha_obj from apprentice (may be null)
+                  const fichaObj = (apprentice as unknown as { ficha_obj?: Ficha })?.ficha_obj ?? null;
+                  // Accept ficha from multiple shapes: ficha_obj, ficha_id, or ficha (number)
+                  const fichaIdFromState = (apprentice as unknown as { ficha_id?: string | number, ficha?: number })?.ficha_id ?? ((apprentice as unknown as { ficha?: number })?.ficha ?? '');
+                  const extra: Ficha[] = [];
+
+                  if (fichaObj) {
+                    extra.push(fichaObj); 
+                  } else if (fichaIdFromState) {
+                    // Try to find the ficha in the base list by id
+                    const found = base.find(b => String(b.id) === String(fichaIdFromState));
+                    if (found) extra.push(found);
+                    else {
+                      // Synthesize a minimal ficha object so the select can display the currently-associated ficha
+                      const synthetic: Ficha = {
+                        id: Number(fichaIdFromState),
+                        file_number: Number(fichaIdFromState) || 0,
+                        program: Number(apprentice.program) || 0,
+                        active: false,
+                        type_modality: '',
+                      };
+                      extra.push(synthetic);
+                    }
+                  }
+
+                  // Merge by id, prefer base list order
+                  const merged = [...base];
+                  extra.forEach((e: Ficha) => {
+                    if (!merged.some(m => String(m.id) === String(e.id))) merged.push(e);
+                  });
+                  const options = merged.map((opt: Ficha) => ({ value: String(opt.id), label: String(opt.file_number ?? opt.id) }));
+                  return (
+                    <CustomSelect
+                      value={apprentice.ficha_id ? String(apprentice.ficha_id) : ((apprentice as unknown as { ficha?: number }).ficha ? String((apprentice as unknown as { ficha?: number }).ficha) : "")}
+                      onChange={value => {
+                        handleAprChange('ficha_id' as keyof CreateApprentice, value);
+                        // also keep ficha (number) in sync so other code paths can read it
+                        setApprentice(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), ficha: Number(value) } as unknown as typeof prev) : prev);
+                      }}
+                      options={options}
+                      placeholder="Seleccionar ..."
+                      classNames={{
+                        trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
+                        label: "hidden",
+                      }}
+                    />
+                  );
+                })()}
               </div>
             </div>
           ) : tab === 'instructor' && instructor ? (
@@ -196,7 +261,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                   value={instructor.regional ? String(instructor.regional) : ""}
                   onChange={value => {
                     handleInsChange('regional' as keyof CreateInstructor, Number(value));
-                    setInstructor(prev => prev ? ({ ...(prev as Record<string, unknown>), regional_obj: regionales.find(r => r.id === Number(value)) || null, center: 0, center_id: 0, sede: 0, sede_id: 0 } as unknown as typeof prev) : prev);
+                    setInstructor(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), regional_obj: regionales.find(r => r.id === Number(value)) || null, center: 0, center_id: 0, sede: 0, sede_id: 0 } as unknown as typeof prev) : prev);
                   }}
                   options={regionales.filter(opt => opt.active).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
                   placeholder="Seleccionar ..."
@@ -205,6 +270,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                     label: "hidden",
                   }}
                 />
+                {!instructor.regional && <div className="text-xs text-gray-500 mt-1">Regional no asignada</div>}
               </div>
               <div>
                 <label className="block text-sm">Centro <span className="text-red-600">*</span></label>
@@ -212,7 +278,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                   value={instructor.center ? String(instructor.center) : ""}
                   onChange={value => {
                     handleInsChange('center' as keyof CreateInstructor, Number(value));
-                    setInstructor(prev => prev ? ({ ...(prev as Record<string, unknown>), center_id: Number(value), centro_obj: centros.find(c => c.id === Number(value)) || null, sede: 0, sede_id: 0 } as unknown as typeof prev) : prev);
+                    setInstructor(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), center_id: Number(value), centro_obj: centros.find(c => c.id === Number(value)) || null, sede: 0, sede_id: 0 } as unknown as typeof prev) : prev);
                   }}
                   options={centros.filter(c => c.active && c.regional === (instructor.regional)).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
                   placeholder="Seleccionar ..."
@@ -222,6 +288,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                   }}
                   disabled={!instructor.regional}
                 />
+                {!instructor.center && <div className="text-xs text-gray-500 mt-1">Centro no asignado</div>}
               </div>
               <div>
                 <label className="block text-sm">Sede <span className="text-red-600">*</span></label>
@@ -229,7 +296,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                   value={instructor.sede ? String(instructor.sede) : ""}
                   onChange={value => {
                     handleInsChange('sede' as keyof CreateInstructor, Number(value));
-                    setInstructor(prev => prev ? ({ ...(prev as Record<string, unknown>), sede_id: Number(value), sede_obj: sedes.find(s => s.id === Number(value)) || null } as unknown as typeof prev) : prev);
+                    setInstructor(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), sede_id: Number(value), sede_obj: sedes.find(s => s.id === Number(value)) || null } as unknown as typeof prev) : prev);
                   }}
                   options={sedes.filter(s => s.active && s.center === (instructor.center)).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
                   placeholder="Seleccionar ..."
@@ -239,6 +306,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                   }}
                   disabled={!instructor.center}
                 />
+                {!instructor.sede && <div className="text-xs text-gray-500 mt-1">Sede no asignada</div>}
               </div>
               <div>
                 <label className="block text-sm">Área de conocimiento <span className="text-red-600">*</span></label>
@@ -286,6 +354,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                 <CustomSelect
                   value={instructor.role ? String(instructor.role) : ""}
                   onChange={value => handleInsChange('role' as keyof CreateInstructor, Number(value))}
+                  disabled={isEditingAdminSelf}
                   options={roles.filter(opt => opt.active && opt.type_role?.toLowerCase() !== 'aprendiz').map(opt => ({ value: String(opt.id), label: String(opt.type_role) }))}
                   placeholder="Seleccionar ..."
                   classNames={{
@@ -293,6 +362,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                     label: "hidden",
                   }}
                 />
+                {isEditingAdminSelf && <div className="text-xs text-gray-600 mt-1">No puedes cambiar el rol de tu propia cuenta de administrador.</div>}
               </div>
               <div>
                 <label className="block text-sm">¿Instructor de seguimiento? <span className="text-red-600">*</span></label>

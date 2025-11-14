@@ -198,9 +198,26 @@ const Users = () => {
     });
   };
 
-  // Get current user ID from localStorage to prevent self-disable
-  const userData = localStorage.getItem('user_data');
-  const currentUserId = userData ? JSON.parse(userData).id : null;
+  // Get current user info from localStorage to prevent self-disable/edit
+  // Some deployments store session under different keys (user_dashboard, user_data, user_email)
+  const rawUserData = typeof window !== 'undefined' ? (localStorage.getItem('user_dashboard') || localStorage.getItem('user_data') || null) : null;
+  const rawUserEmail = typeof window !== 'undefined' ? (localStorage.getItem('user_email') || null) : null;
+  let currentUserId: number | null = null;
+  let currentUserEmail: string | null = null;
+  let currentUserPersonId: number | null = null;
+  try {
+    if (rawUserData) {
+      const parsed = JSON.parse(rawUserData);
+      // Support a few possible shapes stored in localStorage
+      currentUserId = parsed?.id ?? parsed?.user?.id ?? parsed?.user_id ?? null;
+      currentUserEmail = parsed?.email ?? parsed?.user?.email ?? parsed?.user_email ?? null;
+      currentUserPersonId = parsed?.person ?? parsed?.person_id ?? parsed?.user?.person ?? parsed?.user?.person_id ?? null;
+    }
+  } catch (e) {
+    // ignore parse errors
+  }
+  // If there's a separate user_email key, prefer that value for email comparison
+  if (!currentUserEmail && rawUserEmail) currentUserEmail = rawUserEmail;
 
   /**
    * RegistradoCard component: Displays individual user information in card format
@@ -216,6 +233,8 @@ const Users = () => {
       ? [user.person.first_name, user.person.second_name, user.person.first_last_name, user.person.second_last_name].filter(Boolean).join(' ')
       : 'Sin nombre';
     const rol = user.role?.type_role || 'Sin rol';
+
+    const isSelf = Number(user.id) === Number(currentUserId) || (currentUserEmail && String(user.email) === String(currentUserEmail)) || (user.person && currentUserPersonId && Number(user.person.id) === Number(currentUserPersonId));
 
     return (
       <div className={`border${color} rounded-lg p-6 m-3 w-[390px] min-h-[120px] flex flex-col justify-between shadow-md hover:shadow-lg transition-shadow duration-200`}>
@@ -234,7 +253,7 @@ const Users = () => {
         </div>
         <div className="flex gap-2 mt-2">
           {/* Prevent self-disable: only show toggle button for other users */}
-          {Number(user.id) !== Number(currentUserId) && (
+          {!isSelf && (
             <button
               className={`flex-1 flex items-center justify-center gap-2 py-1 rounded-3xl text-base font-semibold border transition-all duration-300
                 ${estado === 'activo'
@@ -247,17 +266,19 @@ const Users = () => {
               {estado === 'activo' ? 'Inhabilitar' : 'Habilitar'}
             </button>
           )}
-          {/* Edit user button: opens edit modal with user data */}
-          <button
-            className="flex-1 flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 rounded-3xl text-base font-semibold border border-gray-400"
-            onClick={() => {
-              setModalEditUserProps({ userId: Number(user.id), userRole: rol ? String(rol).toLowerCase() : '' });
-              setShowEditModal(true);
-            }}
-          >
-            <span className="material-icons text-base"></span>
-            Editar
-          </button>
+          {/* Edit user button: opens edit modal with user data (hidden for current user) */}
+          {!isSelf && (
+            <button
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 rounded-3xl text-base font-semibold border border-gray-400"
+              onClick={() => {
+                setModalEditUserProps({ userId: Number(user.id), userRole: rol ? String(rol).toLowerCase() : '' });
+                setShowEditModal(true);
+              }}
+            >
+              <span className="material-icons text-base"></span>
+              Editar
+            </button>
+          )}
         </div>
       </div>
     );

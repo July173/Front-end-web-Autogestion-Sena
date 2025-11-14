@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getProgramFichas } from '../Api/Services/Program';
 import type { CreateApprentice } from '../Api/types/entities/apprentice.types';
 import type { Ficha } from '../Api/types/Modules/general.types';
@@ -28,9 +28,13 @@ export function useApprenticeForm(initial?: Partial<CreateApprentice>) {
     } else {
       setFichas([]);
     }
-    // clear ficha when program changes
-    setApprentice(prev => ({ ...prev, ficha_id: '' } as unknown as CreateApprentice));
+    if (prevProgramRef.current !== undefined && prevProgramRef.current !== apprentice.program) {
+      setApprentice(prev => ({ ...prev, ficha_id: '' } as unknown as CreateApprentice));
+    }
+    prevProgramRef.current = apprentice.program;
   }, [apprentice.program]);
+
+  const prevProgramRef = useRef<number | undefined>(undefined);
 
   function handleChange(name: keyof CreateApprentice, value: FieldValue) {
     setApprentice(prev => ({ ...((prev as unknown) as Record<string, unknown>), [String(name)]: value } as unknown as CreateApprentice));
