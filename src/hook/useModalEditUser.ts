@@ -184,10 +184,9 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
 
           // Build normalized instructor using helper to ensure consistency
           const built = buildInstructorFromApi(ins, data.person, data.role, data.email);
-          try { console.log('Normalized instructor (initial load)', built); } catch (e) { /* ignore */ }
           setInstructor(() => built);
           setUserData(data as Record<string, unknown>);
-          try { console.log('fetchUser response', data); } catch (e) { /* ignore */ }
+          
         }
       })
       .catch(() => setError('Error al cargar usuario'))
@@ -428,12 +427,7 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
   regional: toSafeId(instructor.regional, getObjProp<number>(userData?.instructor, 'regional') ?? getObjProp<number>(instructor as unknown, 'regional')),
         is_followup_instructor: Boolean(instructor.is_followup_instructor),
       };
-      console.log('PUT instructor payload', payload);
-      try {
-        console.log('PUT instructor payload (json)', JSON.stringify(payload));
-      } catch (e) {
-        console.log('PUT instructor payload (json) stringify error', e);
-      }
+      
       const instructorId = getObjProp<number>(userData?.instructor, 'id') ?? userId;
       try {
         const putResult = await putInstructor(String(instructorId), payload as unknown as CreateInstructor);
@@ -448,7 +442,6 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
               const rp = refreshedPerson as Record<string, unknown> | null;
               // Use the shared builder to produce a consistent CreateInstructor shape
               const built = buildInstructorFromApi(ri, rp, refreshedUser.role, (refreshedUser as Record<string, unknown>)?.email);
-              try { console.log('Normalized instructor (after PUT)', built); } catch (e) { /* ignore */ }
               setInstructor(() => built);
             }
             // update userData with refreshed parts
