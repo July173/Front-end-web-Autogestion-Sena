@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { ENDPOINTS } from '../../Api/config/ConfigApi';
+import React from 'react';
 import FilterBar from '../FilterBar';
 import Paginator from '../Paginator';
-import { getRolesUser, toggleRoleActive, postRolPermissions, getRolPermissions, putRolFormPerms } from '../../Api/Services/Rol';
 import ConfirmModal from '../ConfirmModal';
 import { InfoCard } from './CardSecurity';
 import type { InfoCardProps } from '../../Api/types/entities/misc.types';
 import type {  RolUser } from '../../Api/types/entities/role.types';
+import type { Form } from '../../Api/types/entities/form.types';
+import type { Permission } from '../../Api/types/entities/permission.types';
 import ModalFormGeneric from './ModalFormGeneric';
-import { getForms } from '../../Api/Services/Form';
-import { getPermissions } from '../../Api/Services/Permission';
+import { useRoles } from '../../hook/useRoles';
 import NotificationModal from '../NotificationModal';
 
 /**
@@ -19,166 +18,24 @@ import NotificationModal from '../NotificationModal';
  * Features advanced filtering, pagination, and custom permission management UI.
  */
 const Roles = () => {
-  // Filter states for search and active status
-  const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState(''); // '', 'true', 'false'
-  // Filtered roles list and loading states
-  const [rolesFiltered, setRolesFiltered] = useState<RolUser[]>([]);
-  const [rolesLoading, setRolesLoading] = useState(false);
-  const [rolesError, setRolesError] = useState('');
-  // Complete roles list
-  const [roles, setRoles] = useState<RolUser[]>([]);
-  // Pagination state
-  const [page, setPage] = useState(1);
-  const rolesPerPage = 6;
-  // General loading and error states
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  // Modal visibility states for toggle confirmation
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [pendingRole, setPendingRole] = useState<RolUser | null>(null);
-  // Modal visibility states for role creation
-  const [showCreate, setShowCreate] = useState(false);
-  // Forms and permissions data for role assignment
-  const [forms, setForms] = useState([]);
-  const [loadingForms, setLoadingForms] = useState(true);
-  const [permissions, setPermissions] = useState([]);
-  const [loadingPermissions, setLoadingPermissions] = useState(true);
-  // Confirmation modal states for role creation
-  const [pendingRoleData, setPendingRoleData] = useState(null);
-  const [showCreateConfirm, setShowCreateConfirm] = useState(false);
-  // State for forms accordion in modal (expandable form sections)
-  const [openFormId, setOpenFormId] = useState(null);
-  // Role editing states
-  const [editRole, setEditRole] = useState(null); // Complete role data to edit
-  const [showEdit, setShowEdit] = useState(false);
-  const [editLoading, setEditLoading] = useState(false);
-  // Confirmation modal states for role editing
-  const [showEditConfirm, setShowEditConfirm] = useState(false);
-  const [pendingEditData, setPendingEditData] = useState(null);
-  // Global notification modal states
-  const [showNotification, setShowNotification] = useState(false);
-  const [notificationType, setNotificationType] = useState<'success' | 'warning' | 'info' | 'completed'>('success');
-  const [notificationTitle, setNotificationTitle] = useState('');
-  const [notificationMessage, setNotificationMessage] = useState('');
+  const {
+    search, setSearch, activeFilter, setActiveFilter,
+    rolesFiltered, roles, rolesLoading, rolesError,
+    page, setPage, rolesPerPage, totalPages, paginatedRoles,
+    loading, error,
+    showConfirm, setShowConfirm, pendingRole, setPendingRole,
+    showCreate, setShowCreate, forms, permissions, loadingForms, loadingPermissions,
+    pendingRoleData, setPendingRoleData, showCreateConfirm, setShowCreateConfirm,
+    openFormId, setOpenFormId,
+    editRole, setEditRole, showEdit, setShowEdit, editLoading,
+    showEditConfirm, setShowEditConfirm, pendingEditData, setPendingEditData,
+    showNotification, setShowNotification, notificationType, notificationTitle, notificationMessage,
+    handleActionClick, handleEditClick, handleConfirmAction, handleFilter,
+    handleCreateRole, handleEditRole, handleConfirmCreateRole, handleConfirmEditRole,
+    showNotif,
+  } = useRoles();
 
-
-  /**
-   * Handle enable/disable toggle action: prepare role data and show confirmation modal
-   * @param rol - Role object to toggle active status
-   */
-  const handleActionClick = (rol: RolUser) => {
-    setPendingRole(rol);
-    setShowConfirm(true);
-  };
-
-  /**
-   * Handle role editing: load complete role data with permissions and open edit modal
-   * @param rol - Role object to edit
-   */
-  const handleEditClick = async (rol: RolUser) => {
-    setEditLoading(true);
-    try {
-      const data = await getRolPermissions(rol.id);
-      // Adapt data for the form: transform API response to form-compatible structure
-      // data: { type_role, description, active, formularios: [{form_id, permission_ids:[]} ...] }
-      const formularios_permisos = {};
-      (data.formularios || []).forEach(f => {
-        formularios_permisos[f.form_id] = f.permission_ids;
-      });
-      setEditRole({
-        id: rol.id,
-        type_role: data.type_role,
-        description: data.description,
-        active: data.active,
-        formularios_permisos,
-      });
-      setShowEdit(true);
-    } catch (e) {
-      alert(e.message || 'No se pudo cargar el rol');
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  /**
-   * Confirm and execute role enable/disable toggle via API
-   */
-  const handleConfirmAction = async () => {
-    if (!pendingRole) return;
-    setShowConfirm(false);
-    try {
-      await toggleRoleActive(pendingRole.id, pendingRole.active);
-      const updated = await getRolesUser();
-      setRoles(updated);
-      showNotif(
-        'success',
-        pendingRole.active ? 'Rol inhabilitado' : 'Rol habilitado',
-        pendingRole.active
-          ? `El rol "${pendingRole.name}" ha sido inhabilitado exitosamente.`
-          : `El rol "${pendingRole.name}" ha sido habilitado exitosamente.`
-      );
-    } catch (e) {
-      showNotif('warning', 'Error al cambiar estado', e.message || 'No se pudo cambiar el estado del rol');
-    }
-    setPendingRole(null);
-  };
-
-
-  // Load initial roles data
-  useEffect(() => {
-    getRolesUser()
-      .then(data => {
-        setRoles(data);
-        setRolesFiltered(data);
-      })
-      .catch(() => setError('Error al cargar los roles'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  /**
-   * Filter roles using API endpoint with search and active status parameters
-   * @param params - Filter parameters containing search and active status
-   */
-  const handleFilter = async (params: { search?: string; active?: string }) => {
-    setRolesLoading(true);
-    setRolesError('');
-    const searchValue = params.search ?? search;
-    const activeValue = params.active ?? activeFilter;
-    setSearch(searchValue);
-    setActiveFilter(activeValue);
-    try {
-      // Build query parameters for API call
-      const query = [];
-      if (searchValue) query.push(`search=${encodeURIComponent(searchValue)}`);
-      if (activeValue !== '') query.push(`active=${activeValue}`);
-      const url = `${ENDPOINTS.rol.filterRol}${query.length ? '?' + query.join('&') : ''}`;
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error('Error al filtrar roles');
-      const data = await resp.json();
-      setRolesFiltered(data);
-      setPage(1); // Reset pagination to first page
-    } catch (e) {
-      setRolesError(e.message || 'Error al filtrar roles');
-    } finally {
-      setRolesLoading(false);
-    }
-  };
-
-  // Load forms and permissions data for role assignment
-  useEffect(() => {
-    getForms().then(setForms).finally(() => setLoadingForms(false));
-    getPermissions().then(setPermissions).finally(() => setLoadingPermissions(false));
-  }, []);
-
-  // Loading and error states
-  if (loading) return <div className="p-8">Cargando...</div>;
-  if (error) return <div className="p-8 text-red-500">{error}</div>;
-
-
-  // Calculate pagination over filtered roles
-  const totalPages = Math.ceil(rolesFiltered.length / rolesPerPage);
-  const paginatedRoles = rolesFiltered.slice((page - 1) * rolesPerPage, page * rolesPerPage);
+  type FormValues = { formularios_permisos?: Record<number, number[]> };
 
   // Form fields configuration for create/edit role modal with custom permissions assignment
   const roleFields = [
@@ -188,124 +45,32 @@ const Roles = () => {
       name: 'formularios_permisos',
       label: 'Formularios y Permisos',
       type: 'custom-permissions',
-      forms: forms.filter(f => f.active), // only active forms
-      permissions: permissions.filter(p => p.active), // only active permissions if applicable
+      forms: forms.filter((f: Form) => f.active), // only active forms
+      permissions: permissions, // use all permissions; Permission type doesn't include `active`
     },
   ];
 
   /**
-   * Handle role creation: prepare data with form-permission associations and show confirmation
-   * @param values - Form field values from create modal
-   */
-  const handleCreateRole = (values) => {
-    // Transform form-permission object into API-compatible array structure
-    const formularios = Object.entries(values.formularios_permisos || {})
-      .filter(([formId, perms]) => Array.isArray(perms) && perms.length > 0)
-      .map(([formId, perms]) => ({
-        form_id: Number(formId),
-        permission_ids: Array.isArray(perms) ? perms.map(Number) : []
-      }));
-    const data = {
-      type_role: values.type_role,
-      description: values.description,
-      active: true,
-      formularios,
-    };
-    setPendingRoleData(data);
-    setShowCreateConfirm(true);
-  };
-
-  /**
-   * Handle role editing: prepare updated data with form-permission associations and show confirmation
-   * @param values - Form field values from edit modal
-   */
-  const handleEditRole = (values) => {
-    // Transform form-permission object into API-compatible array structure
-    const formularios = Object.entries(values.formularios_permisos || {})
-      .filter(([formId, perms]) => Array.isArray(perms) && perms.length > 0)
-      .map(([formId, perms]) => ({
-        form_id: Number(formId),
-        permission_ids: Array.isArray(perms) ? perms.map(Number) : []
-      }));
-    const data = {
-      type_role: values.type_role,
-      description: values.description,
-      active: true,
-      formularios,
-    };
-    setPendingEditData(data);
-    setShowEditConfirm(true);
-  };
-
-  /**
-   * Confirm and execute role creation via API
-   */
-  const handleConfirmCreateRole = async () => {
-    if (!pendingRoleData) return;
-    try {
-      await postRolPermissions(pendingRoleData);
-      setShowCreate(false);
-      setShowCreateConfirm(false);
-      setPendingRoleData(null);
-      const updated = await getRolesUser();
-      setRoles(updated);
-      showNotif('success', 'Rol creado', 'El rol se ha creado exitosamente.');
-    } catch (e) {
-      showNotif('warning', 'Error al crear rol', e.message || 'Error al crear el rol');
-    }
-  };
-
-  /**
-   * Confirm and execute role update via API
-   */
-  const handleConfirmEditRole = async () => {
-    if (!pendingEditData || !editRole) return;
-    try {
-      await putRolFormPerms(editRole.id, pendingEditData);
-      setShowEdit(false);
-      setShowEditConfirm(false);
-      setPendingEditData(null);
-      setEditRole(null);
-      const updated = await getRolesUser();
-      setRoles(updated);
-      showNotif('success', 'Rol actualizado', 'El rol se ha actualizado exitosamente.');
-    } catch (e) {
-      showNotif('warning', 'Error al actualizar rol', e.message || 'Error al actualizar el rol');
-    }
-  };
-
-  /**
    * Custom render component for form-permissions assignment UI.
-   * Provides accordion-style interface for assigning permissions to forms,
-   * with special handling for administrator role and administration forms.
-   * Features expand/collapse sections, select all/deselect all, and individual permission checkboxes.
-   * @param values - Current form values
-   * @param setValues - Function to update form values
+   * Provides accordion-style interface for assigning permissions to forms.
    */
-  const renderFormPermissions = ({ values, setValues }) => {
-    // Detect if current role being edited is administrator (special restrictions apply)
+  const renderFormPermissions = ({ values, setValues }: { values: FormValues, setValues: (updater: (prev: FormValues) => FormValues) => void }) => {
     const isAdminRole = (editRole?.type_role?.toLowerCase() === 'administrador');
 
     return (
       <div className="space-y-4">
-        {/* Map through each form to create expandable permission sections */}
-        {forms.map(form => {
-          // Check if form has any permissions assigned
-          const formChecked = Array.isArray(values.formularios_permisos?.[form.id]) && values.formularios_permisos[form.id].length > 0;
-          // Check if all permissions for this form are selected
-          const allPermsChecked = permissions.length > 0 && Array.isArray(values.formularios_permisos?.[form.id]) && permissions.every(perm => values.formularios_permisos[form.id].includes(perm.id));
-          // Accordion expansion state
-          const isOpen = openFormId === form.id;
-          // Special handling for administration forms (restricted for admin role)
-          const isAdminForm = form.name?.toLowerCase().includes('administración') || form.id === 1; // Adjust id if necessary
+        {forms.map((form: Form) => {
+          const formId = Number(form.id);
+          const formChecked = Array.isArray(values.formularios_permisos?.[formId]) && values.formularios_permisos[formId].length > 0;
+          const allPermsChecked = permissions.length > 0 && Array.isArray(values.formularios_permisos?.[formId]) && permissions.every((perm: Permission) => values.formularios_permisos![formId].includes(Number(perm.id)));
+          // normalize comparison: openFormId is number | null, form.id may be string -> use numeric formId
+          const isOpen = openFormId === formId;
+          const isAdminForm = form.name?.toLowerCase().includes('administración') || Number(form.id) === 1;
 
           return (
             <div key={form.id} className="border rounded-lg mb-2 bg-gray-50">
-              {/* Form header with expand/collapse and form-level checkbox */}
-              <div className="flex items-center p-4 cursor-pointer select-none" onClick={() => setOpenFormId(isOpen ? null : form.id)}>
-                {/* Expand/collapse arrow indicator */}
+              <div className="flex items-center p-4 cursor-pointer select-none" onClick={() => setOpenFormId(isOpen ? null : formId)}>
                 <span className={`mr-2 transition-transform ${isOpen ? 'rotate-90' : ''}`}>▶</span>
-                {/* Form-level checkbox (select/deselect all permissions for this form) */}
                 <input
                   type="checkbox"
                   checked={formChecked}
@@ -313,25 +78,22 @@ const Roles = () => {
                   onClick={e => e.stopPropagation()}
                   onChange={e => {
                     if (isAdminRole && isAdminForm) return;
-                    setValues(prev => {
-                      let newPerms = [];
+                    setValues((prev: FormValues) => {
+                      let newPerms: number[] = [];
                       if (e.target.checked) {
-                        // Select all permissions for this form
-                        newPerms = permissions.map(perm => perm.id);
+                        newPerms = permissions.map((perm: Permission) => Number(perm.id));
                       }
                       return {
                         ...prev,
                         formularios_permisos: {
                           ...prev.formularios_permisos,
-                          [form.id]: newPerms
+                          [formId]: newPerms
                         }
                       };
                     });
                   }}
                 />
-                {/* Form name display */}
                 <span className="font-semibold ml-2">{form.name}</span>
-                {/* Select all/deselect all button */}
                 <button
                   type="button"
                   className="ml-4 text-xs text-blue-600 underline"
@@ -339,89 +101,65 @@ const Roles = () => {
                   onClick={e => {
                     if (isAdminRole && isAdminForm) return;
                     e.stopPropagation();
-                    setValues(prev => {
-                      const prevPerms = Array.isArray(prev.formularios_permisos?.[form.id]) ? prev.formularios_permisos[form.id] : [];
-                      let newPerms = [];
+                    setValues((prev: FormValues) => {
+                      const prevPerms = Array.isArray(prev.formularios_permisos?.[formId]) ? prev.formularios_permisos[formId] : [];
+                      let newPerms: number[] = [];
                       if (prevPerms.length < permissions.length) {
-                        // Select all permissions
-                        newPerms = permissions.map(perm => perm.id);
+                        newPerms = permissions.map((perm: Permission) => Number(perm.id));
                       }
-                      // If all are selected, deselect all (empty array)
                       return {
                         ...prev,
                         formularios_permisos: {
                           ...prev.formularios_permisos,
-                          [form.id]: newPerms
+                          [formId]: newPerms
                         }
                       };
                     });
                   }}
                 >{allPermsChecked ? 'Desmarcar todos' : 'Marcar todos'}</button>
               </div>
-              {/* Expandable permissions section */}
               {isOpen && (
                 <div className="flex flex-wrap gap-4 ml-10 pb-4">
-                  {/* Individual permission checkboxes */}
-                  {permissions.map(perm => (
+                  {permissions.map((perm: Permission) => (
                     <label key={perm.id} className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={Array.isArray(values.formularios_permisos?.[form.id]) ? values.formularios_permisos[form.id].includes(perm.id) : false}
+                        checked={Array.isArray(values.formularios_permisos?.[formId]) ? values.formularios_permisos![formId].includes(Number(perm.id)) : false}
                         disabled={!formChecked || (isAdminRole && isAdminForm)}
                         onChange={e => {
                           if (isAdminRole && isAdminForm) return;
-                          setValues(prev => {
-                            const prevPerms = Array.isArray(prev.formularios_permisos?.[form.id]) ? prev.formularios_permisos[form.id] : [];
-                            let newPerms;
+                          setValues((prev: FormValues) => {
+                            const prevPerms = Array.isArray(prev.formularios_permisos?.[formId]) ? prev.formularios_permisos[formId] : [];
+                            let newPerms: number[];
                             if (e.target.checked) {
-                              // Add permission to form
-                              newPerms = [...prevPerms, perm.id];
+                              newPerms = [...prevPerms, Number(perm.id)];
                             } else {
-                              // Remove permission from form
-                              newPerms = prevPerms.filter(pid => pid !== perm.id);
+                              newPerms = prevPerms.filter((pid: number) => pid !== Number(perm.id));
                             }
                             return {
                               ...prev,
                               formularios_permisos: {
                                 ...prev.formularios_permisos,
-                                [form.id]: newPerms
-                            }
-                          };
-                        });
-                      }}
-                    />
-                    {/* Permission name display */}
-                    <span>{perm.type_permission}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+                                [formId]: newPerms
+                              }
+                            };
+                          });
+                        }}
+                      />
+                      <span>{perm.type_permission}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
-  /**
-   * Utility function to show notifications with consistent interface
-   * @param type - Notification type (success, warning, info, completed)
-   * @param title - Notification title
-  /**
-   * Utility function to display notifications consistently across the component
-   * @param {string} type - Notification type ('success', 'error', 'warning', 'info')
-   * @param {string} title - Notification title in Spanish (UI text)
-   * @param {string} message - Notification message in Spanish (UI text)
-   */
-  const showNotif = (type, title, message) => {
-    setNotificationType(type);
-    setNotificationTitle(title);
-    setNotificationMessage(message);
-    setShowNotification(true);
-  };
 
   return (
-    // Main container with styling and animations
     <div className="bg-white p-8 rounded-lg shadow animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
       {/* Header section with title and create role button */}
       <div className="flex items-center gap-4 mb-6 justify-between">
@@ -452,38 +190,47 @@ const Roles = () => {
           }]}
         />
         {/* Filter loading and error states */}
-        {rolesLoading && <div className="mt-2 text-gray-500">Filtrando...</div>}
-        {rolesError && <div className="mt-2 text-red-500">{rolesError}</div>}
+  {rolesLoading && <div className="mt-2 text-gray-500">Filtrando...</div>}
+  {rolesError && <div className="mt-2 text-red-500">{rolesError}</div>}
+        {/* Empty state when filters/search return no results */}
+        {!rolesLoading && !rolesError && rolesFiltered.length === 0 && (
+          <div className="mt-4 p-4 text-center text-gray-600 w-full">{
+            search
+              ? `No se encontraron roles para "${search}"`
+              : activeFilter === 'true'
+                ? 'No hay roles activos'
+                : activeFilter === 'false'
+                  ? 'No hay roles inactivos'
+                  : 'No hay roles registrados'
+          }</div>
+        )}
       </div>
 
       {/* Roles display section with cards grid */}
-      <div className="flex gap-4 flex-wrap">
+  <div className="flex gap-4 flex-wrap">
+        {/* (debug UI removed) */}
         {/* Map through paginated roles to create role cards */}
-        {paginatedRoles.map((rol, index) => {
-            // Adapt field names from API response (handle different field naming)
-            // If the endpoint returns type_role and description, use those fields
-          const nombre = rol.name || rol['type_role'] || '';
-          const descripcion = rol.description || rol['description'] || '';
-          const cantidadUsuarios = rol.user_count ?? 0;
-          // Special handling: administrator role cannot be disabled
-          const isAdministrador = nombre.toLowerCase() === 'administrador';
-          // Configure card properties for each role
+  {paginatedRoles.map((rol, index) => {
+          // `rolesFiltered` contains normalized roles (see normalizeRole)
+          const nombre = (rol && (rol.name || ''));
+          const descripcion = (rol && (rol.description || ''));
+          const cantidadUsuarios = rol?.user_count ?? 0;
+          const activeFlag = typeof rol?.active === 'boolean' ? rol.active : true;
+          const isAdministrador = (nombre || '').toString().toLowerCase() === 'administrador';
           const cardProps: InfoCardProps = {
             title: nombre,
-            statusLabel: rol.active ? cantidadUsuarios.toString() : 'Inhabilitado',
-            statusColor: rol.active ? 'green' : 'red',
+            statusLabel: activeFlag ? cantidadUsuarios.toString() : 'Inhabilitado',
+            statusColor: activeFlag ? 'green' : 'red',
             description: descripcion,
             count: cantidadUsuarios,
             buttonText: 'Ajustar',
             onButtonClick: () => handleEditClick(rol),
-            // Enable/disable action (disabled for administrator role)
-            actionLabel: rol.active ? 'Inhabilitar' : 'Habilitar',
-            actionType: rol.active ? 'disable' : 'enable',
+            actionLabel: activeFlag ? 'Inhabilitar' : 'Habilitar',
+            actionType: activeFlag ? 'disable' : 'enable',
             onActionClick: isAdministrador ? undefined : () => handleActionClick(rol),
           };
           return (
-            /* Role card container with hover animations */
-            <div 
+            <div
               key={rol.id}
               className={`transform transition-all duration-300 hover:scale-105 animate-in slide-in-from-left bg-white rounded-lg shadow-md flex flex-col`}
               style={{ animationDelay: `${index * 150}ms`, minWidth: '320px', maxWidth: '320px', minHeight: '220px', maxHeight: 'auto', height: 'auto', display: 'flex' }}

@@ -120,12 +120,29 @@ export async function putInstructor(id: string, data: CreateInstructor) {
   if (data.sede !== undefined) payloadToSend.sede_id = Number(data.sede);
   if (data.is_followup_instructor !== undefined) payloadToSend.is_followup_instructor = !!data.is_followup_instructor;
 
+  try {
+    console.debug('putInstructor - payloadToSend', payloadToSend);
+  } catch (e) {
+    console.debug('putInstructor - payloadToSend stringify error', e);
+  }
   const response = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payloadToSend)
   });
-  if (!response.ok) throw new Error('Error al actualizar instructor');
+  if (!response.ok) {
+    // Try to extract backend error message and throw it so callers can show it
+    try {
+      const errData = await response.json();
+      // Backend may return { detail: '...', message: '...', field: ['msg'] }
+      const msg = (errData && (errData.message || errData.detail))
+        || (typeof errData === 'object' ? Object.values(errData).flat().join(' ') : String(errData))
+        || 'Error al actualizar instructor';
+      throw new Error(String(msg));
+    } catch (parseErr) {
+      throw new Error('Error al actualizar instructor');
+    }
+  }
   return response.json();
 }
 

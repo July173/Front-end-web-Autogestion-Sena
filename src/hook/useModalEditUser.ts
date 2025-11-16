@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getUserById } from '../Api/Services/User';
 import { getRegionales } from '../Api/Services/Regional';
 import { getSedes } from '../Api/Services/Sede';
@@ -93,6 +93,58 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
     return o[key] as T | undefined;
   };
 
+  // Build a normalized CreateInstructor object from API parts (instructor obj, person obj, role obj)
+  const buildInstructorFromApi = useCallback((ins: unknown, person: unknown, roleObj: unknown, topEmail?: unknown): CreateInstructor => {
+    const i = ins as Record<string, unknown> | null;
+    const p = person as Record<string, unknown> | null;
+    const safeNum = (v: unknown) => {
+      if (v === undefined || v === null || v === '') return 0;
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string') {
+        const n = Number(v);
+        return Number.isNaN(n) ? 0 : n;
+      }
+      if (typeof v === 'object') return getObjProp<number>(v, 'id') ?? 0;
+      return 0;
+    };
+
+    const centroObj = i?.['centro'] ?? null;
+    const sedeObj = i?.['sede'] ?? null;
+    const regionalObj = i?.['regional'] ?? null;
+
+  const roleEmail = getObjProp<string>(roleObj, 'email');
+  const personEmail = (p && (p['email'] as string)) || undefined;
+  const topLevelEmail = typeof topEmail === 'string' ? topEmail : undefined;
+
+    const normalized: CreateInstructor = {
+      first_name: (p && (p['first_name'] as string)) || (i && (i['first_name'] as string)) || '',
+      second_name: (p && (p['second_name'] as string)) || (i && (i['second_name'] as string)) || '',
+      first_last_name: (p && (p['first_last_name'] as string)) || (i && (i['first_last_name'] as string)) || '',
+      second_last_name: (p && (p['second_last_name'] as string)) || (i && (i['second_last_name'] as string)) || '',
+      phone_number: (p && (p['phone_number'] as unknown)) || (i && (i['phone_number'] as unknown)) || '',
+      type_identification: (p && (p['type_identification'] as number)) ?? (i && (i['type_identification'] as number)) ?? 0,
+      number_identification: (p && (p['number_identification'] as unknown)) || (i && (i['number_identification'] as unknown)) || '',
+  // Prefer top-level user email, then person email, then role email
+  email: topLevelEmail ?? personEmail ?? roleEmail ?? '',
+      role: safeNum(getObjProp<number>(roleObj, 'id') ?? i?.['role'] ?? getObjProp<number>(i, 'role')),
+      // contract fields: prefer instructor values, but also tolerate person-level variants if present
+      contract_type: String(i?.['contract_type'] ?? i?.['contractType'] ?? (p && (p['contract_type'] as string)) ?? (p && (p['contractType'] as string)) ?? ''),
+      contract_start_date: String(i?.['contract_start_date'] ?? i?.['contractStartDate'] ?? (p && (p['contract_start_date'] as string)) ?? ''),
+      contract_end_date: String(i?.['contract_end_date'] ?? i?.['contractEndDate'] ?? (p && (p['contract_end_date'] as string)) ?? ''),
+      knowledge_area: safeNum(i?.['knowledge_area'] ?? i?.['knowledgeArea']),
+      center: safeNum(i?.['centro'] ?? i?.['center']),
+      sede: safeNum(i?.['sede']),
+      regional: safeNum(i?.['regional']),
+  is_followup_instructor: Boolean(i?.['is_followup_instructor']),
+  // keep object variants for display (loose types because API returns object shapes)
+  centro_obj: centroObj as unknown as Record<string, unknown> | null,
+  sede_obj: sedeObj as unknown as Record<string, unknown> | null,
+  regional_obj: regionalObj as unknown as Record<string, unknown> | null,
+    } as CreateInstructor;
+
+    return normalized;
+  }, []);
+
   // Load and normalize user
   useEffect(() => {
     setLoading(true);
@@ -118,23 +170,48 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
         } else if (data.instructor) {
           const ins = data.instructor as InstructorAPI;
           setTab('instructor');
-          setInstructor(prev => ({ ...(prev as unknown as Record<string, unknown>), ...(ins as Record<string, unknown>), ...(data.person as Record<string, unknown>), email: (data.email as string) ?? '', role: getObjProp<number>(data.role as LooseObj ?? {}, 'id') || ins.role || 0, knowledge_area: getObjProp<number>(ins, 'knowledge_area') || getObjProp<number>(ins, 'knowledgeArea') || 0, center: getObjProp<number>(ins.centro as LooseObj ?? {}, 'id') || ins.center || getObjProp<number>(ins, 'center_id') || 0, sede: getObjProp<number>(ins.sede as LooseObj ?? {}, 'id') || ins.sede || getObjProp<number>(ins, 'sede_id') || 0, regional: getObjProp<number>(ins.regional as LooseObj ?? {}, 'id') || ins.regional || getObjProp<number>(ins, 'regional_id') || 0, centro_obj: (ins.centro as unknown as Center) || null, sede_obj: (ins.sede as unknown as Sede) || null, regional_obj: (ins.regional as unknown as Regional) || null, contract_type: (ins.contract_type as string) || (ins.contractType as string) || '', is_followup_instructor: (ins.is_followup_instructor as boolean) ?? false } as unknown as CreateInstructor));
+          // helper to extract id from various shapes
+          const extractId = (val: unknown) => {
+            if (val === undefined || val === null) return 0;
+            if (typeof val === 'number') return val;
+            if (typeof val === 'string' && val.trim() !== '') {
+              const n = Number(val);
+              return Number.isNaN(n) ? 0 : n;
+            }
+            if (typeof val === 'object') return getObjProp<number>(val, 'id') ?? getObjProp<number>(val, 'pk') ?? 0;
+            return 0;
+          };
+
+          // Build normalized instructor using helper to ensure consistency
+          const built = buildInstructorFromApi(ins, data.person, data.role, data.email);
+          try { console.log('Normalized instructor (initial load)', built); } catch (e) { /* ignore */ }
+          setInstructor(() => built);
+          setUserData(data as Record<string, unknown>);
+          try { console.log('fetchUser response', data); } catch (e) { /* ignore */ }
         }
       })
       .catch(() => setError('Error al cargar usuario'))
       .finally(() => setLoading(false));
-  }, [userId, setApprentice, setInstructor]);
+  }, [userId, setApprentice, setInstructor, buildInstructorFromApi]);
 
   // dependent selects for instructor
   useEffect(() => {
     if (tab === 'instructor' && instructor) {
-      const filteredCenters = centros.filter((c: Center) => c.regional === instructor.regional);
-      if (instructor.center && !filteredCenters.some((c: Center) => c.id === instructor.center)) {
-        setInstructor(prev => prev ? { ...prev, center_id: 0, sede_id: 0 } : prev);
+      // Only run dependent-select clearing when we have centers/sedes loaded to avoid
+      // wiping values when selects are still fetching.
+      if (centros && centros.length > 0) {
+        const filteredCenters = centros.filter((c: Center) => c.regional === instructor.regional);
+        if (instructor.center && !filteredCenters.some((c: Center) => c.id === instructor.center)) {
+          // clear the selected center/sede when the current center is not valid for the regional
+          setInstructor(prev => prev ? { ...prev, center: 0, sede: 0 } : prev);
+        }
       }
-      const filteredSedes = sedes.filter((s: Sede) => s.center === instructor.center);
-      if (instructor.sede && !filteredSedes.some((s: Sede) => s.id === instructor.sede)) {
-        setInstructor(prev => prev ? { ...prev, sede_id: 0 } : prev);
+      if (sedes && sedes.length > 0) {
+        const filteredSedes = sedes.filter((s: Sede) => s.center === instructor.center);
+        if (instructor.sede && !filteredSedes.some((s: Sede) => s.id === instructor.sede)) {
+          // clear the selected sede when not valid for the selected center
+          setInstructor(prev => prev ? { ...prev, sede: 0 } : prev);
+        }
       }
     }
   }, [tab, instructor, centros, sedes, setInstructor]);
@@ -318,6 +395,18 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
       }
       const nombres = instructor.first_name.trim().split(' ');
       const apellidos = instructor.first_last_name.trim().split(' ');
+      const toSafeId = (v: unknown, objAlternate?: unknown) => {
+            // prefer numeric or nested object id
+            if (v === undefined || v === null || v === '') v = objAlternate;
+            if (v === undefined || v === null) return undefined;
+            if (typeof v === 'object') {
+              return getObjProp<number>(v as Record<string, unknown>, 'id') ?? getObjProp<number>(v as Record<string, unknown>, 'sede_id') ?? getObjProp<number>(v as Record<string, unknown>, 'center_id') ?? getObjProp<number>(v as Record<string, unknown>, 'regional_id') ?? undefined;
+            }
+            if (typeof v === 'number') return v;
+            const n = Number(String(v));
+            return Number.isNaN(n) ? undefined : n;
+      };
+
       const payload = {
         first_name: nombres[0] || '',
         second_name: nombres.slice(1).join(' '),
@@ -327,17 +416,24 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
         type_identification: Number(instructor.type_identification),
         number_identification: String(instructor.number_identification || ''),
         email: String(instructor.email || ''),
-        role_id: Number(instructor.role || 0),
+        // use short keys (role, knowledge_area, center, sede, regional)
+        // putInstructor will map these to the backend *_id fields
+        role: toSafeId(instructor.role),
         contract_type: String(instructor.contract_type || ''),
         contract_start_date: String(instructor.contract_start_date || ''),
         contract_end_date: String(instructor.contract_end_date || ''),
-        knowledge_area_id: Number(instructor.knowledge_area || 0),
-        center_id: Number(instructor.center || 0),
-        sede_id: Number(instructor.sede || 0),
-        regional_id: Number(instructor.regional || 0),
+  knowledge_area: toSafeId(instructor.knowledge_area, getObjProp<number>(userData?.instructor, 'knowledge_area') ?? getObjProp<number>(instructor as unknown, 'knowledge_area')),
+  center: toSafeId(instructor.center, getObjProp<number>(userData?.instructor, 'centro') ?? getObjProp<number>(instructor as unknown, 'centro') ?? getObjProp<number>(userData?.instructor, 'center')),
+  sede: toSafeId(instructor.sede, getObjProp<number>(userData?.instructor, 'sede') ?? getObjProp<number>(instructor as unknown, 'sede')),
+  regional: toSafeId(instructor.regional, getObjProp<number>(userData?.instructor, 'regional') ?? getObjProp<number>(instructor as unknown, 'regional')),
         is_followup_instructor: Boolean(instructor.is_followup_instructor),
       };
-      console.debug('PUT instructor payload', payload);
+      console.log('PUT instructor payload', payload);
+      try {
+        console.log('PUT instructor payload (json)', JSON.stringify(payload));
+      } catch (e) {
+        console.log('PUT instructor payload (json) stringify error', e);
+      }
       const instructorId = getObjProp<number>(userData?.instructor, 'id') ?? userId;
       try {
         const putResult = await putInstructor(String(instructorId), payload as unknown as CreateInstructor);
@@ -347,11 +443,30 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
           if (refreshedUser && typeof refreshedUser === 'object') {
             const refreshedInstructor = refreshedUser.instructor || null;
             const refreshedPerson = refreshedUser.person || null;
-            if (refreshedInstructor) setInstructor(prev => prev ? ({ ...prev, ...(refreshedInstructor as CreateInstructor) }) : (refreshedInstructor as CreateInstructor));
+            if (refreshedInstructor) {
+              const ri = refreshedInstructor as Record<string, unknown>;
+              const rp = refreshedPerson as Record<string, unknown> | null;
+              // Use the shared builder to produce a consistent CreateInstructor shape
+              const built = buildInstructorFromApi(ri, rp, refreshedUser.role, (refreshedUser as Record<string, unknown>)?.email);
+              try { console.log('Normalized instructor (after PUT)', built); } catch (e) { /* ignore */ }
+              setInstructor(() => built);
+            }
+            // update userData with refreshed parts
             if (refreshedPerson) {
               setUserData(prev => prev ? ({ ...prev, person: refreshedPerson, instructor: refreshedInstructor || prev?.instructor }) : ({ ...refreshedUser }));
             } else {
               setUserData(prev => prev ? ({ ...prev, instructor: refreshedInstructor || prev?.instructor }) : ({ ...refreshedUser }));
+            }
+            // Show success message if backend returned one on PUT
+            // Show success message if backend returned one on PUT
+            let didShowNotification = false;
+            try {
+              const maybeMessage = (putResult && typeof putResult === 'object' && (putResult as Record<string, unknown>)['message']) ? String((putResult as Record<string, unknown>)['message']) : 'Instructor actualizado correctamente';
+              setNotificationMessage(maybeMessage);
+              setShowNotification(true);
+              didShowNotification = true;
+            } catch (ex) {
+              // ignore
             }
             try { if (onSuccess) onSuccess(refreshedUser); } catch (ex) { console.debug('onSuccess callback error', ex); }
           }
@@ -368,9 +483,10 @@ export default function useModalEditUser({ userId, initialTab, onSuccess, onClos
         return;
       }
     }
-
     if (onSuccess) onSuccess();
-    if (onClose) onClose();
+    // If we showed a backend notification (success/error) keep modal open so user can read it.
+    // Close only when there was no notification shown by the flow above.
+    if (!showNotification && onClose) onClose();
     setLoading(false);
     setPendingSubmit(null);
   };

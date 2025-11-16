@@ -139,7 +139,42 @@ export async function getRoles() {
 export async function getRolesUser() {
 	const response = await fetch(ENDPOINTS.rol.getRolUser);
 	if (!response.ok) throw new Error('Error al obtener roles con los usuarios');
-	return response.json();
+	const data = await response.json();
+	// Normalize backend variants to a consistent frontend shape
+	if (Array.isArray(data)) {
+		return (data as unknown[]).map((r: unknown) => {
+			const o = r as Record<string, unknown>;
+			const id = (o['id'] as number) ?? Number(String(o['id'] ?? 0));
+			return {
+				id,
+				name: (o['nombre'] as string) ?? (o['name'] as string) ?? (o['type_role'] as string) ?? String(id),
+				type_role: (o['type_role'] as string) ?? (o['nombre'] as string) ?? (o['name'] as string) ?? String(id),
+				description: (o['descripcion'] as string) ?? (o['description'] as string) ?? '',
+				active: typeof o['active'] === 'boolean' ? (o['active'] as boolean) : ((o['active'] as boolean) ?? true),
+				user_count: (o['cantidad_usuarios'] as number) ?? (o['user_count'] as number) ?? 0,
+			};
+		});
+	}
+	return data;
+}
+
+// Helper: normalize a single role-like object (exported for reuse)
+export function normalizeRoleObject(o: Record<string, unknown>) {
+	const id = (o['id'] as number) ?? Number(String(o['id'] ?? 0));
+	return {
+		id,
+		name: (o['nombre'] as string) ?? (o['name'] as string) ?? (o['type_role'] as string) ?? String(id),
+		type_role: (o['type_role'] as string) ?? (o['nombre'] as string) ?? (o['name'] as string) ?? String(id),
+		description: (o['descripcion'] as string) ?? (o['description'] as string) ?? '',
+		active: typeof o['active'] === 'boolean' ? (o['active'] as boolean) : ((o['active'] as boolean) ?? true),
+		user_count: (o['cantidad_usuarios'] as number) ?? (o['user_count'] as number) ?? 0,
+	};
+}
+
+// Helper: normalize an array of role-like objects
+export function normalizeRolesArray(data: unknown) {
+	if (!Array.isArray(data)) return [];
+	return (data as unknown[]).map(it => normalizeRoleObject(it as Record<string, unknown>));
 }
 
 /**

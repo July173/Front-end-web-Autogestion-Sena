@@ -11,7 +11,7 @@ import type { CreateInstructor } from '../../Api/types/entities/instructor.types
 
 const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
   const initialTab = userRole === 'aprendiz' ? 'aprendiz' : 'instructor';
-  const {
+  const {     
     tab,
     setTab,
     loading,
@@ -81,6 +81,43 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
     e.preventDefault();
     startSubmit(tab);
   };
+  // helper to get nested id from values that may be either an id or an object { id }
+  const getId = (v: unknown) => {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      const id = o['id'] ?? o['Id'] ?? o['ID'];
+      return id !== undefined && id !== null ? String(id) : '';
+    }
+    return String(v);
+  };
+  // Normalize selected values and ensure options include backend-provided centro/sede objects
+  const regionalValue = instructor?.regional ? String(instructor.regional) : getId((instructor as unknown as Record<string, unknown>)['regional_obj']);
+  const centerValue = instructor?.center ? String(instructor.center) : getId((instructor as unknown as Record<string, unknown>)['centro_obj']);
+  const sedeValue = instructor?.sede ? String(instructor.sede) : getId((instructor as unknown as Record<string, unknown>)['sede_obj']);
+
+  // Build center options: prefer centers that match regionalValue if available, but always include centro_obj
+  const _regionalKey = regionalValue;
+  const baseCenters = centros || [];
+  const filteredCenters = _regionalKey ? baseCenters.filter(c => c.active && String((c as unknown as Record<string, unknown>)['regional']) === _regionalKey) : baseCenters.filter(c => c.active);
+  const centroObj = (instructor as unknown as Record<string, unknown>)['centro_obj'] as Record<string, unknown> | null;
+  const mergedCenters: Array<Record<string, unknown>> = [...filteredCenters];
+  if (centroObj && centroObj['id'] !== undefined && !mergedCenters.some(c => String(c['id']) === String(centroObj['id']))) {
+    // push minimal object shape compatible with Center type
+    mergedCenters.push(centroObj);
+  }
+  const centerOptions = mergedCenters.map((opt: Record<string, unknown>) => ({ value: String(opt['id']), label: String(opt['name']) }));
+
+  // Build sede options similarly: prefer sedes that match centerValue, but include sede_obj from backend
+  const _centerKey = centerValue;
+  const baseSedes = sedes || [];
+  const filteredSedes = _centerKey ? baseSedes.filter(s => s.active && String((s as unknown as Record<string, unknown>)['center']) === _centerKey) : baseSedes.filter(s => s.active);
+  const sedeObj = (instructor as unknown as Record<string, unknown>)['sede_obj'] as Record<string, unknown> | null;
+  const mergedSedes: Array<Record<string, unknown>> = [...filteredSedes];
+  if (sedeObj && sedeObj['id'] !== undefined && !mergedSedes.some(s => String(s['id']) === String(sedeObj['id']))) {
+    mergedSedes.push(sedeObj);
+  }
+  const sedeOptions = mergedSedes.map((opt: Record<string, unknown>) => ({ value: String(opt['id']), label: String(opt['name']) }));
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
       <div className={`bg-white rounded-xl p-6 w-full max-w-lg shadow-lg relative ${tab === 'instructor' ? 'max-h-[90vh] overflow-y-auto' : ''}`}>
@@ -258,7 +295,7 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
               <div>
                 <label className="block text-sm">Regional <span className="text-red-600">*</span></label>
                 <CustomSelect
-                  value={instructor.regional ? String(instructor.regional) : ""}
+                  value={regionalValue}
                   onChange={value => {
                     handleInsChange('regional' as keyof CreateInstructor, Number(value));
                     setInstructor(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), regional_obj: regionales.find(r => r.id === Number(value)) || null, center: 0, center_id: 0, sede: 0, sede_id: 0 } as unknown as typeof prev) : prev);
@@ -270,41 +307,43 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
                     label: "hidden",
                   }}
                 />
-                {!instructor.regional && <div className="text-xs text-gray-500 mt-1">Regional no asignada</div>}
+                {!regionalValue && <div className="text-xs text-gray-500 mt-1">Regional no asignada</div>}
               </div>
               <div>
                 <label className="block text-sm">Centro <span className="text-red-600">*</span></label>
                 <CustomSelect
-                  value={instructor.center ? String(instructor.center) : ""}
+                  // prefer explicit numeric center id, fall back to centro_obj if API returned object
+                  value={centerValue}
                   onChange={value => {
                     handleInsChange('center' as keyof CreateInstructor, Number(value));
                     setInstructor(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), center_id: Number(value), centro_obj: centros.find(c => c.id === Number(value)) || null, sede: 0, sede_id: 0 } as unknown as typeof prev) : prev);
                   }}
-                  options={centros.filter(c => c.active && c.regional === (instructor.regional)).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
+                  // use merged centerOptions which includes backend centro_obj if needed
+                  options={centerOptions}
                   placeholder="Seleccionar ..."
                   classNames={{
                     trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
                     label: "hidden",
                   }}
-                  disabled={!instructor.regional}
+                  disabled={!regionalValue}
                 />
                 {!instructor.center && <div className="text-xs text-gray-500 mt-1">Centro no asignado</div>}
               </div>
               <div>
                 <label className="block text-sm">Sede <span className="text-red-600">*</span></label>
                 <CustomSelect
-                  value={instructor.sede ? String(instructor.sede) : ""}
+                  value={sedeValue}
                   onChange={value => {
                     handleInsChange('sede' as keyof CreateInstructor, Number(value));
                     setInstructor(prev => prev ? ({ ...(prev as unknown as Record<string, unknown>), sede_id: Number(value), sede_obj: sedes.find(s => s.id === Number(value)) || null } as unknown as typeof prev) : prev);
                   }}
-                  options={sedes.filter(s => s.active && s.center === (instructor.center)).map(opt => ({ value: String(opt.id), label: String(opt.name) }))}
+                  options={sedeOptions}
                   placeholder="Seleccionar ..."
                   classNames={{
                     trigger: "w-full border rounded-lg px-2 py-2 text-xs flex items-center justify-between bg-white",
                     label: "hidden",
                   }}
-                  disabled={!instructor.center}
+                  disabled={!centerValue}
                 />
                 {!instructor.sede && <div className="text-xs text-gray-500 mt-1">Sede no asignada</div>}
               </div>
