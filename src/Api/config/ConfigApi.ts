@@ -85,6 +85,9 @@ export const ENDPOINTS = {
     getForm: `${API_BASE_URL}security/forms/`,
     deleteForm: `${API_BASE_URL}security/forms/{id}/`,
     post :`${API_BASE_URL}security/forms/`,
+    putForm :`${API_BASE_URL}security/forms/{id}/`,
+    getFormById :`${API_BASE_URL}security/forms/{id}/`,
+    filterForm :`${API_BASE_URL}security/forms/filter/`,
   },
   /** Endpoints for modules and associated forms */
   module: {
