@@ -171,7 +171,6 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
               { label: 'Título', name: 'title', type: 'text', placeholder: 'Título', required: true },
               { label: 'Tipo', name: 'type', type: 'text', placeholder: 'privacy|terms', required: true, disabled: true },
               { label: 'Fecha efectiva', name: 'effective_date', type: 'text', placeholder: 'YYYY-MM-DD', required: true },
-              { label: '¿Activo?', name: 'active', type: 'checkbox', placeholder: '', required: false },
             ]} onClose={() => { setShowEditModal(false); setEditData(null); setPendingEditData(null); }} onSubmit={handleSubmitEdit} submitText="Actualizar" cancelText="Cancelar" initialValues={editData || {}} customRender={undefined} onProgramChange={undefined} />
 
             {/* Edit confirmation modal */}
@@ -189,7 +188,6 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
             { label: 'Título', name: 'title', type: 'text', placeholder: 'Título', required: true },
             { label: 'Tipo', name: 'type', type: 'text', placeholder: 'privacy|terms', required: true },
             { label: 'Fecha efectiva', name: 'effective_date', type: 'text', placeholder: 'YYYY-MM-DD', required: true },
-            { label: '¿Activo?', name: 'active', type: 'checkbox', placeholder: '', required: false },
           ]} onClose={() => setShowAddModal(false)} onSubmit={handleSubmitAdd} submitText="Registrar" cancelText="Cancelar" customRender={undefined} onProgramChange={undefined} />
 
           {/* Add confirmation modal */}

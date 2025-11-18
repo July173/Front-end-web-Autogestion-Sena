@@ -28,6 +28,7 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
 
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
 
   const totalPages = Math.ceil(forms.length / cardsPerPage);
   const paginated = forms.slice((page - 1) * cardsPerPage, page * cardsPerPage);
@@ -92,7 +93,16 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
     setPage(1);
     const s = params && params.search !== undefined ? params.search : (search || undefined);
     const a = params && params.active !== undefined ? params.active : activeFilter;
-    await applyFilter({ search: s, active: a });
+    // update local inputs and show smooth filtering state
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      await applyFilter({ search: s, active: a });
+    } finally {
+      // small delay so UI transition isn't abrupt
+      setTimeout(() => setFiltering(false), 180);
+    }
   };
 
   const openCreate = () => {
@@ -172,31 +182,41 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {paginated.map((f) => (
-              <div key={f.id} className="bg-white rounded-lg shadow p-4 border flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">{f.name}</h4>
-                    <div className={`text-xs px-2 py-1 rounded ${f.active ? 'bg-green-100 text-green-900' : 'bg-red-100 text-red-900'}`}>{f.active ? 'Activo' : 'Inactivo'}</div>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-2">{f.description}</p>
-                  <p className="text-xs text-gray-400 mt-2">Ruta: {f.path}</p>
-                </div>
-                <div className="mt-4 flex gap-2 justify-end">
-                  <button onClick={() => openEdit(f)} className="px-3 py-1 bg-gray-100 text-gray-900 border border-gray-400 rounded-2xl">Editar</button>
-                  <button
-                    onClick={() => confirmToggle(f)}
-                    className={
-                      `px-3 py-1 rounded-2xl ${f.active ? 'bg-red-50 text-red-900 border border-red-700 hover:bg-red-200' : 'bg-green-50 text-green-900 border border-green-700 hover:bg-green-200'}`
-                    }
-                  >
-                    {f.active ? 'Inhabilitar' : 'Habilitar'}
-                  </button>
-                </div>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {paginated.length === 0 ? (
+              <div className="w-full text-center text-gray-500 py-12">
+                {search || activeFilter ? 'No hay formularios disponibles con esta búsqueda' : 'No hay formularios disponibles'}
               </div>
-            ))}
+            ) : (
+              paginated.map((f) => (
+                <div key={f.id} className="bg-white rounded-lg shadow p-4 border flex flex-col justify-between transition-transform duration-200 hover:translate-y-0.5">
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-medium">{f.name}</h4>
+                      <div className={`text-xs px-2 py-1 rounded ${f.active ? 'bg-green-100 text-green-900' : 'bg-red-100 text-red-900'}`}>{f.active ? 'Activo' : 'Inactivo'}</div>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">{f.description}</p>
+                    <p className="text-xs text-gray-400 mt-2">Ruta: {f.path}</p>
+                  </div>
+                  <div className="mt-4 flex gap-2 justify-end">
+                    <button onClick={() => openEdit(f)} className="px-3 py-1 bg-gray-100 text-gray-900 border border-gray-400 rounded-2xl">Editar</button>
+                    <button
+                      onClick={() => confirmToggle(f)}
+                      className={
+                        `px-3 py-1 rounded-2xl ${f.active ? 'bg-red-50 text-red-900 border border-red-700 hover:bg-red-200' : 'bg-green-50 text-green-900 border border-green-700 hover:bg-green-200'}`
+                      }
+                    >
+                      {f.active ? 'Inhabilitar' : 'Habilitar'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
+
+          {filtering && (
+            <div className="mt-4 text-sm text-gray-600">Filtrando resultados…</div>
+          )}
 
           {totalPages > 1 && (
             <div className="mt-4">

@@ -47,8 +47,19 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
     if (!pendingData) return;
     try {
   // Forzar parent_id a null si no hay selección
-  const parent_id = pendingData.parent === undefined ? null : pendingData.parent;
-  const dataToSend = { ...pendingData, parent_id, code: pendingData.code };
+  // Normalize payload keys to what the backend expects: 'document' and 'parent'
+  const pending = pendingData as Record<string, unknown>;
+  const documentValue = (pending['document_id'] ?? pending['document'] ?? selectedAddDocumentId) as number | string | null | undefined;
+  const parentValue = (pending['parent_id'] ?? pending['parent'] ?? (selectedParentOption ? selectedParentOption.value : null)) as number | string | null | undefined;
+  const dataToSend: Partial<LegalSection> & { document: number | null; parent: number | null } = {
+    // copy the important fields explicitly to avoid sending legacy keys like document_id
+    title: pendingData.title,
+    content: pendingData.content,
+    order: typeof pendingData.order !== 'undefined' ? pendingData.order : autoOrder,
+    code: pendingData.code,
+    document: documentValue !== undefined && documentValue !== null ? Number(documentValue) : null,
+    parent: parentValue !== undefined && parentValue !== null ? Number(parentValue) : null,
+  };
   await createLegalSection(dataToSend);
       setShowAddConfirm(false);
       setPendingData(null);
@@ -220,9 +231,33 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
     setPendingData(data);
     setShowAddConfirm(true);
   };
+  
+  // Prepare edit submission: set pending edit data and show confirmation
+  const handleSubmitEdit = (values: Partial<LegalSection>) => {
+    const data = {
+      ...values,
+      order: typeof values.order !== 'undefined' ? values.order : autoOrder,
+      code: typeof values.code !== 'undefined' ? values.code : autoCode,
+    } as Partial<LegalSection>;
+    if (data.parent === undefined || data.parent === null) data.parent = null;
+    setPendingEditData(data);
+    setShowEditConfirm(true);
+  };
   const handleConfirmEdit = async () => {
     try {
-      await updateLegalSection(editData.id, pendingEditData);
+      if (!editData) throw new Error('No hay sección para editar');
+      const pending = (pendingEditData || {}) as Record<string, unknown>;
+      const documentValue = (pending['document_id'] ?? pending['document'] ?? selectedEditDocumentId) as number | string | null | undefined;
+      const parentValue = (pending['parent_id'] ?? pending['parent'] ?? (selectedParentOption ? selectedParentOption.value : null)) as number | string | null | undefined;
+      const dataToSend: Partial<LegalSection> & { document?: number | null; parent?: number | null } = {
+        title: pendingEditData?.title ?? editData.title,
+        content: pendingEditData?.content ?? editData.content,
+        order: typeof pendingEditData?.order !== 'undefined' ? pendingEditData.order : editData.order,
+        code: pendingEditData?.code ?? editData.code,
+        document: documentValue !== undefined && documentValue !== null ? Number(documentValue) : editData.document ?? null,
+        parent: parentValue !== undefined && parentValue !== null ? Number(parentValue) : (editData.parent ?? null),
+      };
+      await updateLegalSection(editData.id, dataToSend);
       setShowEditModal(false); setShowEditConfirm(false); setPendingEditData(null); setEditData(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Sección actualizada correctamente.'); setNotifOpen(true);
@@ -298,10 +333,10 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
                 { label: 'Orden', name: 'order', type: 'info', value: editData?.order ?? '', required: false, disabled: true },
                 { label: 'Código', name: 'code', type: 'info', value: editData?.code ?? '', required: false, disabled: true },
                 { label: 'Título', name: 'title', type: 'text', placeholder: 'Título', required: true },
-                { label: 'Contenido', name: 'content', type: 'text', placeholder: 'Contenido', required: true },
+                { label: 'Contenido', name: 'content', type: 'text', placeholder: 'Contenido', required: true, maxLength: 100 },
               ]}
               onClose={() => { setShowEditModal(false); setEditData(null); setPendingEditData(null); setSelectedEditDocumentId(null); }}
-              onSubmit={handleSubmitAdd}
+              onSubmit={handleSubmitEdit}
               submitText="Actualizar"
               cancelText="Cancelar"
               initialValues={editData || {}}
@@ -346,7 +381,7 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
                 { label: 'Orden', name: 'order', type: 'info', value: autoOrder, required: false, disabled: true },
                 { label: 'Código', name: 'code', type: 'info', value: autoCode, required: false, disabled: true },
                 { label: 'Título', name: 'title', type: 'text', placeholder: 'Título', required: true },
-                { label: 'Contenido', name: 'content', type: 'text', placeholder: 'Contenido', required: true },
+                { label: 'Contenido', name: 'content', type: 'text', placeholder: 'Contenido', required: true, maxLength: 100 },
               ]}
               onClose={() => { setShowAddModal(false); setSelectedAddDocumentId(null); setSelectedParentOption(null); setPendingData({ parent: null }); }}
               onSubmit={handleSubmitAdd}
@@ -354,7 +389,9 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
               cancelText="Cancelar"
               customRender={({ value, setValue }) => value}
               onProgramChange={(e) => {
-                if (e.target.name === 'documentId') {
+                // ModalFormGeneric may simulate the event with name 'documentId' for CustomSelect
+                const name = e?.target?.name;
+                if (name === 'document_id' || name === 'documentId') {
                   const numValue = typeof e.target.value === 'string' ? Number(e.target.value) : e.target.value;
                   setSelectedAddDocumentId(numValue);
                   setSelectedParentOption(null);
