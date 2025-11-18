@@ -148,7 +148,15 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    */
   const handleConfirmAdd = async () => {
     try {
-      await createRegional(pendingData);
+      // Normalize payload to backend expected keys (code_regional)
+      const pd = pendingData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingData?.name,
+        code_regional: pd['codeRegional'] !== undefined && pd['codeRegional'] !== null ? String(pd['codeRegional']) : (pd['codeRegional'] as string | undefined),
+        description: pendingData?.description,
+        address: pendingData?.address,
+      };
+      await createRegional(payload as unknown as Record<string, unknown>);
       setShowAddModal(false);
       setShowAddConfirm(false);
       setPendingData(null);
@@ -170,7 +178,15 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    */
   const handleConfirmEdit = async () => {
     try {
-      await updateRegional(editData.id, pendingEditData);
+      const ped = pendingEditData as unknown as Record<string, unknown>;
+      const ed = editData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingEditData?.name ?? editData?.name,
+        code_regional: ped['codeRegional'] !== undefined && ped['codeRegional'] !== null ? String(ped['codeRegional']) : (ped['codeRegional'] as string | undefined) ?? (ed['codeRegional'] as string | undefined) ?? (ed['code_regional'] as string | undefined),
+        description: pendingEditData?.description ?? editData?.description,
+        address: pendingEditData?.address ?? editData?.address,
+      };
+      await updateRegional(editData.id, payload as unknown as Record<string, unknown>);
       setShowEditModal(false);
       setShowEditConfirm(false);
       setPendingEditData(null);
@@ -242,7 +258,14 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
               onSubmit={handleSubmitEdit}
               submitText="Actualizar"
               cancelText="Cancelar"
-              initialValues={editData || {}}
+              initialValues={(() => {
+                if (!editData) return {};
+                const ed = editData as unknown as Record<string, unknown>;
+                return {
+                  ...editData,
+                  codeRegional: ed['code_regional'] ?? ed['codeRegional'],
+                } as Regional;
+              })()}
               customRender={undefined}
               onProgramChange={undefined}
             />

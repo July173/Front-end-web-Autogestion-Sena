@@ -115,8 +115,16 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   const handleSubmitAdd = (values: Center) => { setPendingData(values); setShowAddConfirm(true); };
   const handleConfirmAdd = async () => {
     try {
-      const payload = { ...pendingData, regional: pendingData?.regional ? Number(pendingData.regional) : pendingData.regional };
-      await createCenter(payload);
+      // Normalize payload keys to backend expectations: 'code_center' instead of 'codeCenter'
+      const pd = pendingData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingData?.name,
+        code_center: pd['codeCenter'] !== undefined && pd['codeCenter'] !== null ? String(pd['codeCenter']) : (pd['codeCenter'] as string | undefined),
+        address: pendingData?.address,
+        regional: pendingData?.regional ? Number(pendingData.regional) : pendingData?.regional,
+      };
+  // createCenter expects a loose object; cast to unknown then to the expected param type to avoid 'any'
+  await createCenter(payload as unknown as Record<string, unknown>);
       setShowAddModal(false);
       setShowAddConfirm(false);
       setPendingData(null);
@@ -131,8 +139,16 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   const handleSubmitEdit = (values: Center) => { setPendingEditData(values); setShowEditConfirm(true); };
   const handleConfirmEdit = async () => {
     try {
-      const payload = { ...pendingEditData, regional: pendingEditData?.regional ? Number(pendingEditData.regional) : pendingEditData.regional };
-      await updateCenter(editData.id, payload);
+      // Normalize edit payload keys to backend expectations
+      const ped = pendingEditData as unknown as Record<string, unknown>;
+      const ed = editData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingEditData?.name ?? editData?.name,
+        code_center: ped['codeCenter'] !== undefined && ped['codeCenter'] !== null ? String(ped['codeCenter']) : (ped['codeCenter'] as string | undefined) ?? (ed['codeCenter'] as string | undefined),
+        address: pendingEditData?.address ?? editData?.address,
+        regional: pendingEditData?.regional ? Number(pendingEditData.regional) : pendingEditData?.regional ?? editData?.regional,
+      };
+  await updateCenter(editData.id, payload as unknown as Record<string, unknown>);
       setShowEditModal(false);
       setShowEditConfirm(false);
       setPendingEditData(null);
@@ -185,7 +201,19 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
             ))}
 
             {/* Edit modal */}
-            <ModalFormGeneric
+            {/* Prepare initial values for edit modal mapping backend keys to form field names */}
+            {(() => {
+              const editInitialValues = editData ? {
+                ...editData,
+                // backend returns code_center, form expects codeCenter
+                // avoid 'any' by using a safe record cast
+                codeCenter: (editData as unknown as Record<string, unknown>)['code_center'] ?? (editData as unknown as Record<string, unknown>)['codeCenter'],
+                // regional select expects a string value
+                regional: editData?.regional !== undefined && editData?.regional !== null ? String(editData.regional) : editData?.regional,
+              } : {} as Center;
+
+              return (
+                <ModalFormGeneric
               isOpen={showEditModal}
               title="Editar Centro"
               fields={[
@@ -198,10 +226,12 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
               onSubmit={handleSubmitEdit}
               submitText="Actualizar"
               cancelText="Cancelar"
-              initialValues={editData || {}}
+              initialValues={editInitialValues || {}}
               customRender={undefined}
               onProgramChange={undefined}
-            />
+                />
+              );
+            })()}
 
             {/* Edit confirmation modal */}
             <ConfirmModal isOpen={showEditConfirm} title="¿Confirmar actualización?" message="¿Estás seguro de que deseas actualizar este centro?" confirmText="Sí, actualizar" cancelText="Cancelar" onConfirm={handleConfirmEdit} onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }} />

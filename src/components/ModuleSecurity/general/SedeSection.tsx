@@ -183,9 +183,17 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
    */
   const handleConfirmAdd = async () => {
     try {
-      // Ensure center field is converted to number for API
-      const payload = { ...pendingData, center: pendingData?.center ? Number(pendingData.center) : pendingData.center };
-      await createSede(payload);
+      // Normalize payload keys to backend expectations (snake_case)
+      const pd = pendingData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingData?.name,
+        code_sede: pd['codeSede'] !== undefined && pd['codeSede'] !== null ? String(pd['codeSede']) : (pd['codeSede'] as string | undefined),
+        address: pendingData?.address,
+        phone_sede: pd['phoneSede'] !== undefined && pd['phoneSede'] !== null ? String(pd['phoneSede']) : (pd['phoneSede'] as string | undefined),
+        email_contact: pd['emailContact'] !== undefined && pd['emailContact'] !== null ? String(pd['emailContact']) : (pd['emailContact'] as string | undefined),
+        center: pendingData?.center ? Number(pendingData.center) : pendingData?.center,
+      };
+      await createSede(payload as unknown as Record<string, unknown>);
       // Close modals and reset state
       setShowAddModal(false);
       setShowAddConfirm(false);
@@ -217,8 +225,18 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
    */
   const handleConfirmEdit = async () => {
     try {
-      const payload = { ...pendingEditData, center_id: pendingEditData?.center ? Number(pendingEditData.center) : pendingEditData.center };
-      await updateSede(editData.id, payload);
+      // Normalize edit payload to backend expected snake_case keys
+      const ped = pendingEditData as unknown as Record<string, unknown>;
+      const ed = editData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingEditData?.name ?? editData?.name,
+        code_sede: ped['codeSede'] !== undefined && ped['codeSede'] !== null ? String(ped['codeSede']) : (ed['codeSede'] as string | undefined) ?? (ed['code_sede'] as string | undefined),
+        address: pendingEditData?.address ?? editData?.address,
+        phone_sede: ped['phoneSede'] !== undefined && ped['phoneSede'] !== null ? String(ped['phoneSede']) : (ed['phoneSede'] as string | undefined) ?? (ed['phone_sede'] as string | undefined),
+        email_contact: ped['emailContact'] !== undefined && ped['emailContact'] !== null ? String(ped['emailContact']) : (ed['emailContact'] as string | undefined) ?? (ed['email_contact'] as string | undefined),
+        center: pendingEditData?.center ? Number(pendingEditData.center) : pendingEditData?.center ?? editData?.center,
+      };
+      await updateSede(editData.id, payload as unknown as Record<string, unknown>);
       // Close modals and reset state
       setShowEditModal(false);
       setShowEditConfirm(false);
@@ -312,7 +330,17 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
               onSubmit={handleSubmitEdit}
               submitText="Actualizar"
               cancelText="Cancelar"
-              initialValues={editData || {}}
+              initialValues={(() => {
+                if (!editData) return {};
+                const ed = editData as unknown as Record<string, unknown>;
+                return {
+                  ...editData,
+                  codeSede: ed['code_sede'] ?? ed['codeSede'],
+                  phoneSede: ed['phone_sede'] ?? ed['phoneSede'],
+                  emailContact: ed['email_contact'] ?? ed['emailContact'],
+                  center: ed['center'] !== undefined && ed['center'] !== null ? String(ed['center']) : ed['center'],
+                } as Sede;
+              })()}
               customRender={undefined}
               onProgramChange={undefined}
             />
