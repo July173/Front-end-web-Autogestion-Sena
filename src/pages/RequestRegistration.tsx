@@ -15,7 +15,7 @@ import {
 import { useApprenticeData } from '../hook/useApprenticeData';
 import { useRequestAssignation } from '../hook/useRequestAssignation';
 import { useFormValidations } from '../hook/useFormValidations';
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getDocumentTypesWithEmpty } from '../Api/Services/TypeDocument';
 import { requestAsignation } from '../Api/types/Modules/assign.types';
 import NotificationModal from '../components/NotificationModal';
@@ -324,6 +324,16 @@ export default function RequestRegistration() {
     }
   };
 
+  // Compute whether the currently selected modality is 'Contrato de Aprendizaje'
+  const modalityIsContrato = useMemo(() => {
+    try {
+      const m = modalidades.find(mod => Number(mod.id) === Number(formData.modality_productive_stage));
+      return !!m && typeof m.name_modality === 'string' && m.name_modality.toLowerCase().includes('contrato');
+    } catch {
+      return false;
+    }
+  }, [modalidades, formData.modality_productive_stage]);
+
   if (userLoading) return <div className="p-8">Cargando información del aprendiz...</div>;
   if (userError) return <div className="p-8 text-red-500">{userError}</div>;
   if (!person) return <div className="p-8 text-orange-500">No se encontró la información del aprendiz.</div>;
@@ -436,7 +446,6 @@ export default function RequestRegistration() {
               </div>
             </div>
 
-            // Datos del Aprendiz - campos pre-cargados + campos editables
 
             <ApprenticeSection
               person={{
@@ -536,10 +545,11 @@ export default function RequestRegistration() {
             <div >
               
               <PdfUploadSection
-                selectedFile={selectedFile}
-                handleFileSelect={handleFileSelect}
-                triggerFileInput={triggerFileInput}
-              />
+                  selectedFile={selectedFile}
+                  handleFileSelect={handleFileSelect}
+                  triggerFileInput={triggerFileInput}
+                  modalityIsContrato={modalityIsContrato}
+                />
               
             </div>
             

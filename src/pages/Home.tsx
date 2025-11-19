@@ -35,7 +35,6 @@ export const Home = () => {
             const apprentices = await getApprenticesByPerson(userData.person);
           if (apprentices && apprentices.length > 0) {
             setApprenticeId(apprentices[0].id);
-            console.log("Apprentice ID encontrado:", apprentices[0].id);
           }
         } catch (error) {
           console.error("Error al obtener aprendiz ID:", error);

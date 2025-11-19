@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { requestAsignation, AssignTableRow } from '../../Api/types/Modules/assign.types';
 import CustomSelect from '../CustomSelect';
 import { Person } from 'react-bootstrap-icons';
@@ -9,7 +9,7 @@ import { Person } from 'react-bootstrap-icons';
  */
 interface ApprenticeSectionProps {
   /** Person object containing apprentice's personal information */
-  person: AssignTableRow;
+  person: AssignTableRow & { first_last_name?: string; second_last_name?: string; phone_number?: string | number };
   /** User data object containing additional user information like email */
   userData: { email: string };
   /** Array of available training programs */
@@ -57,25 +57,41 @@ interface ApprenticeSectionProps {
  * @param props - Component props as defined in ApprenticeSectionProps
  * @returns React component for apprentice information section
  */
-const ApprenticeSection: React.FC<ApprenticeSectionProps> = ({
-  person,
-  userData,
-  programas,
-  selectedProgram,
-  updateSelectedProgram,
-  fichas,
-  formData,
-  updateFormData,
-  modalidades,
-  dateError,
-  minEndDate,
-  maxEndDate,
-  handleStartDateChange,
-  handleEndDateChange,
-  getDocumentTypeName,
-  documentTypes
-}) => (
-  <div className="mb-6 bg-white rounded-lg shadow-sm border-2" style={{ borderColor: '#7BCC7C' }}>
+const ApprenticeSection: React.FC<ApprenticeSectionProps> = (props) => {
+  const {
+    person,
+    userData,
+    programas,
+    selectedProgram,
+    updateSelectedProgram,
+    fichas,
+    formData,
+    updateFormData,
+    modalidades,
+    dateError,
+    minEndDate,
+    maxEndDate,
+    handleStartDateChange,
+    handleEndDateChange,
+    getDocumentTypeName,
+    documentTypes,
+  } = props;
+
+  // Determine selected modality and whether it's a 'Contrato de Aprendizaje'
+  const selected = modalidades.find(m => Number(m.id) === Number(formData.modality_productive_stage));
+  const isContrato = !!selected && typeof selected.name_modality === 'string' && selected.name_modality.toLowerCase().includes('contrato');
+
+  // When modality changes to something different than contrato, clear the date fields
+  useEffect(() => {
+    if (!isContrato) {
+      updateFormData('date_start_contract', 0 as unknown as requestAsignation['date_start_contract']);
+      updateFormData('date_end_contract', 0 as unknown as requestAsignation['date_end_contract']);
+    }
+    // We intentionally depend on isContrato and updateFormData only
+  }, [isContrato, updateFormData]);
+
+  return (
+    <div className="mb-6 bg-white rounded-lg shadow-sm border-2" style={{ borderColor: '#7BCC7C' }}>
     {/* Header section with Person icon and title */}
     <div className="flex items-center gap-3 px-6 py-4 rounded-t-lg border-b" style={{ backgroundColor: '#E7FFE8', borderBottomColor: '#7BCC7C' }}>
       <Person size={24} color="#0C672D" />
@@ -96,22 +112,28 @@ const ApprenticeSection: React.FC<ApprenticeSectionProps> = ({
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Nombre *</label>
           <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" value={person.name} readOnly disabled />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Primer Apellido *</label>
-          {/* Remove first_last_name, not present in AssignTableRow */}
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Segundo Apellido</label>
-          {/* Remove second_last_name, not present in AssignTableRow */}
-        </div>
+        {typeof person.first_last_name !== 'undefined' && (
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Primer Apellido *</label>
+            <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" value={person.first_last_name || ''} readOnly disabled />
+          </div>
+        )}
+        {typeof person.second_last_name !== 'undefined' && (
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Segundo Apellido</label>
+            <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" value={person.second_last_name || ''} readOnly disabled />
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Correo Electrónico *</label>
           <input type="email" className="w-full border-2 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" value={userData?.email || ''} readOnly disabled />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Número de teléfono móvil *</label>
-          {/* Remove phone_number, not present in AssignTableRow */}
-        </div>
+        {typeof person.phone_number !== 'undefined' && (
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Número de teléfono móvil *</label>
+            <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" value={String(person.phone_number || '')} readOnly disabled />
+          </div>
+        )}
         {/* Editable fields */}
         <div>
           <CustomSelect
@@ -140,15 +162,20 @@ const ApprenticeSection: React.FC<ApprenticeSectionProps> = ({
             disabled={!selectedProgram}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Fecha de inicio de contrato de aprendizaje *</label>
-          <input type="date" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required onChange={handleStartDateChange} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Fecha de fin de contrato de aprendizaje *</label>
-          <input type="date" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required min={minEndDate} max={maxEndDate} disabled={!formData.date_start_contract} onChange={handleEndDateChange} />
-          {dateError && <div className="mt-1"><span className="text-red-600 text-xs">{dateError}</span></div>}
-        </div>
+        {/* Show date fields only when selected modality is 'Contrato de Aprendizaje' */}
+        {isContrato && (
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Fecha de inicio de contrato de aprendizaje *</label>
+              <input type="date" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required onChange={handleStartDateChange} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Fecha de fin de contrato de aprendizaje *</label>
+              <input type="date" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required min={minEndDate} max={maxEndDate} disabled={!formData.date_start_contract} onChange={handleEndDateChange} />
+              {dateError && <div className="mt-1"><span className="text-red-600 text-xs">{dateError}</span></div>}
+            </div>
+          </>
+        )}
         <div>
           <CustomSelect
             value={formData.modality_productive_stage ? String(formData.modality_productive_stage) : ""}
@@ -166,5 +193,5 @@ const ApprenticeSection: React.FC<ApprenticeSectionProps> = ({
     </div>
   </div>
 );
-
+}
 export default ApprenticeSection;
