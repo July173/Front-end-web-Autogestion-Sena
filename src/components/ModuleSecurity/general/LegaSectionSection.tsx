@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { LegalSection } from '../../../Api/types/entities/legalDocument.types';
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import Paginator from '../../Paginator';
@@ -6,7 +6,8 @@ import ModalFormGeneric from '../ModalFormGeneric';
 import ParentSectionAutocomplete, { ParentSectionOption } from '../ParentSectionAutocomplete';
 import ConfirmModal from '../../ConfirmModal';
 import NotificationModal from '../../NotificationModal';
-import { getAllLegalSections, createLegalSection, updateLegalSection, softDeleteLegalSection } from '../../../Api/Services/LegalSection';
+import { getAllLegalSections, createLegalSection, updateLegalSection, softDeleteLegalSection, filterLegalSections } from '../../../Api/Services/LegalSection';
+import FilterBar from '../../FilterBar';
 import { getAllLegalDocuments } from '../../../Api/Services/LegalDocument';
 
 const cardsPerPage = 3;
@@ -31,6 +32,7 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
   const [notifTitle, setNotifTitle] = useState('');
   const [notifMessage, setNotifMessage] = useState('');
   const [sections, setSections] = useState<LegalSection[]>([]);
+  const [displayedSections, setDisplayedSections] = useState<LegalSection[]>([]);
   const [documents, setDocuments] = useState<{ value: number; label: string }[]>([]);
   const [parentSections, setParentSections] = useState<{ value: number | null; label: string; document_id?: number }[]>([]);
   const [parentAutocompleteOptions, setParentAutocompleteOptions] = useState<ParentSectionOption[]>([]);
@@ -121,6 +123,34 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
   };
 
   React.useEffect(() => { refresh(); }, []);
+
+  useEffect(() => { if (!displayedSections.length) setDisplayedSections(sections || []); }, [sections]);
+
+  // Filter state and handler
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedSections(sections || []);
+        return;
+      }
+      const data = await filterLegalSections({ search: s, active: a });
+      setDisplayedSections(data || []);
+      setPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   // Actualiza las opciones del autocomplete de padres cada vez que cambia el documento seleccionado
   React.useEffect(() => {
@@ -289,20 +319,43 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-gray-900">Secciones Legales</h3>
-          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{sections.length} registros</span>
-        </div>
-        {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
-      </button>
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-semibold text-gray-900">Secciones Legales</h3>
+              <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{displayedSections.length} registros</span>
+            </div>
+            {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+          </button>
       {open && (
         <>
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Sección</button>
+          {/* Filter bar and Add section button */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por título"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Sección</button>
+            </div>
           </div>
 
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sections.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((s) => <InfoCard key={s.id} section={s} />)}
+          <div className={`p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedSections.length === 0 ? (
+              <div className="col-span-3 text-center text-gray-600 py-8">{(search || activeFilter) ? 'No se encontraron secciones con esta búsqueda' : 'No hay secciones disponibles'}</div>
+            ) : (
+              displayedSections.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((s) => <InfoCard key={s.id} section={s} />)
+            )}
 
             <ModalFormGeneric
               isOpen={showEditModal}
@@ -349,7 +402,7 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
             <ConfirmModal isOpen={showDisableConfirm} title="¿Confirmar acción?" message="¿Estás seguro de que deseas deshabilitar esta sección?" confirmText="Sí, continuar" cancelText="Cancelar" onConfirm={handleConfirmDisable} onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); }} />
           </div>
 
-          {Math.ceil(sections.length / cardsPerPage) > 1 && <Paginator page={page} totalPages={Math.ceil(sections.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />}
+          {Math.ceil(displayedSections.length / cardsPerPage) > 1 && <Paginator page={page} totalPages={Math.ceil(displayedSections.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />}
 
             <ModalFormGeneric
               isOpen={showAddModal}

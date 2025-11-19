@@ -4,7 +4,8 @@ import Paginator from "../../Paginator";
 import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
-import { getAllSupportContacts, createSupportContact, updateSupportContact, softDeleteSupportContact } from "../../../Api/Services/SupportContact";
+import FilterBar from "../../FilterBar";
+import { getAllSupportContacts, createSupportContact, updateSupportContact, softDeleteSupportContact, filterSupportContacts } from "../../../Api/Services/SupportContact";
 import { SupportContact } from "../../../Api/types/entities/support.types";
 
 const cardsPerPage = 9;
@@ -72,10 +73,46 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
     setLoading(false);
   };
 
+  // Filter UI state (server-side)
+  const [displayedContacts, setDisplayedContacts] = useState<SupportContact[]>([]);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+
   React.useEffect(() => {
     // Initial data loading: fetch all support contacts
-    refresh();
+    (async () => {
+      await refresh();
+    })();
   }, []);
+
+  React.useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedContacts(contacts || []);
+    }
+  }, [contacts, filtering, search, activeFilter]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedContacts(contacts || []);
+        setPage(1);
+        return;
+      }
+      const data = await filterSupportContacts({ search: s, active: a });
+      setDisplayedContacts(data || []);
+      setPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   /**
    * InfoCard component for displaying individual support contact information
@@ -190,7 +227,7 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Contactos de Soporte</h3>
-          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{contacts.length} registros</span>
+          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{displayedContacts.length} registros</span>
         </div>
         {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
       </button>
@@ -198,17 +235,43 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
       {/* Expandable content section */}
       {open && (
         <>
-          {/* Add new contact button section */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Contacto</button>
+          {/* Filter + Add contact button section */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por información extra"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Contacto</button>
+            </div>
           </div>
 
           {/* Contacts grid display with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Render paginated contacts as InfoCard components */}
-            {contacts.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((c) => (
-              <InfoCard key={c.id} contact={c} />
-            ))}
+          <div className={`p-6 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedContacts.length === 0 ? (
+              <div className="w-full text-center text-gray-500 py-12">
+                {search || activeFilter ? 'No se encontraron contactos con esta búsqueda' : 'No hay contactos disponibles'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Render paginated contacts as InfoCard components */}
+                {displayedContacts.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((c) => (
+                  <InfoCard key={c.id} contact={c} />
+                ))}
+              </div>
+            )}
 
             {/* Edit contact modal */}
             <ModalFormGeneric isOpen={showEditModal} title="Editar Contacto" fields={[
@@ -226,8 +289,8 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
           </div>
 
           {/* Pagination component - only show if multiple pages needed */}
-          {Math.ceil(contacts.length / cardsPerPage) > 1 && (
-            <Paginator page={page} totalPages={Math.ceil(contacts.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
+          {Math.ceil(displayedContacts.length / cardsPerPage) > 1 && (
+            <Paginator page={page} totalPages={Math.ceil(displayedContacts.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
           )}
 
           {/* Add new contact modal */}

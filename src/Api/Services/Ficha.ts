@@ -16,6 +16,20 @@ export async function getFichas() {
 }
 
 /**
+ * Filters fichas by search and active status.
+ * Endpoint: GET /general/fichas/filter/?search=...&active=...
+ * @param params Optional search and active params
+ */
+export async function filterFichas(params?: { search?: string; active?: string }) {
+  const url = new URL(ENDPOINTS.ficha.filterFichas);
+  if (params?.search) url.searchParams.append('search', params.search);
+  if (params?.active) url.searchParams.append('active', params.active);
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error('Error al filtrar fichas');
+  return response.json();
+}
+
+/**
  * Creates a new ficha.
  * @param data - Ficha data
  * @returns Promise with the created ficha

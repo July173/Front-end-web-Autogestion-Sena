@@ -51,6 +51,21 @@ export async function getDocumentTypes() {
 }
 
 /**
+ * Filters document types by search and active status.
+ * Endpoint: GET /security/document-types/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ */
+export async function filterDocumentTypes(params?: { search?: string; active?: string }) {
+  const url = new URL(ENDPOINTS.documentType.filterDocumentType);
+  if (params?.search) url.searchParams.append('search', params.search);
+  if (params?.active) url.searchParams.append('active', params.active);
+
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error('Error al filtrar tipos de documento');
+  return response.json();
+}
+
+/**
  * Creates a document type.
  * Endpoint: POST /general/document-types/
  * @param data - Document type data

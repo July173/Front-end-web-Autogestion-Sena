@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import Paginator from "../../Paginator";
 import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import { useGeneralData } from "../../../hook/useGeneralData";
+import FilterBar from "../../FilterBar";
+import { filterPrograms } from "../../../Api/Services/Program";
 import type { Program } from "../../../Api/types/Modules/general.types";
 
 const cardsPerPage = 9;
@@ -34,6 +36,11 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
 
   // Pagination state for programs grid display
   const [programsPage, setProgramsPage] = useState(1);
+  // Filter UI state
+  const [displayedPrograms, setDisplayedPrograms] = useState<Program[]>(programs || []);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
   // Modal visibility states for program creation
   const [showProgramModal, setShowProgramModal] = useState(false);
   const [pendingProgramData, setPendingProgramData] = useState<Partial<Program> | null>(null);
@@ -60,6 +67,34 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
       return String((err as { message: unknown }).message);
     }
     return String(err ?? fallback);
+  };
+
+  useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedPrograms(programs || []);
+    }
+  }, [programs, filtering, search, activeFilter]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedPrograms(programs || []);
+        setProgramsPage(1);
+        return;
+      }
+      const data = await filterPrograms({ search: s, active: a });
+      setDisplayedPrograms(data || []);
+      setProgramsPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
   };
 
   /**
@@ -187,7 +222,7 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Programas</h3>
           <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-            {programs.length} registros
+            {displayedPrograms.length} registros
           </span>
         </div>
         {/* Chevron icon indicating open/closed state */}
@@ -200,34 +235,60 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
       {/* Expandable content section */}
       {open && (
         <>
-          {/* Action bar with add program button */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAddProgram} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
-              <Plus className="w-4 h-4" /> Agregar Programa
-            </button>
+          {/* Filter + Action bar with add program button */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por nombre"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAddProgram} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
+                <Plus className="w-4 h-4" /> Agregar Programa
+              </button>
+            </div>
           </div>
           {/* Programs grid with responsive layout */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Map through paginated programs to create program cards */}
-            {programs.slice((programsPage - 1) * cardsPerPage, programsPage * cardsPerPage).map((program: Program) => (
-              // Individual program card
-              <div key={program.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-                {/* Program header with name/description and status badge */}
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{program.name || `Programa ${program.code_program}`}</h3>
-                    {program.description && <p className="text-sm text-gray-600 mt-1">{program.description}</p>}
-                  </div>
-                  {/* Active/inactive status indicator */}
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${program.active ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900"}`}>{program.active ? "Activo" : "Inactivo"}</div>
-                </div>
-                {/* Action buttons for edit and toggle active status */}
-                <div className="flex gap-2">
-                  <button onClick={() => handleEdit(program)} className="px-5 py-1 text-base rounded-3xl border border-gray-400 bg-gray-100 text-gray-800 font-semibold transition-colors hover:bg-gray-200">Editar</button>
-                  <button onClick={() => handleToggle(program)} className={`px-5 py-1 text-base rounded-3xl border font-semibold transition-colors ${program.active ? "bg-red-100 text-red-900 border-red-700 hover:bg-red-200" : "bg-green-100 text-green-900 border-green-700 hover:bg-green-200"}`}>{program.active ? "Deshabilitar" : "Habilitar"}</button>
-                </div>
+          <div className={`p-6 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedPrograms.length === 0 ? (
+              <div className="w-full text-center text-gray-500 py-12">
+                {search || activeFilter ? 'No se encontraron programas con esta búsqueda' : 'No hay programas disponibles'}
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Map through paginated programs to create program cards */}
+                {displayedPrograms.slice((programsPage - 1) * cardsPerPage, programsPage * cardsPerPage).map((program: Program) => (
+                  // Individual program card
+                  <div key={program.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                    {/* Program header with name/description and status badge */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">{program.name || `Programa ${program.code_program}`}</h3>
+                        {program.description && <p className="text-sm text-gray-600 mt-1">{program.description}</p>}
+                      </div>
+                      {/* Active/inactive status indicator */}
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${program.active ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900"}`}>{program.active ? "Activo" : "Inactivo"}</div>
+                    </div>
+                    {/* Action buttons for edit and toggle active status */}
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(program)} className="px-5 py-1 text-base rounded-3xl border border-gray-400 bg-gray-100 text-gray-800 font-semibold transition-colors hover:bg-gray-200">Editar</button>
+                      <button onClick={() => handleToggle(program)} className={`px-5 py-1 text-base rounded-3xl border font-semibold transition-colors ${program.active ? "bg-red-100 text-red-900 border-red-700 hover:bg-red-200" : "bg-green-100 text-green-900 border-green-700 hover:bg-green-200"}`}>{program.active ? "Deshabilitar" : "Habilitar"}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Edit program modal with form fields */}
             <ModalFormGeneric
               isOpen={showEditProgram}
@@ -267,10 +328,10 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
             />
           </div>
           {/* Pagination component when multiple pages exist */}
-          {Math.ceil(programs.length / cardsPerPage) > 1 && (
+          {Math.ceil(displayedPrograms.length / cardsPerPage) > 1 && (
             <Paginator
               page={programsPage}
-              totalPages={Math.ceil(programs.length / cardsPerPage)}
+              totalPages={Math.ceil(displayedPrograms.length / cardsPerPage)}
               onPageChange={setProgramsPage}
               className="mt-4 px-6"
             />

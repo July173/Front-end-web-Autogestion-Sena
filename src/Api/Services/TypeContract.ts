@@ -45,6 +45,21 @@ export async function getContractTypes() {
 }
 
 /**
+ * Filters contract types by search and active status.
+ * Endpoint: GET /general/type-contracts/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ */
+export async function filterContractTypes(params?: { search?: string; active?: string }) {
+	const url = new URL(ENDPOINTS.contractType.filterContractType);
+	if (params?.search) url.searchParams.append('search', params.search);
+	if (params?.active) url.searchParams.append('active', params.active);
+
+	const response = await fetch(url.toString());
+	if (!response.ok) throw new Error('Error al filtrar tipos de contrato');
+	return response.json();
+}
+
+/**
  * Creates a contract type.
  * Endpoint: POST /general/contract-types/
  * @param data - Contract type data

@@ -67,3 +67,18 @@ export async function softDeleteSupportSchedule(id: number) {
 		return {};
 	}
 }
+
+/**
+ * Filters support schedules by search text and active flag.
+ * Endpoint: GET /support/schedules/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ * @returns Promise with filtered array of support schedules
+ */
+export async function filterSupportSchedules(params?: { search?: string; active?: string }): Promise<SupportSchedule[]> {
+    const url = new URL(ENDPOINTS.SupportSchedule.filterSupportSchedule, window.location.origin);
+    if (params?.search) url.searchParams.append('search', params.search);
+    if (params?.active) url.searchParams.append('active', params.active);
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('Error al filtrar los horarios de soporte');
+    return res.json();
+}

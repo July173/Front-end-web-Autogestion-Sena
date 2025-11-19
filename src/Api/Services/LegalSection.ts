@@ -23,6 +23,19 @@ export async function getAllLegalSections(): Promise<LegalSection[]> {
   return res.json();
 }
 
+/**
+ * Filters legal sections by search and active status.
+ * Endpoint: GET /general/legal-sections/filter/?search=...&active=...
+ */
+export async function filterLegalSections(params?: { search?: string; active?: string }) {
+  const url = new URL(ENDPOINTS.legalSection.filterLegalSection);
+  if (params?.search) url.searchParams.append('search', params.search);
+  if (params?.active) url.searchParams.append('active', params.active);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error('Error al filtrar secciones legales');
+  return res.json();
+}
+
 export async function createLegalSection(data: Partial<LegalSection>) {
   const res = await fetch(ENDPOINTS.legalSection.allLegalSection, {
     method: 'POST',

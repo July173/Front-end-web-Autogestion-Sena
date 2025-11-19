@@ -72,3 +72,18 @@ export async function softDeleteSupportContact(id: number) {
 	}
 }
 
+/**
+ * Filters support contacts by search text and active flag.
+ * Endpoint: GET /support/contacts/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ * @returns Promise with filtered array of support contacts
+ */
+export async function filterSupportContacts(params?: { search?: string; active?: string }): Promise<SupportContact[]> {
+    const url = new URL(ENDPOINTS.SupportContact.filterSupportContact, window.location.origin);
+    if (params?.search) url.searchParams.append('search', params.search);
+    if (params?.active) url.searchParams.append('active', params.active);
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('Error al filtrar los contactos de soporte');
+    return res.json();
+}
+

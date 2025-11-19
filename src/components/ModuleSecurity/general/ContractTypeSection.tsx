@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { TypeContract } from '../../../Api/types/Modules/general.types';
 import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import Paginator from "../../Paginator";
@@ -6,7 +6,8 @@ import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import CancelModal from "../../DescriptionModal";
-import { getContractTypes, createContractType, updateContractType, deactivateContractType } from "../../../Api/Services/TypeContract";
+import { getContractTypes, createContractType, updateContractType, deactivateContractType, filterContractTypes } from "../../../Api/Services/TypeContract";
+import FilterBar from "../../FilterBar";
 import { max } from "date-fns";
 
 const cardsPerPage = 9;
@@ -48,6 +49,12 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<TypeContract | null>(null);
 
+  // Filter UI state
+  const [displayedContractTypes, setDisplayedContractTypes] = useState<TypeContract[]>([]);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+
   // Modal states for description display
   const [showDescModal, setShowDescModal] = useState(false);
   const [descModalText, setDescModalText] = useState("");
@@ -76,6 +83,33 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
   React.useEffect(() => {
     refreshContractTypes();
   }, []);
+
+  useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedContractTypes(contractTypes || []);
+    }
+  }, [contractTypes, filtering]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedContractTypes(contractTypes || []);
+        return;
+      }
+      const data = await filterContractTypes({ search: s, active: a });
+      setDisplayedContractTypes(data || []);
+      setContractTypesPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   /**
    * InfoCard component for displaying individual contract type information
@@ -223,7 +257,7 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Tipos de Contrato</h3>
           <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-            {contractTypes.length} registros
+            {displayedContractTypes.length} registros
           </span>
         </div>
         {open ? (
@@ -234,24 +268,46 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
       </button>
       {open && (
         <>
-          {/* Add contract type button */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
-              <Plus className="w-4 h-4" /> Agregar Tipo de Contrato
-            </button>
+          {/* Filter bar and Add contract type button */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por nombre"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
+                <Plus className="w-4 h-4" /> Agregar Tipo de Contrato
+              </button>
+            </div>
           </div>
           {/* Contract types grid with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {contractTypes.slice((contractTypesPage - 1) * cardsPerPage, contractTypesPage * cardsPerPage).map((type) => (
-              <InfoCard
-                key={type.id}
-                name={type.name}
-                description={type.description}
-                isActive={type.active}
-                onEdit={() => handleEdit(type)}
-                onToggle={() => handleToggle(type)}
-              />
-            ))}
+          <div className={`p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedContractTypes.length === 0 ? (
+              <div className="col-span-3 text-center text-gray-600 py-8">{(search || activeFilter) ? 'No se encontraron tipos de contrato con esta búsqueda' : 'No hay tipos de contrato disponibles'}</div>
+            ) : (
+              displayedContractTypes.slice((contractTypesPage - 1) * cardsPerPage, contractTypesPage * cardsPerPage).map((type) => (
+                <InfoCard
+                  key={type.id}
+                  name={type.name}
+                  description={type.description}
+                  isActive={type.active}
+                  onEdit={() => handleEdit(type)}
+                  onToggle={() => handleToggle(type)}
+                />
+              ))
+            )}
             {/* Edit modal */}
             <ModalFormGeneric
               isOpen={showEditModal}

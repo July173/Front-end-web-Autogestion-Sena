@@ -45,3 +45,20 @@ export async function softDeleteColor(id) {
     return {};
   }
 }
+
+/**
+ * Filters colors using the API filter endpoint.
+ * Accepts optional search and active parameters.
+ * @param params - { search?: string; active?: string }
+ */
+export async function filterColors(params?: { search?: string; active?: string }) {
+  const url = new URL(ENDPOINTS.Colors.filterColors);
+  if (params) {
+    if (params.search) url.searchParams.append('search', params.search);
+    if (params.active !== undefined && params.active !== '') url.searchParams.append('active', params.active);
+  }
+
+  const response = await fetch(String(url));
+  if (!response.ok) throw new Error('Error al filtrar colores');
+  return response.json();
+}
