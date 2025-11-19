@@ -38,12 +38,14 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
   const [showModal, setShowModal] = useState(false);
   const [pendingData, setPendingData] = useState<TypeContract | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   // Modal states for editing contract types
   const [editData, setEditData] = useState<TypeContract | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [pendingEditData, setPendingEditData] = useState<TypeContract | null>(null);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [editConfirmError, setEditConfirmError] = useState<string | null>(null);
 
   // Modal states for disabling contract types
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
@@ -181,11 +183,13 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
       setNotifTitle('Éxito');
       setNotifMessage('Tipo de contrato creado correctamente.');
       setNotifOpen(true);
+      setConfirmError(null);
     } catch (e) {
-      setNotifType('warning');
-      setNotifTitle('Error');
-      setNotifMessage(e instanceof Error ? e.message : 'Error al crear tipo de contrato');
-      setNotifOpen(true);
+      const message = e instanceof Error ? e.message : 'Error al crear tipo de contrato';
+      // show the backend message inside the confirmation modal
+      setConfirmError(message);
+      // keep the modal open so the user sees the message
+      setShowConfirm(true);
     }
   };
 
@@ -211,11 +215,11 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
       setNotifTitle('Éxito');
       setNotifMessage('Tipo de contrato actualizado correctamente.');
       setNotifOpen(true);
+      setEditConfirmError(null);
     } catch (e) {
-      setNotifType('warning');
-      setNotifTitle('Error');
-      setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar tipo de contrato');
-      setNotifOpen(true);
+      const message = e instanceof Error ? e.message : 'Error al actualizar tipo de contrato';
+      setEditConfirmError(message);
+      setShowEditConfirm(true);
     }
   };
 
@@ -332,7 +336,8 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
               confirmText="Sí, actualizar"
               cancelText="Cancelar"
               onConfirm={handleConfirmEdit}
-              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }}
+              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); setEditConfirmError(null); }}
+              errorMessage={editConfirmError}
             />
             {/* Disable confirmation modal */}
             <ConfirmModal
@@ -381,7 +386,9 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
             onCancel={() => {
               setShowConfirm(false);
               setPendingData(null);
+              setConfirmError(null);
             }}
+            errorMessage={confirmError}
           />
           {/* Description modal for long descriptions */}
           <CancelModal

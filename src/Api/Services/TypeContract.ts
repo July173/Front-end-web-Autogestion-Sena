@@ -71,7 +71,18 @@ export async function createContractType(data) {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(data),
 	});
-	if (!response.ok) throw new Error("Error al crear tipo de contrato");
+	if (!response.ok) {
+		// Try to parse backend error message (e.g. { detail: '...' })
+		const txt = await response.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const detail = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(detail || `Error al crear tipo de contrato (${response.status})`);
+		} catch (err) {
+			// If JSON parse fails, throw raw text or generic message
+			throw new Error(txt || `Error al crear tipo de contrato (${response.status})`);
+		}
+	}
 	return response.json();
 }
 
@@ -89,7 +100,16 @@ export async function updateContractType(id, data) {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(data),
 	});
-	if (!response.ok) throw new Error("Error al actualizar tipo de contrato");
+	if (!response.ok) {
+		const txt = await response.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const detail = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(detail || `Error al actualizar tipo de contrato (${response.status})`);
+		} catch (err) {
+			throw new Error(txt || `Error al actualizar tipo de contrato (${response.status})`);
+		}
+	}
 	return response.json();
 }
 

@@ -23,7 +23,7 @@ const Roles = () => {
     rolesFiltered, roles, rolesLoading, rolesError,
     page, setPage, rolesPerPage, totalPages, paginatedRoles,
     loading, error,
-    showConfirm, setShowConfirm, pendingRole, setPendingRole,
+    showConfirm, setShowConfirm, pendingRole, setPendingRole, confirmActionError,
     showCreate, setShowCreate, forms, permissions, loadingForms, loadingPermissions,
     pendingRoleData, setPendingRoleData, showCreateConfirm, setShowCreateConfirm,
     openFormId, setOpenFormId,
@@ -286,6 +286,7 @@ const Roles = () => {
         cancelText="Cancelar"
         onConfirm={handleConfirmAction}
         onCancel={() => setShowConfirm(false)}
+        errorMessage={confirmActionError}
       />
 
       {/* Modal for creating new roles */}

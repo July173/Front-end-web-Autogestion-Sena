@@ -8,6 +8,7 @@ import NotificationModal from "../../NotificationModal";
 import { getCenters, createCenter, updateCenter, softDeleteCenter, filterCenters } from "../../../Api/Services/Center";
 import FilterBar from "../../FilterBar";
 import { getRegionales } from "../../../Api/Services/Regional";
+import parseErrorMessage from '../../../utils/parseError';
 
 const cardsPerPage = 9;
 
@@ -41,16 +42,19 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [pendingData, setPendingData] = useState<Center | null>(null);
   const [showAddConfirm, setShowAddConfirm] = useState(false);
+  const [addConfirmError, setAddConfirmError] = useState<string | null>(null);
 
   // Modal states for editing centers
   const [editData, setEditData] = useState<Center | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [pendingEditData, setPendingEditData] = useState<Center | null>(null);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [editConfirmError, setEditConfirmError] = useState<string | null>(null);
 
   // Modal states for disabling centers
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<Center | null>(null);
+  const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
 
   // Notification modal state
   const [notifOpen, setNotifOpen] = useState(false);
@@ -156,14 +160,17 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
         regional: pendingData?.regional ? Number(pendingData.regional) : pendingData?.regional,
       };
   // createCenter expects a loose object; cast to unknown then to the expected param type to avoid 'any'
-  await createCenter(payload as unknown as Record<string, unknown>);
+      await createCenter(payload as unknown as Record<string, unknown>);
       setShowAddModal(false);
       setShowAddConfirm(false);
       setPendingData(null);
+      setAddConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Centro creado correctamente.'); setNotifOpen(true);
     } catch (e) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear centro'); setNotifOpen(true);
+      const msg = parseErrorMessage(e) || 'Error al crear centro';
+      setAddConfirmError(msg);
+      setShowAddConfirm(true);
     }
   };
 
@@ -180,15 +187,18 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
         address: pendingEditData?.address ?? editData?.address,
         regional: pendingEditData?.regional ? Number(pendingEditData.regional) : pendingEditData?.regional ?? editData?.regional,
       };
-  await updateCenter(editData.id, payload as unknown as Record<string, unknown>);
+      await updateCenter(editData.id, payload as unknown as Record<string, unknown>);
       setShowEditModal(false);
       setShowEditConfirm(false);
       setPendingEditData(null);
       setEditData(null);
+      setEditConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Centro actualizado correctamente.'); setNotifOpen(true);
     } catch (e) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar centro'); setNotifOpen(true);
+      const msg = parseErrorMessage(e) || 'Error al actualizar centro';
+      setEditConfirmError(msg);
+      setShowEditConfirm(true);
     }
   };
 
@@ -198,10 +208,13 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
       await softDeleteCenter(pendingDisable.id);
       setShowDisableConfirm(false);
       setPendingDisable(null);
+      setDisableConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar centro'); setNotifOpen(true);
+      const msg = parseErrorMessage(e) || 'Error al deshabilitar centro';
+      setDisableConfirmError(msg);
+      setShowDisableConfirm(true);
     }
   };
 
@@ -292,10 +305,28 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
             })()}
 
             {/* Edit confirmation modal */}
-            <ConfirmModal isOpen={showEditConfirm} title="¿Confirmar actualización?" message="¿Estás seguro de que deseas actualizar este centro?" confirmText="Sí, actualizar" cancelText="Cancelar" onConfirm={handleConfirmEdit} onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }} />
+            <ConfirmModal
+              isOpen={showEditConfirm}
+              title="¿Confirmar actualización?"
+              message="¿Estás seguro de que deseas actualizar este centro?"
+              confirmText="Sí, actualizar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmEdit}
+              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); setEditConfirmError(null); }}
+              errorMessage={editConfirmError}
+            />
 
             {/* Disable confirmation modal */}
-            <ConfirmModal isOpen={showDisableConfirm} title="¿Confirmar acción?" message="¿Estás seguro de que deseas deshabilitar este centro?" confirmText="Sí, continuar" cancelText="Cancelar" onConfirm={handleConfirmDisable} onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); }} />
+            <ConfirmModal
+              isOpen={showDisableConfirm}
+              title="¿Confirmar acción?"
+              message="¿Estás seguro de que deseas deshabilitar este centro?"
+              confirmText="Sí, continuar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmDisable}
+              onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); setDisableConfirmError(null); }}
+              errorMessage={disableConfirmError}
+            />
           </div>
 
           {/* Pagination component */}
@@ -312,7 +343,16 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
           ]} onClose={() => setShowAddModal(false)} onSubmit={handleSubmitAdd} submitText="Registrar" cancelText="Cancelar" customRender={undefined} onProgramChange={undefined} />
 
           {/* Add confirmation modal */}
-          <ConfirmModal isOpen={showAddConfirm} title="¿Confirmar registro?" message="¿Estás seguro de que deseas registrar este centro?" confirmText="Sí, registrar" cancelText="Cancelar" onConfirm={handleConfirmAdd} onCancel={() => { setShowAddConfirm(false); setPendingData(null); }} />
+          <ConfirmModal
+            isOpen={showAddConfirm}
+            title="¿Confirmar registro?"
+            message="¿Estás seguro de que deseas registrar este centro?"
+            confirmText="Sí, registrar"
+            cancelText="Cancelar"
+            onConfirm={handleConfirmAdd}
+            onCancel={() => { setShowAddConfirm(false); setPendingData(null); setAddConfirmError(null); }}
+            errorMessage={addConfirmError}
+          />
 
           {/* Notification modal */}
           <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} type={notifType} title={notifTitle} message={notifMessage} />

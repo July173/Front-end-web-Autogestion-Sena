@@ -14,7 +14,16 @@ export async function createColor(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al crear color');
+  if (!response.ok) {
+    const txt = await response.text();
+    try {
+      const parsed = txt ? JSON.parse(txt) : null;
+      const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+      throw new Error(msg || `Error al crear color (${response.status})`);
+    } catch (_err) {
+      throw new Error(txt || `Error al crear color (${response.status})`);
+    }
+  }
   return response.json();
 }
 
@@ -26,7 +35,16 @@ export async function updateColor(id, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al actualizar color');
+  if (!response.ok) {
+    const txt = await response.text();
+    try {
+      const parsed = txt ? JSON.parse(txt) : null;
+      const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+      throw new Error(msg || `Error al actualizar color (${response.status})`);
+    } catch (_err) {
+      throw new Error(txt || `Error al actualizar color (${response.status})`);
+    }
+  }
   return response.json();
 }
 
@@ -37,7 +55,16 @@ export async function softDeleteColor(id) {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
   });
-  if (!response.ok) throw new Error('Error al deshabilitar color');
+  if (!response.ok) {
+    const txt = await response.text();
+    try {
+      const parsed = txt ? JSON.parse(txt) : null;
+      const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+      throw new Error(msg || `Error al deshabilitar color (${response.status})`);
+    } catch (_err) {
+      throw new Error(txt || `Error al deshabilitar color (${response.status})`);
+    }
+  }
   const text = await response.text();
   try {
     return text ? JSON.parse(text) : {};

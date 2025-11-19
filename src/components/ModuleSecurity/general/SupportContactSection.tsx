@@ -6,6 +6,7 @@ import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import FilterBar from "../../FilterBar";
 import { getAllSupportContacts, createSupportContact, updateSupportContact, softDeleteSupportContact, filterSupportContacts } from "../../../Api/Services/SupportContact";
+import parseErrorMessage from '../../../utils/parseError';
 import { SupportContact } from "../../../Api/types/entities/support.types";
 
 const cardsPerPage = 9;
@@ -41,16 +42,19 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
   const [showAddModal, setShowAddModal] = useState(false);
   const [pendingData, setPendingData] = useState<SupportContact | null>(null);
   const [showAddConfirm, setShowAddConfirm] = useState(false);
+  const [addConfirmError, setAddConfirmError] = useState<string | null>(null);
 
   // Modal states for editing existing contact
   const [editData, setEditData] = useState<SupportContact | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [pendingEditData, setPendingEditData] = useState<SupportContact | null>(null);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [editConfirmError, setEditConfirmError] = useState<string | null>(null);
 
   // Modal states for disable/enable confirmation
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<SupportContact | null>(null);
+  const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
 
   // Notification modal states
   const [notifOpen, setNotifOpen] = useState(false);
@@ -167,10 +171,14 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
       setShowAddModal(false);
       setShowAddConfirm(false);
       setPendingData(null);
+      setAddConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Contacto creado correctamente.'); setNotifOpen(true);
     } catch (e: unknown) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear contacto'); setNotifOpen(true);
+      const msg = parseErrorMessage(e);
+      // Keep the confirm modal open and show the backend message inside it
+      setAddConfirmError(msg || 'Error al crear contacto');
+      setShowAddConfirm(true);
     }
   };
 
@@ -192,10 +200,13 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
       setShowEditConfirm(false);
       setPendingEditData(null);
       setEditData(null);
+      setEditConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Contacto actualizado correctamente.'); setNotifOpen(true);
     } catch (e: unknown) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar contacto'); setNotifOpen(true);
+      const msg = parseErrorMessage(e);
+      setEditConfirmError(msg || 'Error al actualizar contacto');
+      setShowEditConfirm(true);
     }
   };
 
@@ -209,10 +220,13 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
       // Close modal and reset state
       setShowDisableConfirm(false);
       setPendingDisable(null);
+      setDisableConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e: unknown) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar contacto'); setNotifOpen(true);
+      const msg = parseErrorMessage(e);
+      setDisableConfirmError(msg || 'Error al deshabilitar contacto');
+      setShowDisableConfirm(true);
     }
   };
 
@@ -282,10 +296,28 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
             ]} onClose={() => { setShowEditModal(false); setEditData(null); setPendingEditData(null); }} onSubmit={handleSubmitEdit} submitText="Actualizar" cancelText="Cancelar" initialValues={editData || {}} customRender={undefined} onProgramChange={undefined} />
 
             {/* Edit confirmation modal */}
-            <ConfirmModal isOpen={showEditConfirm} title="¿Confirmar actualización?" message="¿Estás seguro de que deseas actualizar este contacto?" confirmText="Sí, actualizar" cancelText="Cancelar" onConfirm={handleConfirmEdit} onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }} />
+            <ConfirmModal
+              isOpen={showEditConfirm}
+              title="¿Confirmar actualización?"
+              message="¿Estás seguro de que deseas actualizar este contacto?"
+              confirmText="Sí, actualizar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmEdit}
+              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); setEditConfirmError(null); }}
+              errorMessage={editConfirmError}
+            />
 
             {/* Disable/enable confirmation modal */}
-            <ConfirmModal isOpen={showDisableConfirm} title="¿Confirmar acción?" message="¿Estás seguro de que deseas deshabilitar este contacto?" confirmText="Sí, continuar" cancelText="Cancelar" onConfirm={handleConfirmDisable} onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); }} />
+            <ConfirmModal
+              isOpen={showDisableConfirm}
+              title="¿Confirmar acción?"
+              message="¿Estás seguro de que deseas deshabilitar este contacto?"
+              confirmText="Sí, continuar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmDisable}
+              onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); setDisableConfirmError(null); }}
+              errorMessage={disableConfirmError}
+            />
           </div>
 
           {/* Pagination component - only show if multiple pages needed */}
@@ -301,8 +333,17 @@ const SupportContactSection = ({ open, onToggle }: SupportContactSectionProps) =
             { label: "Info adicional", name: "extra_info", type: "text", placeholder: "Información extra", required: true },
           ]} onClose={() => setShowAddModal(false)} onSubmit={handleSubmitAdd} submitText="Registrar" cancelText="Cancelar" customRender={undefined} onProgramChange={undefined} />
 
-          {/* Add confirmation modal */}
-          <ConfirmModal isOpen={showAddConfirm} title="¿Confirmar registro?" message="¿Estás seguro de que deseas registrar este contacto?" confirmText="Sí, registrar" cancelText="Cancelar" onConfirm={handleConfirmAdd} onCancel={() => { setShowAddConfirm(false); setPendingData(null); }} />
+            {/* Add confirmation modal */}
+            <ConfirmModal
+              isOpen={showAddConfirm}
+              title="¿Confirmar registro?"
+              message="¿Estás seguro de que deseas registrar este contacto?"
+              confirmText="Sí, registrar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmAdd}
+              onCancel={() => { setShowAddConfirm(false); setPendingData(null); setAddConfirmError(null); }}
+              errorMessage={addConfirmError}
+            />
 
           {/* Global notification modal for success/error messages */}
           <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} type={notifType} title={notifTitle} message={notifMessage} />

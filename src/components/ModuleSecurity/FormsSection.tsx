@@ -5,6 +5,7 @@ import ModalFormGeneric from './ModalFormGeneric';
 import ConfirmModal from '../ConfirmModal';
 import NotificationModal from '../NotificationModal';
 import useForms from '../../hook/useForms';
+import parseErrorMessage from '../../utils/parseError';
 import { Form as FormType } from '../../Api/types/entities/form.types';
 import { putForm } from '../../Api/Services/Form';
 
@@ -21,6 +22,7 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingForm, setEditingForm] = useState<Partial<FormType> | null>(null);
   const [confirmToggleForm, setConfirmToggleForm] = useState<FormType | null>(null);
+  const [confirmToggleError, setConfirmToggleError] = useState<string | null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifType, setNotifType] = useState<'success' | 'info' | 'warning'>('success');
   const [notifTitle, setNotifTitle] = useState('');
@@ -37,7 +39,6 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
     { name: 'name', label: 'Nombre del Formulario', type: 'text', placeholder: 'Ej : gestion.' },
     { name: 'path', label: 'Direccion del Formulario', type: 'text', placeholder: 'Ej : src/user/form' },
     { name: 'description', label: 'Descripcion', type: 'text', placeholder: 'Describe que hace', maxLength: 200 },
-    { name: 'active', label: 'Activo', type: 'checkbox' },
   ];
 
   // When editing a form we don't want to show the 'active' toggle inside the edit modal
@@ -59,7 +60,7 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
           setShowFormModal(false);
           await refresh();
         } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
+          const msg = parseErrorMessage(e) || 'Error al actualizar formulario';
           setNotifType('warning');
           setNotifTitle('Error al actualizar formulario');
           setNotifMessage(msg);
@@ -79,7 +80,7 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
           setShowFormModal(false);
           await refresh();
         } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
+          const msg = parseErrorMessage(e) || 'Error al crear formulario';
           setNotifType('warning');
           setNotifTitle('Error al crear formulario');
           setNotifMessage(msg);
@@ -127,13 +128,13 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
       setNotifMessage(`El formulario "${payload.name}" se ha actualizado.`);
       setNotifOpen(true);
       setConfirmToggleForm(null);
+      setConfirmToggleError(null);
       await refresh();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setNotifType('warning');
-      setNotifTitle('Error');
-      setNotifMessage(msg);
-      setNotifOpen(true);
+      const msg = parseErrorMessage(e) || String(e);
+      // keep confirmation modal open and show backend message inside it
+      setConfirmToggleError(msg);
+      setConfirmToggleForm(confirmToggleForm);
     }
   };
 
@@ -193,7 +194,6 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
                   <div>
                     <div className="flex justify-between items-start">
                       <h4 className="font-medium">{f.name}</h4>
-                      <div className={`text-xs px-2 py-1 rounded ${f.active ? 'bg-green-100 text-green-900' : 'bg-red-100 text-red-900'}`}>{f.active ? 'Activo' : 'Inactivo'}</div>
                     </div>
                     <p className="text-sm text-gray-600 mt-2">{f.description}</p>
                     <p className="text-xs text-gray-400 mt-2">Ruta: {f.path}</p>
@@ -244,7 +244,8 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
             confirmText="Sí, confirmar"
             cancelText="Cancelar"
             onConfirm={doToggle}
-            onCancel={() => setConfirmToggleForm(null)}
+            onCancel={() => { setConfirmToggleForm(null); setConfirmToggleError(null); }}
+            errorMessage={confirmToggleError}
           />
 
           <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} type={notifType} title={notifTitle} message={notifMessage} />

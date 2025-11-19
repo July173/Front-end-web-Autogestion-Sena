@@ -6,6 +6,7 @@ import { getPermissions } from '../Api/Services/Permission';
 import type { RolUser } from '../Api/types/entities/role.types';
 import type { Form } from '../Api/types/entities/form.types';
 import type { Permission } from '../Api/types/entities/permission.types';
+import parseErrorMessage from '../utils/parseError';
 
 // Local type helpers
 type FormPermissionPayload = {
@@ -44,13 +45,7 @@ type RolPermissionEntry = {
 };
 
 function getErrorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === 'string') return e;
-  try {
-    return JSON.stringify(e);
-  } catch (_err) {
-    return String(e);
-  }
+  return parseErrorMessage(e);
 }
 
 export function useRoles() {
@@ -68,6 +63,7 @@ export function useRoles() {
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingRole, setPendingRole] = useState<RolUser | null>(null);
+  const [confirmActionError, setConfirmActionError] = useState<string | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [forms, setForms] = useState<Form[]>([]);
@@ -168,8 +164,13 @@ export function useRoles() {
           ? `El rol "${pendingRole.name}" ha sido inhabilitado exitosamente.`
           : `El rol "${pendingRole.name}" ha sido habilitado exitosamente.`
       );
+      setConfirmActionError(null);
     } catch (e: unknown) {
-      showNotif('warning', 'Error al cambiar estado', getErrorMessage(e) || 'No se pudo cambiar el estado del rol');
+      const msg = getErrorMessage(e) || 'No se pudo cambiar el estado del rol';
+      // keep confirm open and show backend message inside modal
+      setConfirmActionError(msg);
+      setShowConfirm(true);
+      showNotif('warning', 'Error al cambiar estado', msg);
     }
     setPendingRole(null);
   };
@@ -276,6 +277,7 @@ export function useRoles() {
     page, setPage, rolesPerPage, totalPages, paginatedRoles,
     loading, error,
     showConfirm, setShowConfirm, pendingRole, setPendingRole,
+  confirmActionError,
     showCreate, setShowCreate, forms, permissions, loadingForms, loadingPermissions,
     pendingRoleData, setPendingRoleData, showCreateConfirm, setShowCreateConfirm,
     openFormId, setOpenFormId,

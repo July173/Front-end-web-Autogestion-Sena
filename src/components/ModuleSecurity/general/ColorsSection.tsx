@@ -40,16 +40,19 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
   const [showModal, setShowModal] = useState(false);
   const [pendingData, setPendingData] = useState<Colors | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [addConfirmError, setAddConfirmError] = useState<string | null>(null);
 
   // Modal states for editing colors
   const [editData, setEditData] = useState<Colors | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [pendingEditData, setPendingEditData] = useState<Colors | null>(null);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [editConfirmError, setEditConfirmError] = useState<string | null>(null);
 
   // Modal states for disabling colors
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<Colors | null>(null);
+  const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
 
   // Notification modal state
   const [notifOpen, setNotifOpen] = useState(false);
@@ -144,16 +147,16 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
       setShowModal(false);
       setShowConfirm(false);
       setPendingData(null);
+      setAddConfirmError(null);
       await refreshColors();
       setNotifType("success");
       setNotifTitle("Éxito");
       setNotifMessage("Color creado correctamente.");
       setNotifOpen(true);
     } catch (e) {
-      setNotifType("warning");
-      setNotifTitle("Error");
-      setNotifMessage(e instanceof Error ? e.message : "Error al crear color");
-      setNotifOpen(true);
+      const msg = e instanceof Error ? e.message : "Error al crear color";
+      setAddConfirmError(msg);
+      setShowConfirm(true);
     }
   };
 
@@ -173,16 +176,16 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
       setShowEditConfirm(false);
       setPendingEditData(null);
       setEditData(null);
+      setEditConfirmError(null);
       await refreshColors();
       setNotifType("success");
       setNotifTitle("Éxito");
       setNotifMessage("Color actualizado correctamente.");
       setNotifOpen(true);
     } catch (e) {
-      setNotifType("warning");
-      setNotifTitle("Error");
-      setNotifMessage(e instanceof Error ? e.message : "Error al actualizar color");
-      setNotifOpen(true);
+      const msg = e instanceof Error ? e.message : "Error al actualizar color";
+      setEditConfirmError(msg);
+      setShowEditConfirm(true);
     }
   };
 
@@ -196,16 +199,16 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
       await softDeleteColor(pendingDisable.id);
       setShowDisableConfirm(false);
       setPendingDisable(null);
+      setDisableConfirmError(null);
       await refreshColors();
       setNotifType("success");
       setNotifTitle("Éxito");
       setNotifMessage("Estado del color actualizado correctamente.");
       setNotifOpen(true);
     } catch (e) {
-      setNotifType("warning");
-      setNotifTitle("Error");
-      setNotifMessage(e instanceof Error ? e.message : "Error al deshabilitar color");
-      setNotifOpen(true);
+      const msg = e instanceof Error ? e.message : "Error al deshabilitar color";
+      setDisableConfirmError(msg);
+      setShowDisableConfirm(true);
     }
   };
 
@@ -302,7 +305,8 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
               confirmText="Sí, actualizar"
               cancelText="Cancelar"
               onConfirm={handleConfirmEdit}
-              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }}
+              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); setEditConfirmError(null); }}
+              errorMessage={editConfirmError}
             />
             {/* Disable confirmation modal */}
             <ConfirmModal
@@ -312,7 +316,8 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
               confirmText="Sí, continuar"
               cancelText="Cancelar"
               onConfirm={handleConfirmDisable}
-              onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); }}
+              onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); setDisableConfirmError(null); }}
+              errorMessage={disableConfirmError}
             />
           </div>
           {/* Pagination component */}
@@ -351,7 +356,9 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
             onCancel={() => {
               setShowConfirm(false);
               setPendingData(null);
+              setAddConfirmError(null);
             }}
+            errorMessage={addConfirmError}
           />
           {/* Notification modal */}
           <NotificationModal

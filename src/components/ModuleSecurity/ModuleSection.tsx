@@ -3,6 +3,7 @@ import { ENDPOINTS } from '../../Api/config/ConfigApi';
 import Paginator from '../Paginator';
 import { getModules, postModule, getModuleForms, putModuleForms, toggleModuleActive } from '../../Api/Services/Module';
 import FilterBar from '../FilterBar';
+import parseErrorMessage from '../../utils/parseError';
 import { getForms } from '../../Api/Services/Form';
 import { InfoCard } from './CardSecurity';
 import ModalFormGeneric from './ModalFormGeneric';
@@ -39,6 +40,9 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
   const [editLoading, setEditLoading] = useState(false);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
   const [pendingEditData, setPendingEditData] = useState(null);
+  const [createConfirmError, setCreateConfirmError] = useState<string | null>(null);
+  const [editConfirmError, setEditConfirmError] = useState<string | null>(null);
+  const [toggleConfirmError, setToggleConfirmError] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationType, setNotificationType] = useState<'success' | 'info' | 'warning' | 'password-changed' | 'email-sent' | 'pending' | 'completed'>('success');
   const [notificationTitle, setNotificationTitle] = useState('');
@@ -86,7 +90,7 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
       setModulesFiltered(data);
       setPage(1);
     } catch (e) {
-      setModulesError((e as Error).message || 'Error al filtrar módulos');
+      setModulesError(parseErrorMessage(e) || 'Error al filtrar módulos');
     } finally {
       setModulesLoading(false);
     }
@@ -138,10 +142,9 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
       const updated = await getModules();
       setModules(updated);
     } catch (e) {
-      setNotificationType('warning');
-      setNotificationTitle('Error al crear módulo');
-      setNotificationMessage((e as Error).message || 'Error al crear el módulo');
-      setShowNotification(true);
+      const msg = parseErrorMessage(e) || 'Error al crear el módulo';
+      setCreateConfirmError(msg);
+      setShowModuleConfirm(true);
     }
   };
 
@@ -171,10 +174,9 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
       const updated = await getModules();
       setModules(updated);
     } catch (e) {
-      setNotificationType('warning');
-      setNotificationTitle('Error al actualizar módulo');
-      setNotificationMessage((e as Error).message || 'Error al actualizar el módulo');
-      setShowNotification(true);
+        const msg = parseErrorMessage(e) || 'Error al actualizar el módulo';
+      setEditConfirmError(msg);
+      setShowEditConfirm(true);
     }
   };
 
@@ -192,10 +194,9 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
       const updated = await getModules();
       setModules(updated);
     } catch (e) {
-      setNotificationType('warning');
-      setNotificationTitle('Error al cambiar estado');
-      setNotificationMessage((e as Error).message || 'No se pudo cambiar el estado del módulo');
-      setShowNotification(true);
+        const msg = parseErrorMessage(e) || 'No se pudo cambiar el estado del módulo';
+      setToggleConfirmError(msg);
+      setShowToggleConfirm(true);
     }
     setPendingToggleModule(null);
   };
@@ -306,7 +307,8 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
             confirmText="Sí, actualizar módulo"
             cancelText="Cancelar"
             onConfirm={handleConfirmEditModule}
-            onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }}
+            onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); setEditConfirmError(null); }}
+            errorMessage={editConfirmError}
           />
 
           <ModalFormGeneric
@@ -328,7 +330,8 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
             confirmText="Sí, crear módulo"
             cancelText="Cancelar"
             onConfirm={handleConfirmCreateModule}
-            onCancel={() => { setShowModuleConfirm(false); setPendingModuleData(null); }}
+            onCancel={() => { setShowModuleConfirm(false); setPendingModuleData(null); setCreateConfirmError(null); }}
+            errorMessage={createConfirmError}
           />
 
           <ConfirmModal
@@ -340,7 +343,8 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
             confirmText="Sí, confirmar"
             cancelText="Cancelar"
             onConfirm={handleConfirmToggle}
-            onCancel={() => setShowToggleConfirm(false)}
+            onCancel={() => { setShowToggleConfirm(false); setToggleConfirmError(null); }}
+            errorMessage={toggleConfirmError}
           />
 
           <NotificationModal isOpen={showNotification} onClose={() => setShowNotification(false)} type={notificationType} title={notificationTitle} message={notificationMessage} />
