@@ -5,8 +5,10 @@ import Paginator from "../../Paginator";
 import ModalFormGeneric from "../ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
-import { getCenters, createCenter, updateCenter, softDeleteCenter } from "../../../Api/Services/Center";
+import { getCenters, createCenter, updateCenter, softDeleteCenter, filterCenters } from "../../../Api/Services/Center";
+import FilterBar from "../../FilterBar";
 import { getRegionales } from "../../../Api/Services/Regional";
+import parseErrorMessage from '../../../utils/parseError';
 
 const cardsPerPage = 9;
 
@@ -28,24 +30,31 @@ interface CenterSectionProps {
 const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   // State for centers data and loading
   const [centers, setCenters] = useState<Center[]>([]);
+  const [displayedCenters, setDisplayedCenters] = useState<Center[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
 
   // Modal states for adding centers
   const [showAddModal, setShowAddModal] = useState(false);
   const [pendingData, setPendingData] = useState<Center | null>(null);
   const [showAddConfirm, setShowAddConfirm] = useState(false);
+  const [addConfirmError, setAddConfirmError] = useState<string | null>(null);
 
   // Modal states for editing centers
   const [editData, setEditData] = useState<Center | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [pendingEditData, setPendingEditData] = useState<Center | null>(null);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [editConfirmError, setEditConfirmError] = useState<string | null>(null);
 
   // Modal states for disabling centers
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<Center | null>(null);
+  const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
 
   // Notification modal state
   const [notifOpen, setNotifOpen] = useState(false);
@@ -85,6 +94,33 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
     })();
   }, []);
 
+  React.useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedCenters(centers || []);
+    }
+  }, [centers, filtering, search, activeFilter]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedCenters(centers || []);
+        return;
+      }
+      const data = await filterCenters({ search: s, active: a });
+      setDisplayedCenters(data || []);
+      setPage(1);
+    } catch (e) {
+      // silent fail, keep previous displayed
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
+
   /**
    * InfoCard component for displaying individual center information
    * Shows center details with edit and toggle buttons
@@ -115,15 +151,26 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   const handleSubmitAdd = (values: Center) => { setPendingData(values); setShowAddConfirm(true); };
   const handleConfirmAdd = async () => {
     try {
-      const payload = { ...pendingData, regional: pendingData?.regional ? Number(pendingData.regional) : pendingData.regional };
-      await createCenter(payload);
+      // Normalize payload keys to backend expectations: 'code_center' instead of 'codeCenter'
+      const pd = pendingData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingData?.name,
+        code_center: pd['codeCenter'] !== undefined && pd['codeCenter'] !== null ? String(pd['codeCenter']) : (pd['codeCenter'] as string | undefined),
+        address: pendingData?.address,
+        regional: pendingData?.regional ? Number(pendingData.regional) : pendingData?.regional,
+      };
+  // createCenter expects a loose object; cast to unknown then to the expected param type to avoid 'any'
+      await createCenter(payload as unknown as Record<string, unknown>);
       setShowAddModal(false);
       setShowAddConfirm(false);
       setPendingData(null);
+      setAddConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Centro creado correctamente.'); setNotifOpen(true);
     } catch (e) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear centro'); setNotifOpen(true);
+      const msg = parseErrorMessage(e) || 'Error al crear centro';
+      setAddConfirmError(msg);
+      setShowAddConfirm(true);
     }
   };
 
@@ -131,16 +178,27 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   const handleSubmitEdit = (values: Center) => { setPendingEditData(values); setShowEditConfirm(true); };
   const handleConfirmEdit = async () => {
     try {
-      const payload = { ...pendingEditData, regional: pendingEditData?.regional ? Number(pendingEditData.regional) : pendingEditData.regional };
-      await updateCenter(editData.id, payload);
+      // Normalize edit payload keys to backend expectations
+      const ped = pendingEditData as unknown as Record<string, unknown>;
+      const ed = editData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingEditData?.name ?? editData?.name,
+        code_center: ped['codeCenter'] !== undefined && ped['codeCenter'] !== null ? String(ped['codeCenter']) : (ped['codeCenter'] as string | undefined) ?? (ed['codeCenter'] as string | undefined),
+        address: pendingEditData?.address ?? editData?.address,
+        regional: pendingEditData?.regional ? Number(pendingEditData.regional) : pendingEditData?.regional ?? editData?.regional,
+      };
+      await updateCenter(editData.id, payload as unknown as Record<string, unknown>);
       setShowEditModal(false);
       setShowEditConfirm(false);
       setPendingEditData(null);
       setEditData(null);
+      setEditConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Centro actualizado correctamente.'); setNotifOpen(true);
     } catch (e) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar centro'); setNotifOpen(true);
+      const msg = parseErrorMessage(e) || 'Error al actualizar centro';
+      setEditConfirmError(msg);
+      setShowEditConfirm(true);
     }
   };
 
@@ -150,10 +208,13 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
       await softDeleteCenter(pendingDisable.id);
       setShowDisableConfirm(false);
       setPendingDisable(null);
+      setDisableConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar centro'); setNotifOpen(true);
+      const msg = parseErrorMessage(e) || 'Error al deshabilitar centro';
+      setDisableConfirmError(msg);
+      setShowDisableConfirm(true);
     }
   };
 
@@ -173,19 +234,57 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
       </button>
       {open && (
         <>
-          {/* Add center button */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Centro</button>
+          {/* Filter + Add center button */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por nombre"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Centro</button>
+            </div>
           </div>
 
           {/* Centers grid with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {centers.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((center) => (
-              <InfoCard key={center.id} center={center} />
-            ))}
+          <div className={`p-6 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedCenters.length === 0 ? (
+              <div className="w-full text-center text-gray-500 py-12">
+                {search || activeFilter ? 'No se encontraron centros con esta búsqueda' : 'No hay centros disponibles'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {displayedCenters.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((center) => (
+                  <InfoCard key={center.id} center={center} />
+                ))}
+              </div>
+            )}
 
             {/* Edit modal */}
-            <ModalFormGeneric
+            {/* Prepare initial values for edit modal mapping backend keys to form field names */}
+            {(() => {
+              const editInitialValues = editData ? {
+                ...editData,
+                // backend returns code_center, form expects codeCenter
+                // avoid 'any' by using a safe record cast
+                codeCenter: (editData as unknown as Record<string, unknown>)['code_center'] ?? (editData as unknown as Record<string, unknown>)['codeCenter'],
+                // regional select expects a string value
+                regional: editData?.regional !== undefined && editData?.regional !== null ? String(editData.regional) : editData?.regional,
+              } : {} as Center;
+
+              return (
+                <ModalFormGeneric
               isOpen={showEditModal}
               title="Editar Centro"
               fields={[
@@ -198,21 +297,41 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
               onSubmit={handleSubmitEdit}
               submitText="Actualizar"
               cancelText="Cancelar"
-              initialValues={editData || {}}
+              initialValues={editInitialValues || {}}
               customRender={undefined}
               onProgramChange={undefined}
-            />
+                />
+              );
+            })()}
 
             {/* Edit confirmation modal */}
-            <ConfirmModal isOpen={showEditConfirm} title="¿Confirmar actualización?" message="¿Estás seguro de que deseas actualizar este centro?" confirmText="Sí, actualizar" cancelText="Cancelar" onConfirm={handleConfirmEdit} onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }} />
+            <ConfirmModal
+              isOpen={showEditConfirm}
+              title="¿Confirmar actualización?"
+              message="¿Estás seguro de que deseas actualizar este centro?"
+              confirmText="Sí, actualizar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmEdit}
+              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); setEditConfirmError(null); }}
+              errorMessage={editConfirmError}
+            />
 
             {/* Disable confirmation modal */}
-            <ConfirmModal isOpen={showDisableConfirm} title="¿Confirmar acción?" message="¿Estás seguro de que deseas deshabilitar este centro?" confirmText="Sí, continuar" cancelText="Cancelar" onConfirm={handleConfirmDisable} onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); }} />
+            <ConfirmModal
+              isOpen={showDisableConfirm}
+              title="¿Confirmar acción?"
+              message="¿Estás seguro de que deseas deshabilitar este centro?"
+              confirmText="Sí, continuar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmDisable}
+              onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); setDisableConfirmError(null); }}
+              errorMessage={disableConfirmError}
+            />
           </div>
 
           {/* Pagination component */}
-          {Math.ceil(centers.length / cardsPerPage) > 1 && (
-            <Paginator page={page} totalPages={Math.ceil(centers.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
+          {Math.ceil(displayedCenters.length / cardsPerPage) > 1 && (
+            <Paginator page={page} totalPages={Math.ceil(displayedCenters.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
           )}
 
           {/* Add modal */}
@@ -224,7 +343,16 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
           ]} onClose={() => setShowAddModal(false)} onSubmit={handleSubmitAdd} submitText="Registrar" cancelText="Cancelar" customRender={undefined} onProgramChange={undefined} />
 
           {/* Add confirmation modal */}
-          <ConfirmModal isOpen={showAddConfirm} title="¿Confirmar registro?" message="¿Estás seguro de que deseas registrar este centro?" confirmText="Sí, registrar" cancelText="Cancelar" onConfirm={handleConfirmAdd} onCancel={() => { setShowAddConfirm(false); setPendingData(null); }} />
+          <ConfirmModal
+            isOpen={showAddConfirm}
+            title="¿Confirmar registro?"
+            message="¿Estás seguro de que deseas registrar este centro?"
+            confirmText="Sí, registrar"
+            cancelText="Cancelar"
+            onConfirm={handleConfirmAdd}
+            onCancel={() => { setShowAddConfirm(false); setPendingData(null); setAddConfirmError(null); }}
+            errorMessage={addConfirmError}
+          />
 
           {/* Notification modal */}
           <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} type={notifType} title={notifTitle} message={notifMessage} />

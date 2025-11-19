@@ -35,6 +35,7 @@ interface ConfirmModalProps {
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  errorMessage?: string | null;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -45,13 +46,17 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   cancelText = "Cancelar",
   onConfirm,
   onCancel,
+  errorMessage = null,
 }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
         <h3 className="text-lg font-bold mb-2">{title}</h3>
-        <p className="mb-6 text-gray-700">{message}</p>
+        <p className="mb-2 text-gray-700">{message}</p>
+        {errorMessage && (
+          <div className="mb-4 text-sm text-red-600 font-semibold">{errorMessage}</div>
+        )}
         <div className="flex gap-4">
           <button
             className="flex-1 bg-red-300 hover:bg-red-400 text-gray-700 py-2 rounded font-semibold"

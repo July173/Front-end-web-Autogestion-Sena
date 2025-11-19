@@ -5,7 +5,8 @@ import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import CancelModal from "../../DescriptionModal";
 import NotificationModal from "../../NotificationModal";
-import { getSedes, createSede, updateSede, softDeleteSede } from "../../../Api/Services/Sede";
+import FilterBar from "../../FilterBar";
+import { getSedes, createSede, updateSede, softDeleteSede, filterSedes } from "../../../Api/Services/Sede";
 import { Sede } from "../../../Api/types/Modules/general.types";
 import { Center } from "../../../Api/types/Modules/general.types";
 import { getCenters } from "../../../Api/Services/Center";
@@ -59,6 +60,11 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
   const [descModalText, setDescModalText] = useState("");
   // Centers data for select dropdown
   const [centers, setCenters] = useState<{ value: string; label: string }[]>([]);
+  // Filter UI state (server-side)
+  const [displayedSedes, setDisplayedSedes] = useState<Sede[]>([]);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
   // Notification modal states
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifType, setNotifType] = useState<'success' | 'info' | 'warning' | 'password-changed' | 'email-sent' | 'pending' | 'completed'>('success');
@@ -97,6 +103,34 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
       }
     })();
   }, []);
+
+  React.useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedSedes(sedes || []);
+    }
+  }, [sedes, filtering, search, activeFilter]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedSedes(sedes || []);
+        setPage(1);
+        return;
+      }
+      const data = await filterSedes({ search: s, active: a });
+      setDisplayedSedes(data || []);
+      setPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   /**
    * InfoCard component for displaying individual sede information
@@ -183,9 +217,17 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
    */
   const handleConfirmAdd = async () => {
     try {
-      // Ensure center field is converted to number for API
-      const payload = { ...pendingData, center: pendingData?.center ? Number(pendingData.center) : pendingData.center };
-      await createSede(payload);
+      // Normalize payload keys to backend expectations (snake_case)
+      const pd = pendingData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingData?.name,
+        code_sede: pd['codeSede'] !== undefined && pd['codeSede'] !== null ? String(pd['codeSede']) : (pd['codeSede'] as string | undefined),
+        address: pendingData?.address,
+        phone_sede: pd['phoneSede'] !== undefined && pd['phoneSede'] !== null ? String(pd['phoneSede']) : (pd['phoneSede'] as string | undefined),
+        email_contact: pd['emailContact'] !== undefined && pd['emailContact'] !== null ? String(pd['emailContact']) : (pd['emailContact'] as string | undefined),
+        center: pendingData?.center ? Number(pendingData.center) : pendingData?.center,
+      };
+      await createSede(payload as unknown as Record<string, unknown>);
       // Close modals and reset state
       setShowAddModal(false);
       setShowAddConfirm(false);
@@ -217,8 +259,18 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
    */
   const handleConfirmEdit = async () => {
     try {
-      const payload = { ...pendingEditData, center_id: pendingEditData?.center ? Number(pendingEditData.center) : pendingEditData.center };
-      await updateSede(editData.id, payload);
+      // Normalize edit payload to backend expected snake_case keys
+      const ped = pendingEditData as unknown as Record<string, unknown>;
+      const ed = editData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingEditData?.name ?? editData?.name,
+        code_sede: ped['codeSede'] !== undefined && ped['codeSede'] !== null ? String(ped['codeSede']) : (ed['codeSede'] as string | undefined) ?? (ed['code_sede'] as string | undefined),
+        address: pendingEditData?.address ?? editData?.address,
+        phone_sede: ped['phoneSede'] !== undefined && ped['phoneSede'] !== null ? String(ped['phoneSede']) : (ed['phoneSede'] as string | undefined) ?? (ed['phone_sede'] as string | undefined),
+        email_contact: ped['emailContact'] !== undefined && ped['emailContact'] !== null ? String(ped['emailContact']) : (ed['emailContact'] as string | undefined) ?? (ed['email_contact'] as string | undefined),
+        center: pendingEditData?.center ? Number(pendingEditData.center) : pendingEditData?.center ?? editData?.center,
+      };
+      await updateSede(editData.id, payload as unknown as Record<string, unknown>);
       // Close modals and reset state
       setShowEditModal(false);
       setShowEditConfirm(false);
@@ -268,13 +320,13 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
     // Main container with collapsible section styling
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
       {/* Section header with toggle button and record count */}
-      <button
+          <button
         onClick={onToggle}
         className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors"
       >
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Sedes</h3>
-          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{sedes.length} registros</span>
+          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{displayedSedes.length} registros</span>
         </div>
         {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
       </button>
@@ -282,19 +334,45 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
       {/* Expandable content section */}
       {open && (
         <>
-          {/* Add new sede button section */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
-              <Plus className="w-4 h-4" /> Agregar Sede
-            </button>
+          {/* Filter + Add sede button section */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por nombre"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
+                <Plus className="w-4 h-4" /> Agregar Sede
+              </button>
+            </div>
           </div>
 
           {/* Sedes grid display with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Render paginated sedes as InfoCard components */}
-            {sedes.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((sede) => (
-              <InfoCard key={sede.id} sede={sede} />
-            ))}
+          <div className={`p-6 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedSedes.length === 0 ? (
+              <div className="w-full text-center text-gray-500 py-12">
+                {search || activeFilter ? 'No se encontraron sedes con esta búsqueda' : 'No hay sedes disponibles'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Render paginated sedes as InfoCard components */}
+                {displayedSedes.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((sede) => (
+                  <InfoCard key={sede.id} sede={sede} />
+                ))}
+              </div>
+            )}
 
             {/* Edit sede modal */}
             <ModalFormGeneric
@@ -312,7 +390,17 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
               onSubmit={handleSubmitEdit}
               submitText="Actualizar"
               cancelText="Cancelar"
-              initialValues={editData || {}}
+              initialValues={(() => {
+                if (!editData) return {};
+                const ed = editData as unknown as Record<string, unknown>;
+                return {
+                  ...editData,
+                  codeSede: ed['code_sede'] ?? ed['codeSede'],
+                  phoneSede: ed['phone_sede'] ?? ed['phoneSede'],
+                  emailContact: ed['email_contact'] ?? ed['emailContact'],
+                  center: ed['center'] !== undefined && ed['center'] !== null ? String(ed['center']) : ed['center'],
+                } as Sede;
+              })()}
               customRender={undefined}
               onProgramChange={undefined}
             />
@@ -342,8 +430,8 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
           </div>
 
           {/* Pagination component - only show if multiple pages needed */}
-          {Math.ceil(sedes.length / cardsPerPage) > 1 && (
-            <Paginator page={page} totalPages={Math.ceil(sedes.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
+          {Math.ceil(displayedSedes.length / cardsPerPage) > 1 && (
+            <Paginator page={page} totalPages={Math.ceil(displayedSedes.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
           )}
 
           {/* Add new sede modal */}

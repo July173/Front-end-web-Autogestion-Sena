@@ -45,6 +45,21 @@ export async function getContractTypes() {
 }
 
 /**
+ * Filters contract types by search and active status.
+ * Endpoint: GET /general/type-contracts/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ */
+export async function filterContractTypes(params?: { search?: string; active?: string }) {
+	const url = new URL(ENDPOINTS.contractType.filterContractType);
+	if (params?.search) url.searchParams.append('search', params.search);
+	if (params?.active) url.searchParams.append('active', params.active);
+
+	const response = await fetch(url.toString());
+	if (!response.ok) throw new Error('Error al filtrar tipos de contrato');
+	return response.json();
+}
+
+/**
  * Creates a contract type.
  * Endpoint: POST /general/contract-types/
  * @param data - Contract type data
@@ -56,7 +71,18 @@ export async function createContractType(data) {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(data),
 	});
-	if (!response.ok) throw new Error("Error al crear tipo de contrato");
+	if (!response.ok) {
+		// Try to parse backend error message (e.g. { detail: '...' })
+		const txt = await response.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const detail = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(detail || `Error al crear tipo de contrato (${response.status})`);
+		} catch (err) {
+			// If JSON parse fails, throw raw text or generic message
+			throw new Error(txt || `Error al crear tipo de contrato (${response.status})`);
+		}
+	}
 	return response.json();
 }
 
@@ -74,7 +100,16 @@ export async function updateContractType(id, data) {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(data),
 	});
-	if (!response.ok) throw new Error("Error al actualizar tipo de contrato");
+	if (!response.ok) {
+		const txt = await response.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const detail = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(detail || `Error al actualizar tipo de contrato (${response.status})`);
+		} catch (err) {
+			throw new Error(txt || `Error al actualizar tipo de contrato (${response.status})`);
+		}
+	}
 	return response.json();
 }
 

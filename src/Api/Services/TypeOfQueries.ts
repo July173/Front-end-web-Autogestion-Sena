@@ -66,3 +66,18 @@ export async function softDeleteTypeOfQueries(id: string | number) {
 	const response = await fetch(url, { method: "DELETE" });
 	return response.json();
 }
+
+/**
+ * Filters type of queries by search and active status.
+ * Endpoint: GET /general/type-of-queries/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ */
+export async function filterTypeOfQueries(params?: { search?: string; active?: string }) {
+	const url = new URL(ENDPOINTS.TypeOfQueries.filterTypeOfQueries);
+	if (params?.search) url.searchParams.append('search', params.search);
+	if (params?.active) url.searchParams.append('active', params.active);
+
+	const response = await fetch(url.toString());
+	if (!response.ok) throw new Error('Error al filtrar tipos de pregunta');
+	return response.json();
+}

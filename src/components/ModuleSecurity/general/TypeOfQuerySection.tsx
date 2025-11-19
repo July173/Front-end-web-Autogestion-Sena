@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import Paginator from "../../Paginator";
 import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
-import { getAllTypeOfQueries, createTypeOfQueries, updateTypeOfQueries, softDeleteTypeOfQueries } from "../../../Api/Services/TypeOfQueries";
+import { getAllTypeOfQueries, createTypeOfQueries, updateTypeOfQueries, softDeleteTypeOfQueries, filterTypeOfQueries } from "../../../Api/Services/TypeOfQueries";
+import FilterBar from "../../FilterBar";
 import { TypeOfQueries } from "../../../Api/types/Modules/general.types";
 
 const cardsPerPage = 9;
@@ -43,6 +44,12 @@ const TypeOfQuerySection = ({ open, onToggle }: TypeOfQuerySectionProps) => {
 	const [showEditConfirm, setShowEditConfirm] = useState(false);
 	const [showDisableConfirm, setShowDisableConfirm] = useState(false);
 	 const [pendingDisable, setPendingDisable] = useState<TypeOfQueries | null>(null);
+
+	// Filter UI state
+	const [displayedTypeOfQueries, setDisplayedTypeOfQueries] = useState<TypeOfQueries[]>([]);
+	const [search, setSearch] = useState('');
+	const [activeFilter, setActiveFilter] = useState('');
+	const [filtering, setFiltering] = useState(false);
 	// Removed internal open state
 
 	/**
@@ -64,6 +71,33 @@ const TypeOfQuerySection = ({ open, onToggle }: TypeOfQuerySectionProps) => {
 		// Initial data loading: fetch all query types
 		refreshTypeOfQueries();
 	}, []);
+
+	useEffect(() => {
+		if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+			setDisplayedTypeOfQueries(typeOfQueries || []);
+		}
+	}, [typeOfQueries, filtering]);
+
+	const handleFilter = async (params?: { search?: string; active?: string }) => {
+		const s = params && params.search !== undefined ? params.search : (search || undefined);
+		const a = params && params.active !== undefined ? params.active : activeFilter;
+		setSearch(s ?? '');
+		setActiveFilter(a ?? '');
+		setFiltering(true);
+		try {
+			if ((!s || s === '') && (!a || a === '')) {
+				setDisplayedTypeOfQueries(typeOfQueries || []);
+				return;
+			}
+			const data = await filterTypeOfQueries({ search: s, active: a });
+			setDisplayedTypeOfQueries(data || []);
+			setTypeOfQueriesPage(1);
+		} catch (e) {
+			// ignore
+		} finally {
+			setTimeout(() => setFiltering(false), 180);
+		}
+	};
 
 	/**
 	 * InfoCard component: Displays individual query type information
@@ -236,22 +270,44 @@ const TypeOfQuerySection = ({ open, onToggle }: TypeOfQuerySectionProps) => {
 			</button>
 			{open && (
 				<>
-					{/* Add query type button: opens modal for creating new query types */}
-					<div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-						<button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
-							<Plus className="w-4 h-4" /> Agregar Tipo de Pregunta
-						</button>
-					</div>
+								{/* Filter bar and Add query type button */}
+								<div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+									<div>
+										<FilterBar
+											onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+											inputWidth="520px"
+											searchPlaceholder="Buscar por nombre"
+											selects={[{
+												name: 'active',
+												value: activeFilter,
+												options: [
+													{ value: 'true', label: 'Activos' },
+													{ value: 'false', label: 'Inactivos' }
+												],
+												placeholder: 'Todos',
+											}]}
+										/>
+									</div>
+									<div className="flex items-center gap-4 justify-between">
+										<button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
+											<Plus className="w-4 h-4" /> Agregar Tipo de Pregunta
+										</button>
+									</div>
+								</div>
 					{/* Query types cards grid: displays query types with pagination */}
-					<div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						 {typeOfQueries.slice((typeOfQueriesPage - 1) * cardsPerPage, typeOfQueriesPage * cardsPerPage).map((type) => (
-							 <InfoCard
-								 key={type.id}
-								 query={type}
-								 onEdit={() => handleEdit(type)}
-								 onToggle={() => handleToggle(type)}
-							 />
-						 ))}
+								<div className={`p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+									{displayedTypeOfQueries.length === 0 ? (
+										<div className="col-span-3 text-center text-gray-600 py-8">{(search || activeFilter) ? 'No se encontraron tipos de pregunta con esta búsqueda' : 'No hay tipos de pregunta disponibles'}</div>
+									) : (
+										displayedTypeOfQueries.slice((typeOfQueriesPage - 1) * cardsPerPage, typeOfQueriesPage * cardsPerPage).map((type) => (
+											<InfoCard
+												key={type.id}
+												query={type}
+												onEdit={() => handleEdit(type)}
+												onToggle={() => handleToggle(type)}
+											/>
+										))
+									)}
 						{/* Edit modal: form for updating existing query types */}
 						<ModalFormGeneric
 							isOpen={showEditModal}

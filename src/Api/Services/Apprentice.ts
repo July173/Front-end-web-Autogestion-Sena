@@ -61,9 +61,22 @@ export async function putApprentice(id: string, data: CreateApprentice) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!response.ok) throw new Error('Error al actualizar aprendiz');
-  return response.json();
+ // Try to parse JSON body so caller can inspect server validation errors
+  let respJson: unknown = null;
+  try {
+    respJson = await response.json();
+  } catch (e) {
+    // ignore parse errors
+  }
+  if (!response.ok) {
+    // Throw an Error but attach the parsed response so callers can extract backend messages
+  const err = new Error('Error al actualizar aprendiz') as Error & { response?: { data?: unknown; status?: number } };
+  err.response = { data: respJson, status: response.status };
+  throw err;
+  }
+  return respJson;
 }
+
 
 /**
  * Gets a single apprentice by person id.

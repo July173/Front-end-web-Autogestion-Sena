@@ -15,6 +15,19 @@ export async function getPrograms() {
 }
 
 /**
+ * Filters programs by search and active status.
+ * Endpoint: GET /general/programs/filter/?search=...&active=...
+ */
+export async function filterPrograms(params?: { search?: string; active?: string }) {
+  const url = new URL(ENDPOINTS.program.filterProgram);
+  if (params?.search) url.searchParams.append('search', params.search);
+  if (params?.active) url.searchParams.append('active', params.active);
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error('Error al filtrar programas');
+  return response.json();
+}
+
+/**
  * Gets the fichas associated with a specific program.
  * @param programId - Program ID
  * @returns Promise with the array of program fichas

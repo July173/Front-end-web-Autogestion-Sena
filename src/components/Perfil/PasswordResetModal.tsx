@@ -135,7 +135,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
               <div>
                 <label className="block text-sm font-semibold mb-1 text-[#1976d2]">Código de verificación</label>
                 <input
-                  type="text"
+                  type="tel"
                   value={code}
                   onChange={e => {
                     const value = e.target.value.replace(/\D/g, '').slice(0, 6);
@@ -145,7 +145,7 @@ const PasswordResetModal: React.FC<PasswordResetModalProps> = ({
                   placeholder="Ingresa el código"
                   maxLength={6}
                   inputMode="numeric"
-                  pattern="\\d*"
+                  autoComplete="one-time-code"
                 />
                 {codeError && <span className="text-red-500 text-xs">{codeError}</span>}
               </div>

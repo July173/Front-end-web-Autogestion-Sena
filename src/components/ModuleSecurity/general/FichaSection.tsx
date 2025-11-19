@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import Paginator from "../../Paginator";
 import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import { useGeneralData } from "../../../hook/useGeneralData";
+import FilterBar from "../../FilterBar";
+import { filterFichas } from "../../../Api/Services/Ficha";
 import type { Program, Ficha } from "../../../Api/types/Modules/general.types";
 
 const cardsPerPage = 9;
@@ -55,6 +57,12 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
   // Modal states for disabling fichas
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<Ficha | null>(null);
+
+  // Filter UI state
+  const [displayedFichas, setDisplayedFichas] = useState<Ficha[]>(fichas || []);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
 
   /**
    * InfoCard component for displaying individual ficha information
@@ -165,6 +173,38 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
     setPendingDisable(ficha);
     setShowDisableConfirm(true);
   };
+
+  React.useEffect(() => {
+    // Initial data loading: fetch all fichas
+    refreshFichas();
+  }, []);
+
+  useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedFichas(fichas || []);
+    }
+  }, [fichas, filtering]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedFichas(fichas || []);
+        return;
+      }
+      const data = await filterFichas({ search: s, active: a });
+      setDisplayedFichas(data || []);
+      setFichasPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
   const handleConfirmDisable = async () => {
     try {
       if (!pendingDisable) throw new Error('No se seleccionó la ficha');
@@ -205,7 +245,7 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Fichas</h3>
           <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-            {fichas.length} registros
+            {displayedFichas.length} registros
           </span>
         </div>
         {open ? (
@@ -217,14 +257,36 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
       {open && (
         <>
           {/* Add ficha button */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAddFicha} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
-              <Plus className="w-4 h-4" /> Agregar Ficha
-            </button>
+          {/* Filter bar and Add ficha button */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por número de ficha"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAddFicha} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
+                <Plus className="w-4 h-4" /> Agregar Ficha
+              </button>
+            </div>
           </div>
           {/* Fichas grid with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {fichas.slice((fichasPage - 1) * cardsPerPage, fichasPage * cardsPerPage).map((ficha: Ficha) => {
+          <div className={`p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedFichas.length === 0 ? (
+              <div className="col-span-3 text-center text-gray-600 py-8">{(search || activeFilter) ? 'No se encontraron fichas con esta búsqueda' : 'No hay fichas disponibles'}</div>
+            ) : (
+              displayedFichas.slice((fichasPage - 1) * cardsPerPage, fichasPage * cardsPerPage).map((ficha: Ficha) => {
               // Find associated program name
               const programObj = programs.find((p: Program) => p.id === ficha.program);
               const programName = programObj ? programObj.name : String(ficha.program);
@@ -238,7 +300,7 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
                   onToggle={() => handleToggle(ficha)}
                 />
               );
-            })}
+              }))}
             {/* Edit modal */}
             <ModalFormGeneric
               isOpen={showEditFicha}
@@ -295,10 +357,10 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
             />
           </div>
           {/* Pagination component */}
-          {Math.ceil(fichas.length / cardsPerPage) > 1 && (
+          {Math.ceil(displayedFichas.length / cardsPerPage) > 1 && (
             <Paginator
               page={fichasPage}
-              totalPages={Math.ceil(fichas.length / cardsPerPage)}
+              totalPages={Math.ceil(displayedFichas.length / cardsPerPage)}
               onPageChange={setFichasPage}
               className="mt-4 px-6"
             />

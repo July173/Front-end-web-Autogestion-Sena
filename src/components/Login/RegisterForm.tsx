@@ -100,7 +100,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onNavigate }) => {
     setFormData({ ...formData, [field]: value });
   // Real-time validation
     let error = '';
-    if (field === 'email') error = !isSenaEmail(value) ? 'El correo debe ser institucional (@soy.sena.edu.co o @sena.edu.co)' : '';
+    if (field === 'email') error = !isSenaEmail(value) ? 'El correo debe ser institucional (@soy.sena.edu.co)' : '';
     if (field === 'names') error = isValidNames(value) || '';
     if (field === 'surnames') error = isValidSurnames(value) || '';
     if (field === 'documentNumber') error = isValidDocumentNumber(value) || '';

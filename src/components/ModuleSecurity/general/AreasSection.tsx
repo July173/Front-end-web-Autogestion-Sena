@@ -82,6 +82,7 @@ const AreasSection: React.FC<AreasSectionProps> = ({
   onToggleArea,
   onEditArea
 }) => {
+  
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       {/* Section header with toggle button and record count */}

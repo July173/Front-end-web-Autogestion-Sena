@@ -34,6 +34,19 @@ export async function getAllLegalDocuments(): Promise<LegalDocument[]> {
 	return res.json();
 }
 
+/**
+ * Filters legal documents by search and active status.
+ * Endpoint: GET /general/legal-documents/filter/?search=...&active=...
+ */
+export async function filterLegalDocuments(params?: { search?: string; active?: string }) {
+	const url = new URL(ENDPOINTS.legalDocument.filterLegalDocument);
+	if (params?.search) url.searchParams.append('search', params.search);
+	if (params?.active) url.searchParams.append('active', params.active);
+	const res = await fetch(url.toString());
+	if (!res.ok) throw new Error('Error al filtrar documentos legales');
+	return res.json();
+}
+
 export async function getLegalDocumentById(id: number) {
 	const url = ENDPOINTS.legalDocument.idLegalDocument.replace('{id}', String(id));
 	const res = await fetch(url);

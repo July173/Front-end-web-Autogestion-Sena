@@ -14,15 +14,17 @@ export interface Apprentice {
 }
 
 export interface CreateApprentice {
-  type_identification: string;
-  number_identification: string;
+  // Backend may accept either numbers or strings depending on the endpoint/version.
+  // Use union types to be flexible while keeping TS checks.
+  type_identification: number | string;
+  number_identification: number | string;
   first_name: string;
   second_name?: string;
   first_last_name: string;
   second_last_name?: string;
-  phone_number: string;
+  phone_number: number | string;
   email: string;
   program: number;
-  ficha: string;
+  ficha_id: number | string;
   role?: number;
 }

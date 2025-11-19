@@ -82,12 +82,27 @@ const SummarySecurity = () => {
     // Load user distribution by roles
     getRolesUser()
       .then(data => {
-        setRolesUser(data);
-        const map: Record<number, string> = {};
-        if (Array.isArray(data)) {
-          data.forEach(r => { map[r.id] = r.name; });
-        }
-        setRoleNames(map);
+        // The backend returns objects with keys like { id, nombre, descripcion, active, cantidad_usuarios }
+        // Map them to the shape the component expects: { id, name, description, active, user_count }
+        const mapped = Array.isArray(data)
+          ? (data as unknown[]).map((r: unknown) => {
+            const o = r as Record<string, unknown>;
+            const id = (o['id'] as number) ?? Number(String(o['id'] ?? 0));
+            const name = (o['nombre'] as string) ?? (o['name'] as string) ?? String(id);
+            const description = (o['descripcion'] as string) ?? (o['description'] as string) ?? '';
+            const active = typeof o['active'] === 'boolean' ? (o['active'] as boolean) : ((o['active'] as boolean) ?? true);
+            const user_count = (o['cantidad_usuarios'] as number) ?? (o['user_count'] as number) ?? 0;
+            return {
+              id,
+              name,
+              description,
+              active,
+              user_count,
+            } as RolUserCount;
+          })
+          : [];
+        setRolesUser(mapped); const map: Record<number, string> = {};
+        mapped.forEach(r => { map[r.id] = r.name; }); setRoleNames(map);
       })
       .catch(() => setErrorRoles('Error al cargar roles'))
       .finally(() => setLoadingRoles(false));
@@ -135,16 +150,16 @@ const SummarySecurity = () => {
               // Backend may return either { role: 'Name', form: 'Name', ... }
               // or the numeric id shape { rol: 1, form: 2, ... } depending on endpoint.
               // Resolve role label robustly:
-              const rawRole = (perm as any).role ?? (perm as any).rol;
-              const roleLabel = typeof rawRole === 'string'
+              // Use a safe, minimal cast to inspect possible backend keys without `any`.
+              const p = perm as unknown as Record<string, unknown>;
+              const rawRole = (p['role'] ?? p['rol']) as string | number | undefined; const roleLabel = typeof rawRole === 'string'
                 ? rawRole
-                : roleNames[String(rawRole)] || String(rawRole ?? '');
-
+                : roleNames[String(rawRole ?? '')] || String(rawRole ?? '');
               // Resolve form label robustly (string name or id)
-              const rawForm = (perm as any).form;
-              const formLabel = typeof rawForm === 'string'
+              // Resolve form label (backend may return 'form', 'formulario' or ids)
+              const rawForm = (p['form'] ?? p['formulario'] ?? p['formulario_id'] ?? p['form_id']) as string | number | undefined; const formLabel = typeof rawForm === 'string'
                 ? rawForm
-                : formNames[String(rawForm)] || String(rawForm ?? '');
+                : formNames[String(rawForm ?? '')] || String(rawForm ?? '');
 
               return (
                 <tr key={i + (page - 1) * rowsPerPage} className="text-center">
@@ -196,15 +211,15 @@ const SummarySecurity = () => {
           /* Role distribution cards with custom colors and animations */
           <div className="flex flex-col gap-3">
             {rolesUser.map((rol, index) => {
-                // Choose color based on role name, default is green
+              // Choose color based on role name, default is green
               const color = roleColors[rol.name] || 'bg-green-50 border-green-400 text-green-700';
               // Map role names to plural labels for display
               const label =
                 rol.name === 'Administrador' ? 'Administradores' :
-                rol.name === 'Usuarios' ? 'usuarios' :
-                rol.name === 'Aprendices' ? 'Aprendices' :
-                rol.name === 'Instructores' ? 'instructores' :
-                rol.name === 'Coordinadores' ? 'Coordinadores' : rol.name;
+                  rol.name === 'Usuarios' ? 'usuarios' :
+                    rol.name === 'Aprendices' ? 'Aprendices' :
+                      rol.name === 'Instructores' ? 'instructores' :
+                        rol.name === 'Coordinadores' ? 'Coordinadores' : rol.name;
               return (
                 // Role card with hover animations and staggered entrance
                 <div

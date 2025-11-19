@@ -52,10 +52,10 @@ const General = () => {
       {/* Training program sheets management section */}
       <FichaSection {...sectionProps('ficha')} />
 
-      {/* Document types management section */}
-      <TypeDocumentSection {...sectionProps('document')} />
+    {/* Document types management section */}
+    <TypeDocumentSection {...sectionProps('document')} />
 
-      {/* Color configurations management section */}
+    {/* Color configurations management section */}
       <ColorsSection {...sectionProps('colors')} />
 
       {/* Contract types management section */}
