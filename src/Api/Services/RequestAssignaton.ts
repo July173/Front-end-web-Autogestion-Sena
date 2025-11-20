@@ -23,7 +23,16 @@ export const filterRequest = async (params: Record<string, string>): Promise<Ass
       throw new Error(errorData.message || 'Error al filtrar las solicitudes de asignación');
     }
     const result = await response.json();
-    return result.data || [];
+    const raw = result.data || [];
+    // Map backend fields to frontend AssignTableRow shape
+    return raw.map((it: any) => ({
+      id: it.id,
+      name: it.nombre || it.name || '',
+      type_identification: it.tipo_identificacion ?? it.type_identification ?? 0,
+      number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
+      request_date: it.fecha_solicitud || it.request_date || '',
+      request_state: it.request_state || it.requestState || ''
+    }));
   } catch (error) {
     console.error('Error en filterRequest:', error);
     throw error;
@@ -45,7 +54,15 @@ export const getAllRequests = async (): Promise<AssignTableRow[]> => {
       throw new Error(errorData.message || 'Error al obtener las solicitudes de asignación');
     }
     const result = await response.json();
-    return result.data || [];
+    const raw = result.data || [];
+    return raw.map((it: any) => ({
+      id: it.id,
+      name: it.nombre || it.name || '',
+      type_identification: it.tipo_identificacion ?? it.type_identification ?? 0,
+      number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
+      request_date: it.fecha_solicitud || it.request_date || '',
+      request_state: it.request_state || it.requestState || ''
+    }));
   } catch (error) {
     console.error('Error en getAllRequests:', error);
     throw error;
@@ -129,7 +146,45 @@ export const getFormRequestById = async (requestId: number): Promise<{ data: any
       const errorData = await response.json();
       throw new Error(errorData.message || 'Error obtener detalles de la solicitud');
     }
-    return await response.json();
+    const result = await response.json();
+    const raw = result.data || result;
+
+    // Map backend Spanish field names to frontend DetailData shape
+    const mapped: any = {
+      apprentice: raw.aprendiz_id ?? raw.apprentice ?? undefined,
+      name_apprentice: raw.nombre_aprendiz || raw.name_apprentice || raw.nombre || '',
+      type_identification: raw.tipo_identificacion ?? raw.type_identification ?? 0,
+      number_identification: raw.numero_identificacion != null ? String(raw.numero_identificacion) : (raw.number_identification ? String(raw.number_identification) : ''),
+      phone_apprentice: raw.telefono_aprendiz ?? raw.phone_apprentice ?? raw.phone_apprentice,
+      email_apprentice: raw.correo_aprendiz || raw.email_apprentice || raw.email || '',
+      ficha: raw.ficha_id ?? raw.ficha ?? raw.ficha,
+      numero_ficha: raw.numero_ficha ?? raw.numero_ficha ?? undefined,
+      program: raw.programa || raw.program || undefined,
+      enterprise_name: raw.empresa_nombre || raw.enterprise_name || undefined,
+      enterprise_nit: raw.empresa_nit ?? raw.enterprise_nit ?? undefined,
+      enterprise_location: raw.empresa_ubicacion || raw.enterprise_location || undefined,
+      enterprise_email: raw.empresa_correo || raw.enterprise_email || undefined,
+      boss_name: raw.jefe_nombre || raw.boss_name || undefined,
+      boss_phone: raw.jefe_telefono ?? raw.boss_phone ?? undefined,
+      boss_email: raw.jefe_correo || raw.boss_email || undefined,
+      boss_position: raw.jefe_cargo || raw.boss_position || undefined,
+      regional: raw.regional || undefined,
+      center: raw.center || undefined,
+      sede: raw.sede || undefined,
+      request_date: raw.fecha_solicitud || raw.request_date || undefined,
+      date_start_production_stage: raw.fecha_inicio_etapa_practica || raw.date_start_production_stage || undefined,
+      date_end_production_stage: raw.fecha_fin_etapa_practica || raw.date_end_production_stage || undefined,
+      modality_productive_stage: raw.modality_productive_stage || raw.modality_productive_stage || undefined,
+      request_state: raw.request_state || undefined,
+      pdf_url: raw.pdf_url ?? undefined,
+      human_talent: raw.talento_humano ? {
+        name: raw.talento_humano.nombre || raw.talento_humano.name || undefined,
+        email: raw.talento_humano.correo || raw.talento_humano.email || undefined,
+        phone: raw.talento_humano.telefono ?? raw.talento_humano.phone ?? undefined,
+      } : (raw.human_talent || undefined)
+    };
+
+    return { data: mapped };
   } catch (error) {
     console.error('Error en getFormRequestById:', error);
     throw error;

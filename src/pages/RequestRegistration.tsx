@@ -212,11 +212,19 @@ export default function RequestRegistration() {
       apprentice: Number(apprenticeId) || 0,
     };
     // Verify required fields
-    const requiredFields = {
+    // Determine if modality is 'Contrato de Aprendizaje' so dates are conditionally required
+    const isContratoSelected = (() => {
+      try {
+        const m = modalidades.find(mod => Number(mod.id) === Number(updatedFormData.modality_productive_stage));
+        return !!m && typeof m.name_modality === 'string' && m.name_modality.toLowerCase().includes('contrato');
+      } catch {
+        return false;
+      }
+    })();
+
+    const requiredFields: Record<string, any> = {
       apprenticeId: updatedFormData.apprentice!,
       fichaId: updatedFormData.ficha!,
-      dateEndContract: updatedFormData.date_end_contract!,
-      dateStartContract: updatedFormData.date_start_contract!,
       enterpriseName: updatedFormData.enterprise_name!,
       enterpriseNit: updatedFormData.enterprise_nit!,
       enterpriseLocation: updatedFormData.enterprise_location!,
@@ -231,20 +239,31 @@ export default function RequestRegistration() {
       sede: updatedFormData.sede!,
       modalityProductiveStage: updatedFormData.modality_productive_stage!,
     };
+
+    // If the selected modality is 'Contrato', require start/end dates
+    if (isContratoSelected) {
+      requiredFields.dateStartContract = updatedFormData.date_start_contract!;
+      requiredFields.dateEndContract = updatedFormData.date_end_contract!;
+    }
+
     // Extra validations
     const bossPhoneValidation = validatePhone(updatedFormData.boss_phone ?? '');
     const humanTalentPhoneValidation = validatePhone(updatedFormData.human_talent_phone ?? '');
-    const dateValidation = validateEndDate(updatedFormData.date_start_contract ?? null, updatedFormData.date_end_contract ?? null);
+    const dateValidation = isContratoSelected
+      ? validateEndDate(updatedFormData.date_start_contract ?? null, updatedFormData.date_end_contract ?? null)
+      : '';
+
     // Filter only non-empty errors
-    const validationErrors = [bossPhoneValidation, humanTalentPhoneValidation, dateValidation]
-      .filter(error => error !== '');
+    const validationErrors = [bossPhoneValidation, humanTalentPhoneValidation];
+    if (dateValidation) validationErrors.push(dateValidation);
+    const nonEmptyValidationErrors = validationErrors.filter(error => error !== '');
     
-    if (validationErrors.length > 0) {
+    if (nonEmptyValidationErrors.length > 0) {
       showNotification({
         isOpen: true,
         type: 'warning',
         title: 'Errores de validación',
-        message: `Errores encontrados:\n${validationErrors.join('\n')}`
+        message: `Errores encontrados:\n${nonEmptyValidationErrors.join('\n')}`
       });
       return;
     }
@@ -271,14 +290,17 @@ export default function RequestRegistration() {
     // PASS THE TRANSFORMED DATA TO SUBMIT
     try {
       console.log('Enviando datos principales:', updatedFormData);
-      const requestId = await submitRequest(updatedFormData);
-      console.log('ID de solicitud recibido:', requestId);
-      if (requestId && selectedFile) {
-        // Subir PDF con request_id como campo obligatorio
+      const submitResponse = await submitRequest(updatedFormData);
+      console.log('Respuesta de envío:', submitResponse);
+      const requestId = submitResponse?.id ?? null;
+      const backendMessage = submitResponse?.message || 'La solicitud fue enviada exitosamente.';
+
+      // Subir PDF con request_id cuando esté disponible
+      if (selectedFile) {
         let pdfUploadResult = null;
         try {
           console.log('Enviando PDF:', selectedFile, 'con request_id:', requestId);
-          pdfUploadResult = await uploadPdf(selectedFile, requestId);
+          pdfUploadResult = await uploadPdf(selectedFile, requestId ?? undefined);
           console.log('Respuesta de uploadPdf:', pdfUploadResult);
         } catch (pdfErr) {
           console.error('Error al subir PDF:', pdfErr);
@@ -290,12 +312,13 @@ export default function RequestRegistration() {
           });
           return;
         }
-        if (pdfUploadResult && pdfUploadResult.ok !== false) {
+
+        if (pdfUploadResult) {
           showNotification({
             isOpen: true,
             type: 'success',
             title: 'Solicitud enviada',
-            message: 'La solicitud fue enviada exitosamente y el archivo PDF se ha subido correctamente.'
+            message: backendMessage
           });
         } else {
           showNotification({
@@ -305,12 +328,12 @@ export default function RequestRegistration() {
             message: 'La solicitud fue enviada pero hubo un error al subir el archivo PDF.'
           });
         }
-      } else if (requestId) {
+      } else {
         showNotification({
           isOpen: true,
           type: 'success',
           title: 'Solicitud enviada',
-          message: 'La solicitud fue enviada exitosamente.'
+          message: backendMessage
         });
       }
     } catch (err) {

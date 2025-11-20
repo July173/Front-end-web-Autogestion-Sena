@@ -118,7 +118,7 @@ export const useRequestAssignation = () => {
   };
 
   // Function to submit the request - MODIFY TO RECEIVE DATA
-  const submitRequest = async (dataToSubmit?: Partial<requestAsignation>): Promise<number | null> => {
+  const submitRequest = async (dataToSubmit?: Partial<requestAsignation>): Promise<{ id: number | null; message?: string } | null> => {
     setLoading(true);
     setError('');
 
@@ -172,7 +172,10 @@ export const useRequestAssignation = () => {
       delete payload.date_end_contract;
 
       const response = await postRequestAssignation(payload as requestAsignation);
-      return response.data?.id || null;
+      // Extract id from common shapes: top-level `id`, or `data.id`.
+      const id = (response && (response.id ?? response.data?.id)) ?? null;
+      const message = (response && (response.message ?? response.data?.message)) ?? '';
+      return { id: id || null, message };
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
