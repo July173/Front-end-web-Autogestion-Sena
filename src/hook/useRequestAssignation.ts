@@ -131,8 +131,48 @@ export const useRequestAssignation = () => {
         throw new Error(`Faltan datos requeridos: apprentice_id(${apprentice}), ficha_id(${ficha}), sede_id(${sede})`);
       }
 
-  const response = await postRequestAssignation(finalData as requestAsignation);
-  return response.data?.id || null;
+      // Build payload mapping frontend keys -> backend expected keys
+      const payload: any = { ...finalData };
+
+      // Ensure apprentice and ficha are sent as numeric IDs with serializer field names
+      if (finalData.apprentice !== undefined) payload.apprentice = Number(finalData.apprentice);
+      if (finalData.ficha !== undefined) payload.ficha = Number(finalData.ficha);
+
+      // Convert date timestamps (ms) to YYYY-MM-DD strings expected by Swagger/backend
+      const toDateString = (value: any) => {
+        if (!value && value !== 0) return undefined;
+        // If it's a number (ms timestamp)
+        if (typeof value === 'number') {
+          try {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return undefined;
+            return d.toISOString().split('T')[0];
+          } catch {
+            return undefined;
+          }
+        }
+        // If it's already a string in YYYY-MM-DD, return as-is
+        if (typeof value === 'string') {
+          // try to parse
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+          return value;
+        }
+        return undefined;
+      };
+
+      const fechaInicio = finalData.date_start_contract ? toDateString(finalData.date_start_contract) : toDateString((finalData as any).fecha_inicio_contrato);
+      const fechaFin = finalData.date_end_contract ? toDateString(finalData.date_end_contract) : toDateString((finalData as any).fecha_fin_contrato);
+
+      if (fechaInicio) payload.fecha_inicio_contrato = fechaInicio;
+      if (fechaFin) payload.fecha_fin_contrato = fechaFin;
+
+      // Remove internal timestamp keys to avoid confusion
+      delete payload.date_start_contract;
+      delete payload.date_end_contract;
+
+      const response = await postRequestAssignation(payload as requestAsignation);
+      return response.data?.id || null;
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
