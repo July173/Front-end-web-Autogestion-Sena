@@ -39,7 +39,7 @@ import { create } from "domain";
  * Base API URL. Configurable via the VITE_API_BASE_URL environment variable.
  * Defaults to "http://django:8000/api/" for local Docker environments.
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://10.3.235.123:8001/api/";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://django:8001/api/";
 
 /**
  * ENDPOINTS: Object that groups all API routes by entity or module.
