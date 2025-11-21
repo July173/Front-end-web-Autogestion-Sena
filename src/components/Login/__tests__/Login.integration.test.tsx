@@ -59,6 +59,4 @@ test('integration: successful login stores tokens and opens second-factor flow',
     expect(localStorage.getItem('user_email')).toBe('user@soy.sena.edu.co');
   });
 
-  // The component opens the second factor modal on success; modal triggers navigation on success.
-  // We cannot easily assert the modal UI here, but ensuring tokens and email are stored validates the flow.
-});
+    });
