@@ -9,18 +9,19 @@ interface ApprenticeData {
   name: string;
   type_identification: number;
   number_identification: string;
-  file_number: number;
+  file_number: string;
   date_start_production_stage: string;
   program: string;
   request_date: string;
   request_id?: number;
+  modality_productive_stage?: string;
 }
 
 /**
  * Props for the AssignButton component.
  */
 interface AssignButtonProps {
-  state?: "Asignar" | "Asignado" | "Rechazado";
+  state?: "Asignar" | "Asignado" | "Rechazado" | "Verificando";
   onClick?: () => void;
   requestId?: number;
   onAssignmentComplete?: () => void;
@@ -43,9 +44,16 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
     style = "bg-[#fb8383] border border-[#773939] h-[26px] w-[90px] rounded-[10px] flex items-center justify-center relative cursor-default";
     text = "text-[#5c1515]";
     label = "Rechazado";
+  } else if (state === "Verificando") {
+    style = "bg-amber-100 border border-amber-300 h-[26px] w-[100px] rounded-[10px] flex items-center justify-center relative cursor-default";
+    text = "text-amber-800";
+    label = "Verificando";
   }
 
   const handleClick = async () => {
+    // Prevent opening the modal unless the state is exactly 'Asignar'
+    if (state !== "Asignar") return;
+    if (!requestId) return;
     if (state === "Asignar" && requestId) {
       setLoading(true);
       try {
@@ -55,11 +63,13 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
           name: d.name_apprentice,
           type_identification: d.type_identification,
           number_identification: d.number_identification,
-          file_number: d.file_number?.toString() || "",
+          // The API maps the file number as 'numero_ficha' (or 'ficha'). Prefer that field.
+          file_number: d.numero_ficha ? String(d.numero_ficha) : (d.ficha ? String(d.ficha) : ""),
           date_start_production_stage: d.date_start_production_stage,
           program: d.program,
           request_date: d.request_date,
           request_id: requestId, // Pasar el ID del request que viene de la tabla
+          modality_productive_stage: d.modality_productive_stage ?? d.modality ?? undefined,
         });
         setShowModal(true);
       } catch (e) {
@@ -86,7 +96,7 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
         style={{ fontFamily: 'Roboto, sans-serif', fontWeight: 400 }}
         onClick={handleClick}
         disabled={state !== "Asignar" || loading}
-        data-node-id={state === "Asignar" ? "823:13305" : state === "Asignado" ? "823:13205" : "823:13209"}
+        data-node-id={state === "Asignar" ? "823:13305" : state === "Asignado" ? "823:13205" : state === "Rechazado" ? "823:13209" : "823:13210"}
       >
         <span className={`text-[14px] leading-[32px] ${text}`}>{loading ? "Cargando..." : label}</span>
       </button>

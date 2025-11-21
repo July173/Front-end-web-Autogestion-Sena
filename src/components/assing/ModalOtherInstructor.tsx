@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+    import React, { useState, useEffect } from "react";
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
 import { getInstructoresSeguimiento, patchInstructorLimit } from "@/Api/Services/Instructor";
 import { getKnowledgeAreas } from "@/Api/Services/KnowledgeArea";
@@ -63,7 +63,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                 .filter(([_, v]) => v !== undefined && v !== null)
                 .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
                 .join("&");
-            const url = `${ENDPOINTS.instructor.filterInstructores}?${query}`;
+            const url = `${ENDPOINTS.instructor.filterInstructorAssign}?${query}`;
             const response = await fetch(url);
             const result = await response.json();
             // Supports both formats: { data: [...] } or [...]

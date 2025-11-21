@@ -224,18 +224,27 @@ export const getRequestAsignationById = async (requestId: number): Promise<{ dat
  */
 export const assignInstructorToRequest = async (
   instructorId: number,
-  requestAsignationId: number
+  requestAsignationId: number,
+  extra?: { content?: string; type_message?: string; request_state?: string }
 ): Promise<{ success: boolean }> => {
   try {
+    const payload: any = {
+      instructor: instructorId,
+      request_asignation: requestAsignationId,
+    };
+
+    if (extra) {
+      if (typeof extra.content === 'string') payload.content = extra.content;
+      if (typeof extra.type_message === 'string') payload.type_message = extra.type_message;
+      if (typeof extra.request_state === 'string') payload.request_state = extra.request_state;
+    }
+
     const response = await fetch(ENDPOINTS.requestAsignation.postAssignInstructor, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        instructor: instructorId,
-        request_asignation: requestAsignationId,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

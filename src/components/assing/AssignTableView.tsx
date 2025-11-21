@@ -144,6 +144,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                               : undefined;
                             if (backendState === "ASIGNADO") return "Asignado";
                             if (backendState === "RECHAZADO") return "Rechazado";
+                            if (backendState === "VERIFICANDO") return "Verificando";
                             return "Asignar";
                           })()}
                           requestId={row.id}

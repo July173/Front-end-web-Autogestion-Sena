@@ -9,6 +9,9 @@ const estadoOptions = [
   { value: "ASIGNADO", label: "Asignado" },
   { value: "RECHAZADO", label: "Rechazado" },
   { value: "SIN_ASIGNAR", label: "Sin asignar" },
+  { value: "VERIFICANDO", label: "Verificando" },
+  { value: "PRE-APROBADO", label: "Pre-aprobado" },
+
 ];
 
 

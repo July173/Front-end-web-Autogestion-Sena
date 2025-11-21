@@ -64,6 +64,27 @@ export interface DetailData {
  
 }
 
+/**
+ * Assignment record as returned by the instructor assignments endpoint
+ */
+export interface InstructorAssignment {
+  id: number;
+  instructor?: number;
+  request_asignation?: number;
+  content?: string;
+  type_message?: string;
+  aprendiz_id?: number;
+  nombre?: string;
+  name?: string;
+  tipo_identificacion?: string | number;
+  numero_identificacion?: string | number;
+  fecha_solicitud?: string;
+  estado_solicitud?: string;
+  [k: string]: any;
+}
+
+export type AssignmentRow = InstructorAssignment;
+
  export interface Enterprise {
     name_enterprise: string;
     nit_enterprise: number;
