@@ -6,6 +6,7 @@ import ConfirmModal from "../../ConfirmModal";
 import CancelModal from "../../DescriptionModal";
 import NotificationModal from "../../NotificationModal";
 import FilterBar from "../../FilterBar";
+import LoadingOverlay from '../../LoadingOverlay';
 import { getSedes, createSede, updateSede, softDeleteSede, filterSedes } from "../../../Api/Services/Sede";
 import { Sede } from "../../../Api/types/Modules/general.types";
 import { Center } from "../../../Api/types/Modules/general.types";
@@ -65,6 +66,7 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   // Notification modal states
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifType, setNotifType] = useState<'success' | 'info' | 'warning' | 'password-changed' | 'email-sent' | 'pending' | 'completed'>('success');
@@ -216,6 +218,7 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
    * Converts center field to number and calls API, then refreshes data and shows notification
    */
   const handleConfirmAdd = async () => {
+    setActionLoading(true);
     try {
       // Normalize payload keys to backend expectations (snake_case)
       const pd = pendingData as unknown as Record<string, unknown>;
@@ -244,6 +247,8 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al crear sede');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -258,6 +263,7 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
    * Converts center field to number and calls API, then refreshes data and shows notification
    */
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       // Normalize edit payload to backend expected snake_case keys
       const ped = pendingEditData as unknown as Record<string, unknown>;
@@ -286,6 +292,8 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar sede');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -294,6 +302,7 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
    * Calls soft delete API which toggles active status, then refreshes data
    */
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await softDeleteSede(pendingDisable.id);
       // Close modal and reset state
@@ -309,6 +318,8 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar sede');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -319,6 +330,7 @@ const SedeSection = ({ open, onToggle }: SedeSectionProps) => {
   return (
     // Main container with collapsible section styling
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : 'Cargando...')} />
       {/* Section header with toggle button and record count */}
           <button
         onClick={onToggle}

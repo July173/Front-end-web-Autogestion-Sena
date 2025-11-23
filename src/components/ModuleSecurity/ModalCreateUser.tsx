@@ -10,6 +10,7 @@ import { getKnowledgeAreas } from '../../Api/Services/KnowledgeArea';
 import ConfirmModal from '../ConfirmModal';
 import { useDocumentTypes } from '../../hook/useDocumentTypes';
 import { useContractTypes } from '../../hook/useContractTypes';
+import LoadingOverlay from '../LoadingOverlay';
 import ApprenticeForm from './ApprenticeForm';
 import useApprenticeForm from '../../hook/useApprenticeForm';
 import InstructorForm from './InstructorForm';
@@ -134,8 +135,10 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className={`bg-white rounded-xl p-6 w-full max-w-lg shadow-lg relative ${tab === 'instructor' ? 'max-h-[90vh] overflow-y-auto' : ''}`}>
+    <>
+      <LoadingOverlay isOpen={loading} message={loading ? 'Registrando...' : 'Cargando...'} />
+      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className={`bg-white rounded-xl p-6 w-full max-w-lg shadow-lg relative ${tab === 'instructor' ? 'max-h-[90vh] overflow-y-auto' : ''}`}>
         <h2 className="text-xl font-bold mb-4">Registrar Nuevo Usuario-Sena</h2>
         <div className="flex mb-4 bg-gray-300 rounded-lg overflow-hidden p-2">
           <button className={`flex-1 py-2 font-semibold ${tab === 'aprendiz' ? 'bg-white rounded-xl shadow text-black' : 'text-gray-500'}`} onClick={() => setTab('aprendiz')}>Aprendiz</button>
@@ -178,9 +181,10 @@ const ModalCreateUser = ({ onClose, onSuccess }: { onClose?: () => void; onSucce
           onConfirm={handleConfirm}
           onCancel={() => setShowConfirm(false)}
         />
+        </div>
       </div>
-    </div>
-  );
+      </>
+    );
 };
 
 export default ModalCreateUser;

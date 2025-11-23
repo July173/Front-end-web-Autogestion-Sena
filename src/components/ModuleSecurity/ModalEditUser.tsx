@@ -2,6 +2,7 @@ import React from 'react';
 import NotificationModal from '../NotificationModal';
 import ConfirmModal from '../ConfirmModal';
 import CustomSelect from '../CustomSelect';
+import LoadingOverlay from '../LoadingOverlay';
 import { useDocumentTypes } from '../../hook/useDocumentTypes';
 import { useContractTypes } from '../../hook/useContractTypes';
 import type { Ficha } from '../../Api/types/Modules/general.types';
@@ -119,8 +120,10 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
   }
   const sedeOptions = mergedSedes.map((opt: Record<string, unknown>) => ({ value: String(opt['id']), label: String(opt['name']) }));
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className={`bg-white rounded-xl p-6 w-full max-w-lg shadow-lg relative ${tab === 'instructor' ? 'max-h-[90vh] overflow-y-auto' : ''}`}>
+    <>
+      <LoadingOverlay isOpen={loading} message={tab === 'aprendiz' ? 'Actualizando aprendiz...' : 'Actualizando instructor...'} />
+      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className={`bg-white rounded-xl p-6 w-full max-w-lg shadow-lg relative ${tab === 'instructor' ? 'max-h-[90vh] overflow-y-auto' : ''}`}>
         <h2 className="text-xl font-bold mb-4">Editar Usuario-Sena</h2>
         <form onSubmit={handleSubmit}>
           {tab === 'aprendiz' && apprentice ? (
@@ -444,8 +447,9 @@ const ModalEditUser = ({ userId, userRole, onClose, onSuccess }) => {
           onConfirm={confirmSubmit}
           onCancel={() => setShowConfirm(false)}
         />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

@@ -8,6 +8,7 @@ import useForms from '../../hook/useForms';
 import parseErrorMessage from '../../utils/parseError';
 import { Form as FormType } from '../../Api/types/entities/form.types';
 import { putForm } from '../../Api/Services/Form';
+import LoadingOverlay from '../LoadingOverlay';
 
 interface FormsSectionProps {
   open: boolean;
@@ -31,6 +32,7 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const totalPages = Math.ceil(forms.length / cardsPerPage);
   const paginated = forms.slice((page - 1) * cardsPerPage, page * cardsPerPage);
@@ -44,12 +46,15 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
   // When editing a form we don't want to show the 'active' toggle inside the edit modal
   const formFields = editingForm ? formFieldsBase.filter(f => f.name !== 'active') : formFieldsBase;
 
+  const overlayMessage = actionLoading ? 'Procesando...' : filtering ? 'Filtrando...' : loading ? 'Cargando...' : 'Cargando...';
+
   const handleCreate = (values: Partial<FormType>) => {
     // values from modal: if editingForm is set then it's an edit
     if (editingForm) {
       // merge and save
       const payload = { ...editingForm, ...values } as FormType;
       (async () => {
+        setActionLoading(true);
         try {
           await putForm(payload.id!, payload);
           setNotifType('success');
@@ -65,12 +70,15 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
           setNotifTitle('Error al actualizar formulario');
           setNotifMessage(msg);
           setNotifOpen(true);
+        } finally {
+          setActionLoading(false);
         }
       })();
     } else {
       setEditingForm(null);
       // create flow handled by useForms
       (async () => {
+        setActionLoading(true);
         try {
           await createForm(values as Partial<FormType>);
           setNotifType('success');
@@ -85,6 +93,8 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
           setNotifTitle('Error al crear formulario');
           setNotifMessage(msg);
           setNotifOpen(true);
+        } finally {
+          setActionLoading(false);
         }
       })();
     }
@@ -120,6 +130,7 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
 
   const doToggle = async () => {
     if (!confirmToggleForm) return;
+    setActionLoading(true);
     try {
       const payload = { ...confirmToggleForm, active: !confirmToggleForm.active } as FormType;
       await putForm(payload.id!, payload);
@@ -135,6 +146,8 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
       // keep confirmation modal open and show backend message inside it
       setConfirmToggleError(msg);
       setConfirmToggleForm(confirmToggleForm);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -143,6 +156,7 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={overlayMessage} />
       <button
         onClick={onToggle}
         className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between"

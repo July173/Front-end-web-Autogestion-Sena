@@ -7,6 +7,7 @@ import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import { getColors, createColor, updateColor, softDeleteColor, filterColors } from "../../../Api/Services/Colors";
 import FilterBar from "../../FilterBar";
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -53,6 +54,7 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<Colors | null>(null);
   const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Notification modal state
   const [notifOpen, setNotifOpen] = useState(false);
@@ -142,6 +144,7 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
     setShowConfirm(true);
   };
   const handleConfirm = async () => {
+    setActionLoading(true);
     try {
       await createColor(pendingData);
       setShowModal(false);
@@ -157,6 +160,8 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
       const msg = e instanceof Error ? e.message : "Error al crear color";
       setAddConfirmError(msg);
       setShowConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -170,6 +175,7 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
     setShowEditConfirm(true);
   };
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       await updateColor(editData.id, pendingEditData);
       setShowEditModal(false);
@@ -186,6 +192,8 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
       const msg = e instanceof Error ? e.message : "Error al actualizar color";
       setEditConfirmError(msg);
       setShowEditConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -195,6 +203,7 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
     setShowDisableConfirm(true);
   };
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await softDeleteColor(pendingDisable.id);
       setShowDisableConfirm(false);
@@ -209,6 +218,8 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
       const msg = e instanceof Error ? e.message : "Error al deshabilitar color";
       setDisableConfirmError(msg);
       setShowDisableConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -218,6 +229,7 @@ const ColorsSection = ({ open, onToggle }: ColorsSectionProps) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : (loading ? 'Cargando...' : 'Cargando...'))} />
       {/* Section header with toggle button and record count */}
       <button
         onClick={onToggle}

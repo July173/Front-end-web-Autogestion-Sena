@@ -8,7 +8,7 @@ import { validateInstitutionalLogin } from '../../Api/Services/User';
 import { isSenaEmail, isValidPassword } from '../../hook/validationlogin';
 import SenaLogo from '../SenaLogo';
 import SecondFactorModal from './SecondFactorModal';
-import LoadingOverlay from '../ui/LoadingOverlay';
+import LoadingOverlay from '../LoadingOverlay';
 
 /**
  * Props for LoginForm component.

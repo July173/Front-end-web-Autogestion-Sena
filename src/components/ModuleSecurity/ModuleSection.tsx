@@ -12,6 +12,7 @@ import NotificationModal from '../NotificationModal';
 import type { InfoCardProps } from '../../Api/types/entities/misc.types';
 import type { Module } from '../../Api/types/entities/module.types';
 import type { Form } from '../../Api/types/entities/form.types';
+import LoadingOverlay from '../LoadingOverlay';
 
 interface ModuleSectionProps {
   open: boolean;
@@ -121,6 +122,16 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
     },
   ];
 
+  const overlayMessage = editLoading
+    ? 'Actualizando módulo...'
+    : loadingForms
+      ? 'Cargando formularios...'
+      : modulesLoading
+        ? 'Filtrando...'
+        : loading
+          ? 'Cargando...'
+          : 'Procesando...';
+
   const handleCreateModule = (values: ModuleFormValues) => {
     let selectedForms: number[] = [];
     if (Array.isArray(values.form_ids)) selectedForms = values.form_ids.map(Number);
@@ -131,6 +142,7 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
 
   const handleConfirmCreateModule = async () => {
     if (!pendingModuleData) return;
+    setLoading(true);
     try {
       await postModule(pendingModuleData);
       setShowModuleModal(false);
@@ -145,6 +157,8 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
       const msg = parseErrorMessage(e) || 'Error al crear el módulo';
       setCreateConfirmError(msg);
       setShowModuleConfirm(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -161,6 +175,7 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
 
   const handleConfirmEditModule = async () => {
     if (!pendingEditData || !editModule) return;
+    setLoading(true);
     try {
       await putModuleForms(editModule.id, pendingEditData);
       setShowEdit(false);
@@ -174,9 +189,11 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
       const updated = await getModules();
       setModules(updated);
     } catch (e) {
-        const msg = parseErrorMessage(e) || 'Error al actualizar el módulo';
+      const msg = parseErrorMessage(e) || 'Error al actualizar el módulo';
       setEditConfirmError(msg);
       setShowEditConfirm(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -185,6 +202,7 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
   const handleConfirmToggle = async () => {
     if (!pendingToggleModule) return;
     setShowToggleConfirm(false);
+    setLoading(true);
     try {
       await toggleModuleActive(pendingToggleModule.id);
       setNotificationType('success');
@@ -194,15 +212,18 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
       const updated = await getModules();
       setModules(updated);
     } catch (e) {
-        const msg = parseErrorMessage(e) || 'No se pudo cambiar el estado del módulo';
+      const msg = parseErrorMessage(e) || 'No se pudo cambiar el estado del módulo';
       setToggleConfirmError(msg);
       setShowToggleConfirm(true);
+    } finally {
+      setLoading(false);
+      setPendingToggleModule(null);
     }
-    setPendingToggleModule(null);
   };
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || modulesLoading || loadingForms || editLoading)} message={overlayMessage} />
       <button
         onClick={onToggle}
         className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between"

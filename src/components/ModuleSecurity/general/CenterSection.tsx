@@ -9,6 +9,7 @@ import { getCenters, createCenter, updateCenter, softDeleteCenter, filterCenters
 import FilterBar from "../../FilterBar";
 import { getRegionales } from "../../../Api/Services/Regional";
 import parseErrorMessage from '../../../utils/parseError';
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -55,6 +56,7 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<Center | null>(null);
   const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Notification modal state
   const [notifOpen, setNotifOpen] = useState(false);
@@ -150,6 +152,7 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
   const handleAdd = () => setShowAddModal(true);
   const handleSubmitAdd = (values: Center) => { setPendingData(values); setShowAddConfirm(true); };
   const handleConfirmAdd = async () => {
+    setActionLoading(true);
     try {
       // Normalize payload keys to backend expectations: 'code_center' instead of 'codeCenter'
       const pd = pendingData as unknown as Record<string, unknown>;
@@ -171,12 +174,15 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
       const msg = parseErrorMessage(e) || 'Error al crear centro';
       setAddConfirmError(msg);
       setShowAddConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Handler functions for edit operations
   const handleSubmitEdit = (values: Center) => { setPendingEditData(values); setShowEditConfirm(true); };
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       // Normalize edit payload keys to backend expectations
       const ped = pendingEditData as unknown as Record<string, unknown>;
@@ -199,11 +205,14 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
       const msg = parseErrorMessage(e) || 'Error al actualizar centro';
       setEditConfirmError(msg);
       setShowEditConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Handler function for disable operations
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await softDeleteCenter(pendingDisable.id);
       setShowDisableConfirm(false);
@@ -215,6 +224,8 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
       const msg = parseErrorMessage(e) || 'Error al deshabilitar centro';
       setDisableConfirmError(msg);
       setShowDisableConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -224,6 +235,7 @@ const CenterSection = ({ open, onToggle }: CenterSectionProps) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : (loading ? 'Cargando...' : 'Cargando...'))} />
       {/* Section header with toggle button and record count */}
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
         <div className="flex items-center gap-3">

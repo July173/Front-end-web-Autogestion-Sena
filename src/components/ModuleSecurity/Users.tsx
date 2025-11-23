@@ -5,6 +5,7 @@ import { getUsers, deleteUser, getUserStatus, filterUsers } from '../../Api/Serv
 import { User, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import ModalCreateUser from './ModalCreateUser';
 import ConfirmModal from '../ConfirmModal';
+import LoadingOverlay from '../LoadingOverlay';
 import ModalEditUser from './ModalEditUser';
 import NotificationModal from '../NotificationModal';
 import type { User as UsuarioRegistrado } from '../../Api/types/entities/user.types';
@@ -160,6 +161,7 @@ const Users = () => {
   const handleConfirmToggle = async () => {
     if (!pendingUser) return;
     setShowConfirm(false);
+    setLoading(true);
     try {
       await deleteUser(pendingUser.id);
       await fetchAll();
@@ -176,8 +178,10 @@ const Users = () => {
       setNotificationTitle('Error');
       setNotificationMessage('No se pudo cambiar el estado del usuario.');
       setNotificationOpen(true);
+    } finally {
+      setLoading(false);
+      setPendingUser(null);
     }
-    setPendingUser(null);
   };
 
   /**
@@ -291,6 +295,8 @@ const Users = () => {
 
   return (
     <div className="bg-white p-8 rounded-lg shadow relative">
+      {/* Loading overlay for actions like enable/disable, fetching */}
+      <LoadingOverlay isOpen={loading} message={loading ? 'Procesando...' : 'Cargando...'} />
       {/* Create user button: positioned in top-right corner */}
       <button
         className="absolute right-8 top-8 flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"

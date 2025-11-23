@@ -8,6 +8,7 @@ import { useGeneralData } from "../../../hook/useGeneralData";
 import FilterBar from "../../FilterBar";
 import { filterFichas } from "../../../Api/Services/Ficha";
 import type { Program, Ficha } from "../../../Api/types/Modules/general.types";
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -63,6 +64,7 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   /**
    * InfoCard component for displaying individual ficha information
@@ -110,6 +112,7 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
     setShowFichaConfirm(true);
   };
   const handleConfirmFicha = async () => {
+    setActionLoading(true);
     try {
       if (!pendingFichaData) throw new Error('No hay datos de ficha');
       await createFicha(pendingFichaData as Partial<Ficha>);
@@ -127,6 +130,8 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
       setNotifTitle('Error');
       setNotifMessage(msg);
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -147,6 +152,7 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
     setShowEditFichaConfirm(true);
   };
   const handleConfirmEditFicha = async () => {
+    setActionLoading(true);
     try {
       if (!editFicha) throw new Error('No se seleccionó la ficha');
       await updateFicha(editFicha.id as number, pendingEditFicha as Partial<Ficha>);
@@ -165,6 +171,8 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
       setNotifTitle('Error');
       setNotifMessage(msg);
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -206,6 +214,7 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
     }
   };
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       if (!pendingDisable) throw new Error('No se seleccionó la ficha');
       await deleteFicha(pendingDisable.id);
@@ -222,6 +231,8 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
       setNotifTitle('Error');
       setNotifMessage(msg);
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -237,6 +248,7 @@ const FichaSection = ({ open, onToggle }: FichaSectionProps) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : (loading ? 'Cargando...' : 'Cargando...'))} />
       {/* Section header with toggle button and record count */}
       <button
         onClick={onToggle}

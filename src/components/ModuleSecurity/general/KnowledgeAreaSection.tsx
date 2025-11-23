@@ -8,6 +8,7 @@ import { useGeneralData } from "../../../hook/useGeneralData";
 import type { KnowledgeArea } from "../../../Api/types/Modules/general.types";
 import FilterBar from "../../FilterBar";
 import { filterKnowledgeAreas } from "../../../Api/Services/KnowledgeArea";
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -45,6 +46,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     // sync displayedAreas when underlying data changes only when not filtering
@@ -128,6 +130,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
     setShowAreaConfirm(true);
   };
   const handleConfirmArea = async () => {
+    setActionLoading(true);
     try {
       await createKnowledgeArea(pendingAreaData);
       setShowAreaModal(false);
@@ -143,6 +146,8 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al crear área');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -156,6 +161,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
     setShowEditAreaConfirm(true);
   };
   const handleConfirmEditArea = async () => {
+    setActionLoading(true);
     try {
       await updateKnowledgeArea(editArea.id, pendingEditArea);
       setShowEditArea(false);
@@ -172,6 +178,8 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar área');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -181,6 +189,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
     setShowDisableConfirm(true);
   };
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await deleteKnowledgeArea(pendingDisable.id);
       setShowDisableConfirm(false);
@@ -195,6 +204,8 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar área');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -211,6 +222,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : (loading ? 'Cargando...' : 'Cargando...'))} />
       {/* Section header with toggle button and record count */}
       <button
         onClick={onToggle}

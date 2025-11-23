@@ -8,6 +8,7 @@ import ConfirmModal from '../../ConfirmModal';
 import NotificationModal from '../../NotificationModal';
 import { getAllLegalSections, createLegalSection, updateLegalSection, softDeleteLegalSection, filterLegalSections } from '../../../Api/Services/LegalSection';
 import FilterBar from '../../FilterBar';
+import LoadingOverlay from '../../LoadingOverlay';
 import { getAllLegalDocuments } from '../../../Api/Services/LegalDocument';
 
 const cardsPerPage = 3;
@@ -47,6 +48,7 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
   // Confirm add handler for ConfirmModal
   const handleConfirmAdd = async () => {
     if (!pendingData) return;
+    setActionLoading(true);
     try {
   // Forzar parent_id a null si no hay selección
   // Normalize payload keys to what the backend expects: 'document' and 'parent'
@@ -71,11 +73,13 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
       setNotifTitle('Éxito');
       setNotifMessage('Sección registrada correctamente.');
       setNotifOpen(true);
-  } catch (e) {
+    } catch (e) {
       setNotifType('warning');
       setNotifTitle('Error');
       setNotifMessage(e.message || 'Error al registrar sección');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -130,6 +134,7 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const handleFilter = async (params?: { search?: string; active?: string }) => {
     const s = params && params.search !== undefined ? params.search : (search || undefined);
@@ -274,6 +279,7 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
     setShowEditConfirm(true);
   };
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       if (!editData) throw new Error('No hay sección para editar');
       const pending = (pendingEditData || {}) as Record<string, unknown>;
@@ -293,10 +299,13 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Sección actualizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar sección'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       if (!pendingDisable) throw new Error('No hay sección seleccionada');
       if (pendingDisable.active) {
@@ -310,6 +319,8 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar sección'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -318,6 +329,7 @@ const LegalSectionSection = ({ open, onToggle }: Props) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : 'Cargando...')} />
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-semibold text-gray-900">Secciones Legales</h3>

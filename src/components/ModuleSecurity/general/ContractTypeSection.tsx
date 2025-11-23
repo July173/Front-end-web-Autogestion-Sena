@@ -9,6 +9,7 @@ import CancelModal from "../../DescriptionModal";
 import { getContractTypes, createContractType, updateContractType, deactivateContractType, filterContractTypes } from "../../../Api/Services/TypeContract";
 import FilterBar from "../../FilterBar";
 import { max } from "date-fns";
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -56,6 +57,7 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Modal states for description display
   const [showDescModal, setShowDescModal] = useState(false);
@@ -172,6 +174,7 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
     setShowConfirm(true);
   };
   const handleConfirm = async () => {
+    setActionLoading(true);
     try {
       await createContractType(pendingData);
       setShowModal(false);
@@ -190,6 +193,8 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
       setConfirmError(message);
       // keep the modal open so the user sees the message
       setShowConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -203,6 +208,7 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
     setShowEditConfirm(true);
   };
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       await updateContractType(editData.id, pendingEditData);
       setShowEditModal(false);
@@ -220,6 +226,8 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
       const message = e instanceof Error ? e.message : 'Error al actualizar tipo de contrato';
       setEditConfirmError(message);
       setShowEditConfirm(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -229,6 +237,7 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
     setShowDisableConfirm(true);
   };
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await deactivateContractType(pendingDisable.id);
       setShowDisableConfirm(false);
@@ -244,6 +253,8 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar tipo de contrato');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -253,6 +264,7 @@ const ContractTypeSection = ({ open, onToggle }: ContractTypeSectionProps) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : (loading ? 'Cargando...' : 'Cargando...'))} />
       {/* Section header with toggle button and record count */}
       <button
         onClick={onToggle}

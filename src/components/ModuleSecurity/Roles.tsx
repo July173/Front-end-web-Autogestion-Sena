@@ -10,6 +10,7 @@ import type { Permission } from '../../Api/types/entities/permission.types';
 import ModalFormGeneric from './ModalFormGeneric';
 import { useRoles } from '../../hook/useRoles';
 import NotificationModal from '../NotificationModal';
+import LoadingOverlay from '../LoadingOverlay';
 
 /**
  * Roles component for managing user roles and their permissions.
@@ -49,6 +50,15 @@ const Roles = () => {
       permissions: permissions, // use all permissions; Permission type doesn't include `active`
     },
   ];
+
+  // Determine overlay message depending on what is loading
+  const overlayMessage = editLoading
+    ? 'Actualizando rol...'
+    : (loadingForms || loadingPermissions)
+      ? 'Cargando...'
+      : loading
+        ? 'Procesando...'
+        : 'Cargando...';
 
   /**
    * Custom render component for form-permissions assignment UI.
@@ -161,6 +171,7 @@ const Roles = () => {
 
   return (
     <div className="bg-white p-8 rounded-lg shadow animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+      <LoadingOverlay isOpen={Boolean(loading || editLoading || loadingForms || loadingPermissions)} message={overlayMessage} />
       {/* Header section with title and create role button */}
       <div className="flex items-center gap-4 mb-6 justify-between">
         <h2 className="text-2xl font-bold">Gestión de Roles - Sena</h2>
