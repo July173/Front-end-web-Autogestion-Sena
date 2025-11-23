@@ -18,6 +18,12 @@ interface SelectConfig {
   placeholder?: string;
   /** Whether this select should use autocomplete functionality */
   autocomplete?: boolean;
+  /** Optional fixed CSS width (eg '320px' or '40%') */
+  width?: string;
+  /** Optional minimum width for the select container */
+  minWidth?: string;
+  /** Optional maximum width for the select container */
+  maxWidth?: string;
 }
 
 /**
@@ -147,7 +153,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
       {selects.map(sel => (
         sel.name === 'programa' ? (
           // Special handling for program autocomplete
-          <div key={sel.name} style={{ minWidth: '320px', maxWidth: '220px', display: 'flex', alignItems: 'center', gap: '0px' }}>
+          <div key={sel.name} style={{ minWidth: sel.minWidth || '320px', maxWidth: sel.maxWidth || '220px', display: 'flex', alignItems: 'center', gap: '0px', width: sel.width || undefined }}>
             <ProgramAutocomplete
               value={programOption}
               onChange={handleProgramChange}
@@ -157,7 +163,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
         ) : (
           // Regular select dropdown
-          <div key={sel.name} style={{ minWidth: '190px', maxWidth: '220px' }}>
+          <div key={sel.name} style={{ minWidth: sel.minWidth || '190px', maxWidth: sel.maxWidth || '220px', width: sel.width || undefined }}>
             {(() => {
               // Build options for the custom select. If the provided options already include
               // a universal choice like 'TODOS' or 'all', don't prepend the default 'all' option

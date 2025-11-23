@@ -94,7 +94,10 @@ export const ApplicationEvaluation = () => {
           // Try to filter by instructor and state VERIFICANDO
           const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
           const result = await filterRequest(payload);
-          setRows(result);
+          setRows(result.map(r => ({
+            ...r,
+            nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+          })));
         } else {
           // Fallback: load all
           const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
@@ -126,11 +129,17 @@ export const ApplicationEvaluation = () => {
               if (instructorId) {
                 const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
                 const result = await filterRequest(payload);
-                setRows(result);
+                setRows(result.map(r => ({
+                  ...r,
+                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+                })));
               } else {
                 const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
                 const result = await getAllRequests();
-                setRows(result as AssignTableRow[]);
+                setRows((result as AssignTableRow[]).map(r => ({
+                  ...r,
+                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+                })));
               }
             } catch (err) {
               const message = err instanceof Error ? err.message : String(err);
@@ -150,7 +159,7 @@ export const ApplicationEvaluation = () => {
             const payload: Record<string, string> = {};
             if (params.search && params.search.trim() !== '') payload.search = params.search;
             if (params.programa && params.programa !== 'TODOS') payload.program_id = params.programa;
-            if (params.modalidad && params.modalidad !== 'TODOS') payload.modality_productive_stage = params.modalidad;
+            if (params.modalidad && params.modalidad !== 'TODOS') payload.modality_id = params.modalidad;
             // always filter by VERIFICANDO for this page
             payload.request_state = 'VERIFICANDO';
             if (instructorId) payload.instructor_id = String(instructorId);
@@ -158,10 +167,16 @@ export const ApplicationEvaluation = () => {
             if (Object.keys(payload).length === 0) {
               const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
               const result = await getAllRequests();
-              setRows(result as AssignTableRow[]);
+              setRows((result as AssignTableRow[]).map(r => ({
+                ...r,
+                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+              })));
             } else {
               const result = await filterRequest(payload);
-              setRows(result as AssignTableRow[]);
+              setRows(result.map(r => ({
+                ...r,
+                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+              })) as AssignTableRow[]);
             }
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
@@ -173,10 +188,17 @@ export const ApplicationEvaluation = () => {
         }}
         selects={[
           { name: 'estado', value: 'VERIFICANDO', options: [{ value: 'VERIFICANDO', label: 'Verificando' }], placeholder: 'Estado' },
-          { name: 'modalidad', value: '', options: modalityOptions, placeholder: 'Modalidad' },
+          {
+            name: 'modalidad',
+            value: '',
+            options: modalityOptions,
+            placeholder: 'Modalidad',
+            minWidth: '320px',
+            maxWidth: '420px'
+          },
           { name: 'programa', value: '', options: programOptions, placeholder: 'Programa' }
         ]}
-        inputWidth="900px"
+        inputWidth="calc(100% - 620px)"
         searchPlaceholder="Buscar por nombre, documento..."
       />
 
@@ -193,11 +215,17 @@ export const ApplicationEvaluation = () => {
             if (instructorId) {
               const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
               const result = await filterRequest(payload);
-              setRows(result);
+              setRows(result.map(r => ({
+                ...r,
+                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+              })));
             } else {
               const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
               const result = await getAllRequests();
-              setRows(result as AssignTableRow[]);
+                setRows((result as AssignTableRow[]).map(r => ({
+                  ...r,
+                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+                })));
             }
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);

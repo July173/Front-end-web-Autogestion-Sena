@@ -5,6 +5,28 @@
  * @returns Promise with the filtered array of requests
  */
 import { AssignTableRow } from '../types/Modules/assign.types';
+
+// Helper to resolve modality name from several possible backend shapes
+const resolveModalityName = (it: any): string | undefined => {
+  if (!it) return undefined;
+  // Common possibilities
+  if (typeof it.nombre_modalidad === 'string' && it.nombre_modalidad.trim()) return it.nombre_modalidad;
+  // Spanish key used by some endpoints
+  if (typeof it.modalidad === 'string' && it.modalidad.trim()) return it.modalidad;
+  if (typeof it.name_modality === 'string' && it.name_modality.trim()) return it.name_modality;
+  if (typeof it.modality_name === 'string' && it.modality_name.trim()) return it.modality_name;
+  // Sometimes backend returns the modality as a nested object
+  if (it.modality && typeof it.modality === 'object') {
+    if (typeof it.modality.name_modality === 'string') return it.modality.name_modality;
+    if (typeof it.modality.nombre === 'string') return it.modality.nombre;
+  }
+  // If it's provided as an id/string, return as-is (UI can map later)
+  if (typeof it.modality_productive_stage === 'string' && it.modality_productive_stage.trim()) return it.modality_productive_stage;
+  if (typeof it.modality_productive_stage === 'number') return String(it.modality_productive_stage);
+  if (typeof it.modality_id === 'string' && it.modality_id.trim()) return it.modality_id;
+  if (typeof it.modality_id === 'number') return String(it.modality_id);
+  return undefined;
+};
 export const filterRequest = async (params: Record<string, string>): Promise<AssignTableRow[]> => {
   try {
     // Construir la query string
@@ -31,7 +53,7 @@ export const filterRequest = async (params: Record<string, string>): Promise<Ass
       type_identification: it.tipo_identificacion ?? it.type_identification ?? 0,
       number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
       request_date: it.fecha_solicitud || it.request_date || '',
-      nombre_modalidad: it.nombre_modalidad || it.nombre_modalidad || undefined,
+      nombre_modalidad: resolveModalityName(it),
       request_state: it.request_state || it.requestState || ''
     }));
   } catch (error) {
@@ -62,7 +84,7 @@ export const getAllRequests = async (): Promise<AssignTableRow[]> => {
       type_identification: it.tipo_identificacion ?? it.type_identification ?? 0,
       number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
       request_date: it.fecha_solicitud || it.request_date || '',
-      nombre_modalidad: it.nombre_modalidad || it.nombre_modalidad || undefined,
+      nombre_modalidad: resolveModalityName(it),
       request_state: it.request_state || it.requestState || ''
     }));
   } catch (error) {

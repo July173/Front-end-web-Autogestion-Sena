@@ -65,7 +65,11 @@ const Assign: React.FC = () => {
     try {
       const { getAllRequests } = await import("@/Api/Services/RequestAssignaton");
       const result = await getAllRequests();
-      setRows(result);
+      const mapped = result.map(r => ({
+        ...r,
+        nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+      }));
+      setRows(mapped);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message || "Error al recargar solicitudes");
@@ -82,7 +86,7 @@ const Assign: React.FC = () => {
       const payload: Record<string, string> = {};
   if (params.search && params.search.trim() !== "") payload.search = params.search;
   if (params.programa && params.programa !== "TODOS") payload.program_id = params.programa;
-  if (params.modalidad && params.modalidad !== "TODOS") payload.modality_productive_stage = params.modalidad;
+  if (params.modalidad && params.modalidad !== "TODOS") payload.modality_id = params.modalidad;
   if (params.estado && params.estado !== "TODOS") payload.request_state = params.estado;
       // If no filters, load all requests
       if (Object.keys(payload).length === 0) {
@@ -91,7 +95,11 @@ const Assign: React.FC = () => {
         setRows(result);
       } else {
         const result = await filterRequest(payload);
-        setRows(result);
+        const mapped = result.map(r => ({
+          ...r,
+          nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+        }));
+        setRows(mapped);
       }
     } catch (err) {
       if (err instanceof Error) {
@@ -126,7 +134,9 @@ const Assign: React.FC = () => {
             name: 'modalidad',
             value: '',
             options: modalityOptions,
-            placeholder: 'Modalidad'
+            placeholder: 'Modalidad',
+            minWidth: '320px',
+            maxWidth: '420px'
           },
            {
             name: "programa",
@@ -135,7 +145,7 @@ const Assign: React.FC = () => {
             placeholder: "Programa",
           }
         ]}
-        inputWidth="900px"
+        inputWidth="calc(100% - 620px)"
         searchPlaceholder="Buscar por nombre, documento..."
       />
       <AssignTableView

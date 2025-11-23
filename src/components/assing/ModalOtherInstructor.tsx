@@ -1,6 +1,6 @@
     import React, { useState, useEffect } from "react";
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
-import { getInstructoresSeguimiento, patchInstructorLimit } from "@/Api/Services/Instructor";
+import { patchInstructorLimit } from "@/Api/Services/Instructor";
 import { getKnowledgeAreas } from "@/Api/Services/KnowledgeArea";
 import { KnowledgeArea } from "@/Api/types/Modules/general.types";
 import FilterBar from "@/components/FilterBar";
@@ -9,7 +9,6 @@ import EditLimitModal from "./EditLimitModal";
 import useNotification from "@/hook/useNotification";
 import NotificationModal from "@/components/NotificationModal";
 import useAssignmentColor from '@/hook/useAssignmentColor';
-import { get } from "http";
 
 
 /**
@@ -29,8 +28,7 @@ interface ModalOtroInstructorProps {
  * @param {ModalOtroInstructorProps} props
  */
 export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInstructorProps) {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [selectedArea, setSelectedArea] = useState<string>("");
+    // Note: search and area filters are handled by FilterBar -> fetchFilteredInstructors
     const [editLimitInstructor, setEditLimitInstructor] = useState<InstructorCustomList | null>(null);
     const [instructores, setInstructores] = useState<InstructorCustomList[]>([]);
     const [knowledgeAreas, setKnowledgeAreas] = useState<KnowledgeArea[]>([]);
@@ -64,18 +62,16 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                 .filter(([_, v]) => v !== undefined && v !== null)
                 .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
                 .join("&");
-            const url = `${ENDPOINTS.instructor.filterInstructorAssign}?${query}`;
+            const url = `${ENDPOINTS.instructor.filterInstructores}?${query}`;
             const response = await fetch(url);
             const result = await response.json();
             // Supports both formats: { data: [...] } or [...]
-            let instructoresArr = [];
-            if (Array.isArray(result)) {
-                instructoresArr = result;
-            } else if (Array.isArray(result.data)) {
-                instructoresArr = result.data;
-            }
-            // Filter only follow-up instructors
-            setInstructores(instructoresArr.filter(inst => inst.is_followup_instructor === true));
+            let instructoresArr: any[] = [];
+            if (Array.isArray(result)) instructoresArr = result;
+            else if (result && Array.isArray(result.data)) instructoresArr = result.data;
+            // Filter only follow-up instructors (backend should respect the flag, but be tolerant)
+            const filtered = instructoresArr.filter(inst => inst && (inst.is_followup_instructor === true || inst.is_followup_instructor === 'true'));
+            setInstructores(filtered as InstructorCustomList[]);
         } catch {
             setInstructores([]);
         } finally {
@@ -126,9 +122,8 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         try {
             await patchInstructorLimit(editLimitInstructor.id, newLimit);
             
-            // Refresh instructors after updating limit
-            const data = await getInstructoresSeguimiento();
-            setInstructores(data);
+            // Refresh instructors using the same filtered endpoint so we keep only follow-up instructors
+            await fetchFilteredInstructors({});
             
             // Show success notification
             showNotification(
@@ -153,7 +148,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
 
     // Load instructors when modal opens (no filters -> empty search)
     useEffect(() => {
-        fetchFilteredInstructors({ search: '' });
+        fetchFilteredInstructors({});
     }, []);
 
     return (

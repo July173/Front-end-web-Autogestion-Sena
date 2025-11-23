@@ -112,7 +112,6 @@ export const ENDPOINTS = {
     getCustomList: `${API_BASE_URL}general/instructors/custom-list/`,
     patchLimit: `${API_BASE_URL}general/instructors/{id}/update-learners/`,
     filterInstructores: `${API_BASE_URL}general/instructors/filter/`,
-    filterInstructorAssign: `${API_BASE_URL}general/instructors/filtered/`,
     getInstructorAssignments: `${API_BASE_URL}general/instructors/{id}/asignations/`,
   },
   /** Endpoints for regionals */
