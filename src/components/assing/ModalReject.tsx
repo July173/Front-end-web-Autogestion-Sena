@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import LoadingOverlay from "../LoadingOverlay";
+import ConfirmModal from "../ConfirmModal";
 
 
 /**
@@ -13,7 +15,8 @@ interface ModalRejectProps {
   apprenticeName: string;
   requestId: number;
   onClose: () => void;
-  onConfirm: (rejectionMessage: string) => void;
+  // onConfirm can be sync or async; return a Promise if async
+  onConfirm: (rejectionMessage: string) => void | Promise<void>;
 }
 
 /**
@@ -24,22 +27,42 @@ interface ModalRejectProps {
 const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, onClose, onConfirm }) => {
   const [rejectionMessage, setRejectionMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // track mounted state to avoid setting state after unmount
+  const [mounted, setMounted] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   /**
    * Handles the submit action for rejection.
    * Only proceeds if a rejection message is provided.
    */
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // This handler is triggered when the user confirms the inner ConfirmModal
     if (!rejectionMessage.trim()) {
-      // Only show visual error, no alert
+      // Safety: should not happen because button is disabled, but double-check
+      setShowConfirm(false);
       return;
     }
+    setShowConfirm(false);
     setIsSubmitting(true);
-    onConfirm(rejectionMessage);
+    try {
+      const result = onConfirm(rejectionMessage);
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        await result;
+      }
+    } finally {
+      // only set state if still mounted
+      if (mounted) setIsSubmitting(false);
+    }
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-[90] flex items-center justify-center">
+  <LoadingOverlay isOpen={isSubmitting} message={isSubmitting ? 'Rechazando...' : undefined} />
   {/* Dark overlay */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50" 
@@ -91,7 +114,7 @@ const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, on
           </button>
           <button
             className="px-6 py-2 rounded-[10px] bg-red-500 text-white font-bold hover:bg-red-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={handleSubmit}
+            onClick={() => setShowConfirm(true)}
             disabled={isSubmitting || !rejectionMessage.trim()}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#fff" className="bi bi-x-circle" viewBox="0 0 16 16">
@@ -103,6 +126,20 @@ const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, on
         </div>
       </div>
     </div>
+      {showConfirm && (
+        <ConfirmModal
+          isOpen={showConfirm}
+          title="Confirmar rechazo"
+          message={`¿Estás seguro de que deseas rechazar la solicitud? Esta acción no se puede deshacer.`}
+          confirmText="Sí, rechazar"
+          cancelText="Cancelar"
+          onConfirm={handleSubmit}
+          onCancel={() => setShowConfirm(false)}
+          zIndex={1000}
+          errorMessage={null}
+        />
+      )}
+    </>
   );
 };
 

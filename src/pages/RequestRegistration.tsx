@@ -16,11 +16,13 @@ import { useApprenticeData } from '../hook/useApprenticeData';
 import { useRequestAssignation } from '../hook/useRequestAssignation';
 import { useFormValidations } from '../hook/useFormValidations';
 import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from 'react-router-dom';
 import { getDocumentTypesWithEmpty } from '../Api/Services/TypeDocument';
 import { requestAsignation } from '../Api/types/Modules/assign.types';
 import NotificationModal from '../components/NotificationModal';
 import ConfirmModal from '../components/ConfirmModal';
 import TermsModal from '../components/Login/TermsModal';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 // Colors used
 const COLORS = {
@@ -79,6 +81,9 @@ export default function RequestRegistration() {
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [redirectAfterSuccess, setRedirectAfterSuccess] = useState(false);
+  const navigate = useNavigate();
 
   // Calculate allowed range for end date (after declaring formData)
   let minEndDate = '';
@@ -185,8 +190,8 @@ export default function RequestRegistration() {
     setShowConfirm(false);
     clearError();
     // Helper to show notification after confirm closes
-    const showNotification = (notif) => {
-  setTimeout(() => setNotification({ ...notif, key: Date.now() }), 200); // force remount with unique key
+    const showNotification = (notif: typeof notification) => {
+      setTimeout(() => setNotification({ ...notif, key: Date.now() }), 200); // force remount with unique key
     };
     if (!person) {
       showNotification({
@@ -222,7 +227,7 @@ export default function RequestRegistration() {
       }
     })();
 
-    const requiredFields: Record<string, any> = {
+    const requiredFields: Record<string, unknown> = {
       apprenticeId: updatedFormData.apprentice!,
       fichaId: updatedFormData.ficha!,
       enterpriseName: updatedFormData.enterprise_name!,
@@ -298,6 +303,7 @@ export default function RequestRegistration() {
       // Subir PDF con request_id cuando esté disponible
       if (selectedFile) {
         let pdfUploadResult = null;
+        setPdfUploading(true);
         try {
           console.log('Enviando PDF:', selectedFile, 'con request_id:', requestId);
           pdfUploadResult = await uploadPdf(selectedFile, requestId ?? undefined);
@@ -311,6 +317,8 @@ export default function RequestRegistration() {
             message: pdfErr?.message || 'La solicitud fue enviada pero hubo un error al subir el archivo PDF.'
           });
           return;
+        } finally {
+          setPdfUploading(false);
         }
 
         if (pdfUploadResult) {
@@ -320,6 +328,7 @@ export default function RequestRegistration() {
             title: 'Solicitud enviada',
             message: backendMessage
           });
+          setRedirectAfterSuccess(true);
         } else {
           showNotification({
             isOpen: true,
@@ -335,6 +344,7 @@ export default function RequestRegistration() {
           title: 'Solicitud enviada',
           message: backendMessage
         });
+        setRedirectAfterSuccess(true);
       }
     } catch (err) {
       console.error('Error al enviar solicitud principal:', err);
@@ -366,7 +376,13 @@ export default function RequestRegistration() {
       <NotificationModal
         key={notification.key}
         isOpen={notification.isOpen}
-        onClose={() => setNotification({ ...notification, isOpen: false, key: Date.now() })}
+        onClose={() => {
+          setNotification({ ...notification, isOpen: false, key: Date.now() });
+          if (redirectAfterSuccess) {
+            setRedirectAfterSuccess(false);
+            navigate('/home');
+          }
+        }}
         type={notification.type}
         title={notification.title}
         message={notification.message}
@@ -380,7 +396,8 @@ export default function RequestRegistration() {
         onConfirm={handleConfirmSend}
         onCancel={() => setShowConfirm(false)}
       />
-      <TermsModal isOpen={isTermsModalOpen} onClose={() => setIsTermsModalOpen(false)} />
+  <TermsModal isOpen={isTermsModalOpen} onClose={() => setIsTermsModalOpen(false)} />
+  <LoadingOverlay isOpen={loading || pdfUploading} message={pdfUploading ? 'Subiendo PDF...' : 'Enviando solicitud...'} />
       <div className="min-h-screen py-8 rounded-md" style={{ background: '#f8f9fa' }}>
         <div className="w-full max-w-4xl mx-auto px-4">
           <form onSubmit={handleFormSubmit}>

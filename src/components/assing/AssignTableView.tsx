@@ -14,6 +14,7 @@ interface AssignTableViewProps {
   error: string | null;
   onAction: (row: AssignTableRow) => void;
   actionLabel?: string;
+  onRefresh?: () => void;
 }
 
 const AssignTableView: React.FC<AssignTableViewProps> = ({
@@ -21,6 +22,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
   loading,
   error,
   onAction,
+  onRefresh,
 }) => {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [detail, setDetail] = useState<DetailData | null>(null);
@@ -53,6 +55,15 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
     });
     setRequestStates(statesMap);
   }, [rows]);
+
+  // Listen for a global reload event so external ReloadButton can trigger table refresh
+  React.useEffect(() => {
+    const handler = (_e: Event) => {
+      if (onRefresh) onRefresh();
+    };
+    window.addEventListener('global:reload-table', handler as EventListener);
+    return () => window.removeEventListener('global:reload-table', handler as EventListener);
+  }, [onRefresh]);
 
   React.useEffect(() => {
     setExpandedIdx(null);
@@ -153,7 +164,11 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                           })()}
                           requestId={row.id}
                           onClick={() => onAction(row)}
-                          onAssignmentComplete={() => row.id && refreshRequestState(row.id)}
+                          onAssignmentComplete={() => {
+                            if (row.id) refreshRequestState(row.id);
+                            // Ask parent page to refresh the full rows list (to reflect backend changes)
+                            if (onRefresh) onRefresh();
+                          }}
                         />
                       </div>
                     </div>

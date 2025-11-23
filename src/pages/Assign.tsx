@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AssignTableView from "../components/assing/AssignTableView";
 import FilterBar from "../components/FilterBar";
+import ReloadButton from "../components/ReloadButton";
 import { filterRequest } from "@/Api/Services/RequestAssignaton";
 import { getPrograms } from "@/Api/Services/Program";
 import { getModalityProductiveStages } from '@/Api/Services/ModalityProductiveStage';
@@ -39,15 +40,39 @@ const Assign: React.FC = () => {
       ]);
     });
     // Load requests on startup
+    const loadInitial = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { getAllRequests } = await import("@/Api/Services/RequestAssignaton");
+        const result = await getAllRequests();
+        setRows(result);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message || "Error al cargar solicitudes");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitial();
+  }, []);
+
+  // Exposed reload function to refresh the table after actions like reject/assign
+  const reloadRows = async () => {
     setLoading(true);
     setError(null);
-    import("@/Api/Services/RequestAssignaton").then(({ getAllRequests }) => {
-      getAllRequests()
-        .then((result) => setRows(result))
-        .catch((err) => setError(err.message || "Error al cargar solicitudes"))
-        .finally(() => setLoading(false));
-    });
-  }, []);
+    try {
+      const { getAllRequests } = await import("@/Api/Services/RequestAssignaton");
+      const result = await getAllRequests();
+      setRows(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Error al recargar solicitudes");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFilter = async (params: Record<string, string>) => {
     setLoading(true);
@@ -84,7 +109,9 @@ const Assign: React.FC = () => {
     <div className="bg-white relative rounded-[10px] size-full p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Asignar seguimiento</h2>
-        
+        <div>
+          <ReloadButton onClick={reloadRows} title="Recargar" />
+        </div>
       </div>
       <FilterBar
         onFilter={handleFilter}
@@ -116,6 +143,7 @@ const Assign: React.FC = () => {
         loading={loading}
         error={error}
         onAction={() => {}}
+        onRefresh={reloadRows}
         actionLabel="Asignar"
       />
     </div>
