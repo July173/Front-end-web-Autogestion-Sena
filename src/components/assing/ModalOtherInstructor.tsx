@@ -8,6 +8,7 @@ import { ENDPOINTS } from "@/Api/config/ConfigApi";
 import EditLimitModal from "./EditLimitModal";
 import useNotification from "@/hook/useNotification";
 import NotificationModal from "@/components/NotificationModal";
+import useAssignmentColor from '@/hook/useAssignmentColor';
 import { get } from "http";
 
 
@@ -82,18 +83,8 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         }
     };
 
-    /**
-     * Returns color classes for assignment badge based on percentage assigned.
-     * @param {number} assigned - Number of assigned learners
-     * @param {number} max - Maximum allowed learners
-     * @returns {{bg: string, text: string}}
-     */
-    const getAssignmentColor = (assigned: number, max: number) => {
-        const percentage = (assigned / max) * 100;
-        if (percentage <= 30) return { bg: "bg-green-400", text: "text-green-900" };
-        if (percentage <= 70) return { bg: "bg-amber-200", text: "text-yellow-700" };
-        return { bg: "bg-rose-400", text: "text-red-600" };
-    };
+    // Hook that returns a function to compute assignment colors dynamically
+    const getAssignmentColor = useAssignmentColor();
 
     /**
      * Utility to get instructor's full name.

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
+import useAssignmentColor from '@/hook/useAssignmentColor';
 
 interface EditLimitModalProps {
     instructor: InstructorCustomList;
@@ -20,6 +21,10 @@ export default function EditLimitModal({ instructor, onClose, onSave }: EditLimi
         return instructor.name || "Sin nombre";
     };
 
+    const getAssignmentColor = useAssignmentColor();
+    const assigned = instructor.assigned_learners || 0;
+    const colors = getAssignmentColor(assigned, newLimit);
+
     const handleSave = async () => {
         if (newLimit < minLimit) {
             setError(`El límite mínimo es ${minLimit} (asignados + 10 de margen)`);
@@ -32,7 +37,7 @@ export default function EditLimitModal({ instructor, onClose, onSave }: EditLimi
         try {
             await onSave(newLimit);
             onClose();
-        } catch (err: unknown) {
+        } catch (err) {
             let errorMessage = 'Error al actualizar el límite';
             
             if (err instanceof Error && err.message) {
@@ -60,12 +65,16 @@ export default function EditLimitModal({ instructor, onClose, onSave }: EditLimi
                 </div>
                 <div className="bg-green-50 rounded-lg p-4 mb-6">
                     <p className="font-semibold text-lg mb-2 text-green-900">{getNombreCompleto()}</p>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-2 gap-4 text-sm items-center">
                         <div>
                             <p className="text-gray-600">Asignados actualmente:</p>
-                            <p className="font-bold text-xl text-green-700">
-                                { instructor.assigned_learners || 0}
-                            </p>
+                            <div className="mt-1">
+                                <div className={`inline-flex items-center gap-3`}> 
+                                    <div className={`w-36 h-8 ${colors.bg} rounded-[20px] flex items-center justify-center`}> 
+                                        <div className={`${colors.text} text-base font-bold`}>{assigned}/{newLimit} Asignados</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <p className="text-gray-600">Límite actual:</p>
