@@ -158,21 +158,27 @@ const FilterBar: React.FC<FilterBarProps> = ({
         ) : (
           // Regular select dropdown
           <div key={sel.name} style={{ minWidth: '190px', maxWidth: '220px' }}>
-            <CustomSelect
-              value={selectValues[sel.name] === '' ? 'all' : selectValues[sel.name]}
-              onChange={val => handleSelectChange(sel.name, val === 'all' ? '' : val)}
-              options={[
-                { value: 'all', label: sel.placeholder || 'Todos' },
-                ...sel.options.filter(opt => opt.value !== '')
-              ]}
-              placeholder={sel.placeholder || 'Todos'}
-              label={''}
-              classNames={{
-                trigger: 'border rounded px-3 py-2 w-full flex items-center justify-between h-10 min-h-[40px]',
-                content: 'bg-white border border-gray-300 rounded-lg shadow-lg z-50',
-                item: 'px-4 py-2 cursor-pointer hover:bg-[#bdbdbd] hover:text-white focus:bg-[#bdbdbd] focus:text-gray-700 rounded-md flex items-center gap-2',
-              }}
-            />
+            {(() => {
+              // Build options for the custom select. If the provided options already include
+              // a universal choice like 'TODOS' or 'all', don't prepend the default 'all' option
+              const filtered = sel.options.filter(opt => opt.value !== '');
+              const hasUniversal = filtered.some(o => o.value === 'TODOS' || o.value === 'all' || o.value === '');
+              const optionsList = hasUniversal ? filtered : [{ value: 'all', label: sel.placeholder || 'Todos' }, ...filtered];
+              return (
+                <CustomSelect
+                  value={selectValues[sel.name] === '' ? (hasUniversal ? (filtered[0]?.value || '') : 'all') : selectValues[sel.name]}
+                  onChange={val => handleSelectChange(sel.name, val === 'all' ? '' : val)}
+                  options={optionsList}
+                  placeholder={sel.placeholder || 'Todos'}
+                  label={''}
+                  classNames={{
+                    trigger: 'border rounded px-3 py-2 w-full flex items-center justify-between h-10 min-h-[40px]',
+                    content: 'bg-white border border-gray-300 rounded-lg shadow-lg z-50',
+                    item: 'px-4 py-2 cursor-pointer hover:bg-[#bdbdbd] hover:text-white focus:bg-[#bdbdbd] focus:text-gray-700 rounded-md flex items-center gap-2',
+                  }}
+                />
+              );
+            })()}
           </div>
         )
       ))}

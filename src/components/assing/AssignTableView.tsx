@@ -80,6 +80,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
           <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Tipo de identificación</div>
           <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Número</div>
           <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Fecha Solicitud</div>
+          <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Modalidad Etapa Práctica </div>
           <div className="flex-1 px-2 text-center text-stone-500 text-sm">Acción</div>
         </div>
 
@@ -135,6 +136,9 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                       </div>
                       <div className="flex-[2] px-2 text-center text-sm text-black">
                         {row.request_date}
+                      </div>
+                      <div className="flex-[2] px-2 text-center text-sm text-black">
+                        {row.nombre_modalidad || ''}
                       </div>
                       <div className="flex-1 px-2 text-center flex justify-center items-center">
                         <AssignButton

@@ -31,6 +31,7 @@ export const filterRequest = async (params: Record<string, string>): Promise<Ass
       type_identification: it.tipo_identificacion ?? it.type_identification ?? 0,
       number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
       request_date: it.fecha_solicitud || it.request_date || '',
+      nombre_modalidad: it.nombre_modalidad || it.nombre_modalidad || undefined,
       request_state: it.request_state || it.requestState || ''
     }));
   } catch (error) {
@@ -61,6 +62,7 @@ export const getAllRequests = async (): Promise<AssignTableRow[]> => {
       type_identification: it.tipo_identificacion ?? it.type_identification ?? 0,
       number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
       request_date: it.fecha_solicitud || it.request_date || '',
+      nombre_modalidad: it.nombre_modalidad || it.nombre_modalidad || undefined,
       request_state: it.request_state || it.requestState || ''
     }));
   } catch (error) {

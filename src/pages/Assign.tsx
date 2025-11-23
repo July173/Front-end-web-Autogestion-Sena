@@ -3,6 +3,7 @@ import AssignTableView from "../components/assing/AssignTableView";
 import FilterBar from "../components/FilterBar";
 import { filterRequest } from "@/Api/Services/RequestAssignaton";
 import { getPrograms } from "@/Api/Services/Program";
+import { getModalityProductiveStages } from '@/Api/Services/ModalityProductiveStage';
 import { AssignTableRow } from "@/Api/types/Modules/assign.types";
 
 const estadoOptions = [
@@ -20,6 +21,7 @@ const Assign: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [programOptions, setProgramOptions] = useState<{ value: string; label: string }[]>([]);
+  const [modalityOptions, setModalityOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     // Load programs dynamically
@@ -27,6 +29,13 @@ const Assign: React.FC = () => {
       setProgramOptions([
         { value: "TODOS", label: "Todos los programas" },
         ...programs.map((p) => ({ value: String(p.id), label: p.nombre })),
+      ]);
+    });
+    // Load modalities for filter
+    getModalityProductiveStages().then((mods: { id: number; name_modality: string }[]) => {
+      setModalityOptions([
+        { value: 'TODOS', label: 'Todas las Modalidades' },
+        ...mods.map(m => ({ value: String(m.id), label: m.name_modality }))
       ]);
     });
     // Load requests on startup
@@ -48,6 +57,7 @@ const Assign: React.FC = () => {
       const payload: Record<string, string> = {};
   if (params.search && params.search.trim() !== "") payload.search = params.search;
   if (params.programa && params.programa !== "TODOS") payload.program_id = params.programa;
+  if (params.modalidad && params.modalidad !== "TODOS") payload.modality_productive_stage = params.modalidad;
   if (params.estado && params.estado !== "TODOS") payload.request_state = params.estado;
       // If no filters, load all requests
       if (Object.keys(payload).length === 0) {
@@ -84,6 +94,12 @@ const Assign: React.FC = () => {
             value: "",
             options: estadoOptions,
             placeholder: "Todos los Estados",
+          },
+           {
+            name: 'modalidad',
+            value: '',
+            options: modalityOptions,
+            placeholder: 'Modalidad'
           },
            {
             name: "programa",

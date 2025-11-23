@@ -26,6 +26,8 @@ export interface AssignTableRow {
   request_date: string;
   id?: number;
   request_state?: string;
+  /** Optional: modalidad asociada (nombre) retornada por el backend */
+  nombre_modalidad?: string;
 }
 
 export interface DetailData {
@@ -80,7 +82,7 @@ export interface InstructorAssignment {
   numero_identificacion?: string | number;
   fecha_solicitud?: string;
   estado_solicitud?: string;
-  [k: string]: any;
+  nombre_modalidad?: string;
 }
 
 export type AssignmentRow = InstructorAssignment;
