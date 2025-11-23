@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { requestAsignation, AssignTableRow } from '../../Api/types/Modules/assign.types';
+import ProgramAutocomplete from '../ProgramAutocomplete';
 import CustomSelect from '../CustomSelect';
 import { Person } from 'react-bootstrap-icons';
 
@@ -134,32 +135,49 @@ const ApprenticeSection: React.FC<ApprenticeSectionProps> = (props) => {
             <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" value={String(person.phone_number || '')} readOnly disabled />
           </div>
         )}
-        {/* Editable fields */}
-        <div>
-          <CustomSelect
-            value={selectedProgram ? String(selectedProgram) : ""}
-            onChange={val => updateSelectedProgram(Number(val))}
-            options={programas.map(p => ({ value: String(p.id), label: p.name }))}
-            label="Programa de Formación *"
+                  <CustomSelect
+            value={formData.modality_productive_stage ? String(formData.modality_productive_stage) : ""}
+            onChange={val => updateFormData('modality_productive_stage', Number(val))}
+            options={modalidades.map(modalidad => ({ value: String(modalidad.id), label: modalidad.name_modality }))}
+            label="Modalidad etapa productiva *"
             placeholder="Seleccione..."
             classNames={{
               trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
               label: "block text-sm font-medium mb-2",
             }}
           />
+
+        {/* Editable fields */}
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Programa de Formación *</label>
+          <ProgramAutocomplete
+            value={selectedProgram ? { value: String(selectedProgram), label: programas.find(p => p.id === selectedProgram)?.name || String(selectedProgram) } : null}
+            onChange={(opt) => {
+              if (opt && opt.value) {
+                updateSelectedProgram(Number(opt.value));
+              } else {
+                // Cuando se limpia la selección, conservamos el contrato existente pasando 0
+                updateSelectedProgram(0);
+              }
+            }}
+            placeholder="Seleccione..."
+            fullWidth
+          />
         </div>
         <div>
-          <CustomSelect
-            value={formData.ficha ? String(formData.ficha) : ""}
-            onChange={val => updateFormData('ficha', Number(val))}
-            options={fichas.map(f => ({ value: String(f.id), label: f.file_number || String(f.id) }))}
-            label="Número de Ficha *"
-            placeholder="Seleccione..."
-            classNames={{
-              trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
-              label: "block text-sm font-medium mb-2",
+          <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Número de Ficha *</label>
+          <ProgramAutocomplete
+            value={formData.ficha ? { value: String(formData.ficha), label: fichas.find(f => f.id === formData.ficha)?.file_number || String(formData.ficha) } : null}
+            onChange={(opt) => {
+              if (opt && opt.value) {
+                updateFormData('ficha', Number(opt.value));
+              } else {
+                updateFormData('ficha', 0 as unknown as typeof formData.ficha);
+              }
             }}
-            disabled={!selectedProgram}
+            placeholder="Seleccione..."
+            fullWidth
+            optionsOverride={fichas.map(f => ({ value: String(f.id), label: f.file_number || String(f.id) }))}
           />
         </div>
         {/* Show date fields only when selected modality is 'Contrato de Aprendizaje' */}
@@ -177,17 +195,6 @@ const ApprenticeSection: React.FC<ApprenticeSectionProps> = (props) => {
           </>
         )}
         <div>
-          <CustomSelect
-            value={formData.modality_productive_stage ? String(formData.modality_productive_stage) : ""}
-            onChange={val => updateFormData('modality_productive_stage', Number(val))}
-            options={modalidades.map(modalidad => ({ value: String(modalidad.id), label: modalidad.name_modality }))}
-            label="Modalidad etapa productiva *"
-            placeholder="Seleccione..."
-            classNames={{
-              trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
-              label: "block text-sm font-medium mb-2",
-            }}
-          />
         </div>
       </div>
     </div>
