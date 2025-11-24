@@ -79,13 +79,34 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
    */
   const loadDashboardData = React.useCallback(async () => {
     if (!apprenticeId) return;
-    
+
     try {
-  setLoading(true);
-  const response = await getApprenticeDashboard(apprenticeId);
-  setDashboardData(response.data as DashboardData);
-    } catch (error) {
-      console.error("Error al cargar dashboard:", error);
+      setLoading(true);
+
+      // Call the service and normalize different possible response shapes
+      const response: any = await getApprenticeDashboard(apprenticeId);
+
+      // The backend might return either { data: {...} } or the object itself
+      const normalized: DashboardData | null = response?.data ?? response ?? null;
+
+      if (!normalized) {
+        console.error('getApprenticeDashboard returned empty response:', response);
+        setDashboardData(null);
+        return;
+      }
+
+      setDashboardData(normalized as DashboardData);
+    } catch (err: any) {
+      // Better error logging to help diagnose 500 errors
+      console.error('Error al cargar dashboard (getApprenticeDashboard):', err);
+      if (err?.response) {
+        try {
+          console.error('Backend status:', err.response.status);
+          console.error('Backend body:', err.response.data ?? err.response);
+        } catch (loggingErr) {
+          console.error('Error al registrar la respuesta del backend:', loggingErr);
+        }
+      }
     } finally {
       setLoading(false);
     }
