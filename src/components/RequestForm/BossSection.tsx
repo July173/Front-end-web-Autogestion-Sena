@@ -15,6 +15,9 @@ interface JefeSectionProps {
   phoneError: string;
   /** Handler for phone number input changes with validation */
   handlePhoneChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** When true, inputs are disabled (used when selecting an existing boss) */
+
+    disabled?: boolean;
 }
 
 /**
@@ -32,7 +35,7 @@ interface JefeSectionProps {
  * @param props - Component props as defined in JefeSectionProps
  * @returns React component for immediate supervisor information section
  */
-const JefeSection: React.FC<JefeSectionProps> = ({ formData, updateFormData, phoneError, handlePhoneChange }) => (
+const JefeSection: React.FC<JefeSectionProps> = ({ formData, updateFormData, phoneError, handlePhoneChange, disabled = false }) => (
   <div className="mb-6 bg-white rounded-lg shadow-md border-2" style={{ borderColor: '#7BCC7C' }}>
     {/* Header section with Person icon and title */}
     <div className="flex items-center gap-3 px-6 py-4 rounded-t-lg border-b" style={{ backgroundColor: '#E7FFE8', borderBottomColor: '#7BCC7C' }}>
@@ -43,7 +46,16 @@ const JefeSection: React.FC<JefeSectionProps> = ({ formData, updateFormData, pho
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Nombre completo *</label>
-          <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el nombre completo" onChange={e => updateFormData('name_boss', e.target.value)} />
+          <input
+            type="text"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese el nombre completo"
+            value={formData.name_boss ?? ''}
+            onChange={e => updateFormData('name_boss', e.target.value)}
+            disabled={disabled}
+          />
+ 
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Número de teléfono *</label>
@@ -52,11 +64,27 @@ const JefeSection: React.FC<JefeSectionProps> = ({ formData, updateFormData, pho
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Correo electrónico *</label>
-          <input type="email" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el correo" onChange={e => updateFormData('email_boss', e.target.value)} />
+          <input
+            type="email"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese el correo"
+            value={formData.email_boss ?? ''}
+            onChange={e => updateFormData('email_boss', e.target.value)}
+            disabled={disabled}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Cargo *</label>
-          <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Cargo del jefe" onChange={e => updateFormData('position', e.target.value)} />
+          <input
+            type="text"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Cargo del jefe"
+            value={formData.position ?? ''}
+            onChange={e => updateFormData('position', e.target.value)}
+            disabled={disabled}
+          />
         </div>
       </div>
     </div>

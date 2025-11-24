@@ -85,6 +85,13 @@ export interface InstructorAssignment {
   nombre_modalidad?: string;
 }
 
+/** Payload used to reassign an instructor to an existing asignation */
+export interface ReassignInstructorPayload {
+  asignation_instructor: number;
+  new_instructor_id: number;
+  message?: string;
+}
+
 export type AssignmentRow = InstructorAssignment;
 
  export interface Enterprise {

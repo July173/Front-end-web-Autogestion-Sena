@@ -1,5 +1,6 @@
     import React, { useState, useEffect } from "react";
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
+import useFilteredInstructors from '@/hook/useFilteredInstructors';
 import { patchInstructorLimit } from "@/Api/Services/Instructor";
 import { getKnowledgeAreas } from "@/Api/Services/KnowledgeArea";
 import { KnowledgeArea } from "@/Api/types/Modules/general.types";
@@ -30,7 +31,7 @@ interface ModalOtroInstructorProps {
 export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInstructorProps) {
     // Note: search and area filters are handled by FilterBar -> fetchFilteredInstructors
     const [editLimitInstructor, setEditLimitInstructor] = useState<InstructorCustomList | null>(null);
-    const [instructores, setInstructores] = useState<InstructorCustomList[]>([]);
+    const { instructors: instructores, loading: loadingInstructors, fetchInstructors } = useFilteredInstructors();
     const [knowledgeAreas, setKnowledgeAreas] = useState<KnowledgeArea[]>([]);
     const [loading, setLoading] = useState(false);
     const { notification, showNotification, hideNotification } = useNotification();
@@ -51,33 +52,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
      * Fetches filtered instructors from the API based on search and filters.
      * @param {Record<string, string>} params - Filter parameters
      */
-    const fetchFilteredInstructors = async (params: Record<string, string>) => {
-        setLoading(true);
-        try {
-            // Always send search, even if empty
-            const payload = { ...params };
-            if (!payload.search) payload.search = '';
-            payload.is_followup_instructor = 'true';
-            const query = Object.entries(payload)
-                .filter(([_, v]) => v !== undefined && v !== null)
-                .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-                .join("&");
-            const url = `${ENDPOINTS.instructor.filterInstructores}?${query}`;
-            const response = await fetch(url);
-            const result = await response.json();
-            // Supports both formats: { data: [...] } or [...]
-            let instructoresArr: any[] = [];
-            if (Array.isArray(result)) instructoresArr = result;
-            else if (result && Array.isArray(result.data)) instructoresArr = result.data;
-            // Filter only follow-up instructors (backend should respect the flag, but be tolerant)
-            const filtered = instructoresArr.filter(inst => inst && (inst.is_followup_instructor === true || inst.is_followup_instructor === 'true'));
-            setInstructores(filtered as InstructorCustomList[]);
-        } catch {
-            setInstructores([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // useFilteredInstructors hook provides fetchInstructors
 
     // Hook that returns a function to compute assignment colors dynamically
     const getAssignmentColor = useAssignmentColor();
@@ -123,7 +98,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
             await patchInstructorLimit(editLimitInstructor.id, newLimit);
             
             // Refresh instructors using the same filtered endpoint so we keep only follow-up instructors
-            await fetchFilteredInstructors({});
+            await fetchInstructors({});
             
             // Show success notification
             showNotification(
@@ -148,8 +123,8 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
 
     // Load instructors when modal opens (no filters -> empty search)
     useEffect(() => {
-        fetchFilteredInstructors({});
-    }, []);
+        fetchInstructors({});
+    }, [fetchInstructors]);
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
@@ -184,7 +159,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                 {/* Filters with FilterBar */}
                                 <div className="absolute left-[66px] top-[111px] flex gap-4 items-center">
                                     <FilterBar
-                                        onFilter={fetchFilteredInstructors}
+                                        onFilter={fetchInstructors}
                                         inputWidth="620px"
                                         searchPlaceholder="Buscar por nombre o número de documento..."
                                         selects={[{

@@ -11,6 +11,8 @@ interface EmpresaSectionProps {
   formData: Enterprise;
   /** Function to update form data fields */
   updateFormData: <K extends keyof Enterprise>(field: K, value: Enterprise[K]) => void;
+  /** When true, inputs are disabled (used when selecting an existing enterprise) */
+  disabled?: boolean;
 }
 
 /**
@@ -28,7 +30,7 @@ interface EmpresaSectionProps {
  * @param props - Component props as defined in EmpresaSectionProps
  * @returns React component for company information section
  */
-const EmpresaSection: React.FC<EmpresaSectionProps> = ({ formData, updateFormData }) => (
+const EmpresaSection: React.FC<EmpresaSectionProps> = ({ formData, updateFormData, disabled = false }) => (
   <div className="mb-6 bg-white rounded-lg shadow-md border-2" style={{ borderColor: '#7BCC7C' }}>
     {/* Header section with Buildings icon and title */}
     <div className="flex items-center gap-3 px-6 py-4 rounded-t-lg border-b" style={{ backgroundColor: '#E7FFE8', borderBottomColor: '#7BCC7C' }}>
@@ -39,19 +41,51 @@ const EmpresaSection: React.FC<EmpresaSectionProps> = ({ formData, updateFormDat
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Nombre de la empresa *</label>
-          <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el nombre de la empresa" onChange={e => updateFormData('name_enterprise', e.target.value)} />
+          <input
+            type="text"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese el nombre de la empresa"
+            value={formData.name_enterprise ?? ''}
+            onChange={e => updateFormData('name_enterprise', e.target.value)}
+            disabled={disabled}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>NIT de la empresa *</label>
-          <input type="number" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el NIT de la empresa" onChange={e => updateFormData('nit_enterprise', Number(e.target.value))} />
+          <input
+            type="number"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese el NIT de la empresa"
+            value={formData.nit_enterprise ?? ''}
+            onChange={e => updateFormData('nit_enterprise', Number(e.target.value))}
+            disabled={disabled}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Ubicación empresa *</label>
-          <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese la dirección ciudad" onChange={e => updateFormData('locate', e.target.value)} />
+          <input
+            type="text"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese la dirección ciudad"
+            value={formData.locate ?? ''}
+            onChange={e => updateFormData('locate', e.target.value)}
+            disabled={disabled}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Correo de la empresa *</label>
-          <input type="email" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el correo " onChange={e => updateFormData('email_enterprise', e.target.value)} />
+          <input
+            type="email"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese el correo "
+            value={formData.email_enterprise ?? ''}
+            onChange={e => updateFormData('email_enterprise', e.target.value)}
+            disabled={disabled}
+          />
         </div>
       </div>
     </div>

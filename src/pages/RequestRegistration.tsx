@@ -5,7 +5,7 @@ import JefeSection from '../components/RequestForm/BossSection';
 import TalentoHumanoSection from '../components/RequestForm/HumanTalentSection';
 import PdfUploadSection from '../components/RequestForm/PdfUploadSection';
 import { 
-  JournalText,
+  JournalText,          
   Person,
   Buildings,
   FileEarmarkPdf,
@@ -18,7 +18,11 @@ import { useFormValidations } from '../hook/useFormValidations';
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import { getDocumentTypesWithEmpty } from '../Api/Services/TypeDocument';
+import { getAllEnterprises } from '../Api/Services/Enterprise';
+import { getAllBosses, filterBosses } from '../Api/Services/Boss';
+import { getAllHumanTalents, filterHumanTalents } from '../Api/Services/HumanTalent';
 import { requestAsignation } from '../Api/types/Modules/assign.types';
+import { postRequestAssignation } from '../Api/Services/RequestAssignaton';
 import NotificationModal from '../components/NotificationModal';
 import ConfirmModal from '../components/ConfirmModal';
 import TermsModal from '../components/Login/TermsModal';
@@ -80,6 +84,24 @@ export default function RequestRegistration() {
   });
 
   const [showConfirm, setShowConfirm] = useState(false);
+  // Modes and selections for create vs select flows
+  const [enterpriseMode, setEnterpriseMode] = useState<'select' | 'create'>('create');
+  const [selectedEnterpriseId, setSelectedEnterpriseId] = useState<number | null>(null);
+
+  const [bossMode, setBossMode] = useState<'select' | 'create'>('create');
+  const [selectedBossId, setSelectedBossId] = useState<number | null>(null);
+
+  const [humanTalentMode, setHumanTalentMode] = useState<'select' | 'create'>('create');
+  const [selectedHumanTalentId, setSelectedHumanTalentId] = useState<number | null>(null);
+
+  // Options populated from API
+  const [enterpriseOptions, setEnterpriseOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [bossOptions, setBossOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [humanTalentOptions, setHumanTalentOptions] = useState<Array<{ value: string; label: string }>>([]);
+  // Loading states for selects
+  const [loadingEnterprises, setLoadingEnterprises] = useState(false);
+  const [loadingBosses, setLoadingBosses] = useState(false);
+  const [loadingHumanTalents, setLoadingHumanTalents] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [redirectAfterSuccess, setRedirectAfterSuccess] = useState(false);
@@ -133,6 +155,76 @@ export default function RequestRegistration() {
   useEffect(() => {
     getDocumentTypesWithEmpty().then(setDocumentTypes);
   }, []);
+
+  // Helper mapper for API entities -> select option
+  const mapToOption = (it: Record<string, unknown>) => {
+    const rec = it || {} as Record<string, unknown>;
+    const id = rec['id'] ?? rec['pk'] ?? rec['enterprise_id'] ?? rec['id_enterprise'] ?? '';
+    const label = (
+      rec['name_boss'] || rec['name'] || rec['nombre'] || rec['name_enterprise'] || rec['empresa_nombre'] || rec['nombre_jefe'] ||
+      ((rec['first_name'] || rec['name']) ? `${rec['first_name'] ?? rec['name']}${rec['first_last_name'] ? ' ' + rec['first_last_name'] : ''}` : undefined)
+    ) ?? id;
+    const labelStr = typeof label === 'string' ? label : String(label ?? id ?? '');
+    return { value: String(id ?? ''), label: labelStr };
+  };
+
+  // Load enterprises on mount
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoadingEnterprises(true);
+      try {
+        const data = await getAllEnterprises();
+        if (!mounted) return;
+        setEnterpriseOptions((data || []).map(mapToOption));
+      } catch (err) {
+        console.error('Error loading enterprises:', err);
+        setEnterpriseOptions([]);
+      } finally {
+        if (mounted) setLoadingEnterprises(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  // When selecting an enterprise, load bosses and human talents filtered by enterprise
+  useEffect(() => {
+    let mounted = true;
+    const loadContacts = async () => {
+      if (enterpriseMode === 'select' && selectedEnterpriseId) {
+        setLoadingBosses(true);
+        setLoadingHumanTalents(true);
+        try {
+          // backend expects `enterprise_id` as the query parameter for the by-enterprise endpoints
+          const bosses = await filterBosses({ enterprise_id: String(selectedEnterpriseId) });
+          if (mounted) setBossOptions((bosses || []).map(mapToOption));
+        } catch (err) {
+          console.error('Error loading bosses for enterprise:', err);
+          if (mounted) setBossOptions([]);
+        } finally {
+          if (mounted) setLoadingBosses(false);
+        }
+
+        try {
+          const hts = await filterHumanTalents({ enterprise_id: String(selectedEnterpriseId) });
+          if (mounted) setHumanTalentOptions((hts || []).map(mapToOption));
+        } catch (err) {
+          console.error('Error loading human talents for enterprise:', err);
+          if (mounted) setHumanTalentOptions([]);
+        } finally {
+          if (mounted) setLoadingHumanTalents(false);
+        }
+      } else {
+        // Clear dependent selects when not selecting an enterprise
+        setBossOptions([]);
+        setHumanTalentOptions([]);
+        setLoadingBosses(false);
+        setLoadingHumanTalents(false);
+      }
+    };
+    loadContacts();
+    return () => { mounted = false; };
+  }, [enterpriseMode, selectedEnterpriseId]);
 
   // Function to get the document type name using dynamic data
   const getDocumentTypeName = (typeValue: string | number) => {
@@ -227,28 +319,48 @@ export default function RequestRegistration() {
       }
     })();
 
-    const requiredFields: Record<string, unknown> = {
-      apprenticeId: updatedFormData.apprentice!,
-      fichaId: updatedFormData.ficha!,
-      enterpriseName: updatedFormData.enterprise_name!,
-      enterpriseNit: updatedFormData.enterprise_nit!,
-      enterpriseLocation: updatedFormData.enterprise_location!,
-      enterpriseEmail: updatedFormData.enterprise_email!,
-      bossName: updatedFormData.boss_name!,
-      bossPhone: updatedFormData.boss_phone!,
-      bossEmail: updatedFormData.boss_email!,
-      bossPosition: updatedFormData.boss_position!,
-      humanTalentName: updatedFormData.human_talent_name!,
-      humanTalentEmail: updatedFormData.human_talent_email!,
-      humanTalentPhone: updatedFormData.human_talent_phone!,
-      sede: updatedFormData.sede!,
-      modalityProductiveStage: updatedFormData.modality_productive_stage!,
-    };
+    // Validate required fields depending on create/select modes
+    const missingFields: string[] = [];
+
+    // Basic required ids
+    if (!updatedFormData.apprentice) missingFields.push('apprenticeId');
+    if (!updatedFormData.ficha) missingFields.push('fichaId');
+    if (!updatedFormData.sede) missingFields.push('sede');
+    if (!updatedFormData.modality_productive_stage) missingFields.push('modalityProductiveStage');
 
     // If the selected modality is 'Contrato', require start/end dates
     if (isContratoSelected) {
-      requiredFields.dateStartContract = updatedFormData.date_start_contract!;
-      requiredFields.dateEndContract = updatedFormData.date_end_contract!;
+      if (!updatedFormData.date_start_contract) missingFields.push('dateStartContract');
+      if (!updatedFormData.date_end_contract) missingFields.push('dateEndContract');
+    }
+
+    // Enterprise: either select existing or create new (name, nit, location, email)
+    if (enterpriseMode === 'select') {
+      if (!selectedEnterpriseId) missingFields.push('enterprise (select)');
+    } else {
+      if (!updatedFormData.enterprise_name) missingFields.push('enterpriseName');
+      if (!updatedFormData.enterprise_nit) missingFields.push('enterpriseNit');
+      if (!updatedFormData.enterprise_location) missingFields.push('enterpriseLocation');
+      if (!updatedFormData.enterprise_email) missingFields.push('enterpriseEmail');
+    }
+
+    // Boss: either select existing or create new
+    if (bossMode === 'select') {
+      if (!selectedBossId) missingFields.push('boss (select)');
+    } else {
+      if (!updatedFormData.boss_name) missingFields.push('bossName');
+      if (!updatedFormData.boss_phone) missingFields.push('bossPhone');
+      if (!updatedFormData.boss_email) missingFields.push('bossEmail');
+      if (!updatedFormData.boss_position) missingFields.push('bossPosition');
+    }
+
+    // Human talent: either select existing or create new
+    if (humanTalentMode === 'select') {
+      if (!selectedHumanTalentId) missingFields.push('human_talent (select)');
+    } else {
+      if (!updatedFormData.human_talent_name) missingFields.push('humanTalentName');
+      if (!updatedFormData.human_talent_email) missingFields.push('humanTalentEmail');
+      if (!updatedFormData.human_talent_phone) missingFields.push('humanTalentPhone');
     }
 
     // Extra validations
@@ -259,7 +371,7 @@ export default function RequestRegistration() {
       : '';
 
     // Filter only non-empty errors
-    const validationErrors = [bossPhoneValidation, humanTalentPhoneValidation];
+  const validationErrors = [bossPhoneValidation, humanTalentPhoneValidation];
     if (dateValidation) validationErrors.push(dateValidation);
     const nonEmptyValidationErrors = validationErrors.filter(error => error !== '');
     
@@ -272,15 +384,6 @@ export default function RequestRegistration() {
       });
       return;
     }
-
-    Object.entries(requiredFields).forEach(([key, value]) => {
-      const isEmpty = value === 0 || value === '' || value === null || value === undefined;
-    });
-
-    // Check which fields are empty
-    const missingFields = Object.entries(requiredFields)
-      .filter(([key, value]) => value === 0 || value === '' || value === null || value === undefined)
-      .map(([key]) => key);
 
     if (missingFields.length > 0) {
       showNotification({
@@ -295,10 +398,79 @@ export default function RequestRegistration() {
     // PASS THE TRANSFORMED DATA TO SUBMIT
     try {
       console.log('Enviando datos principales:', updatedFormData);
-      const submitResponse = await submitRequest(updatedFormData);
-      console.log('Respuesta de envío:', submitResponse);
-      const requestId = submitResponse?.id ?? null;
-      const backendMessage = submitResponse?.message || 'La solicitud fue enviada exitosamente.';
+
+      // Prepare date formatting helper
+      const toDateStringLocal = (value: string | number | undefined) => {
+        if (!value && value !== 0) return undefined;
+        if (typeof value === 'number') {
+          const d = new Date(value);
+          if (isNaN(d.getTime())) return undefined;
+          return d.toISOString().split('T')[0];
+        }
+        if (typeof value === 'string') {
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+          return value;
+        }
+        return undefined;
+      };
+
+      const fechaInicio = updatedFormData.date_start_contract ? toDateStringLocal(updatedFormData.date_start_contract) : undefined;
+      const fechaFin = updatedFormData.date_end_contract ? toDateStringLocal(updatedFormData.date_end_contract) : undefined;
+
+      // Build nested payload matching Swagger expectation
+      const enterprisePayload = enterpriseMode === 'select' && selectedEnterpriseId
+        ? { id: selectedEnterpriseId }
+        : {
+          id: null,
+          name: updatedFormData.enterprise_name ?? '',
+          tax_id: updatedFormData.enterprise_nit ?? '',
+          address: updatedFormData.enterprise_location ?? '',
+          email: updatedFormData.enterprise_email ?? '',
+          phone: ''
+        };
+
+      const bossPayload = bossMode === 'select' && selectedBossId
+        ? { id: selectedBossId }
+        : {
+          id: null,
+          name: updatedFormData.boss_name ?? '',
+          email: updatedFormData.boss_email ?? '',
+          phone: updatedFormData.boss_phone ?? ''
+        };
+
+      const humanTalentPayload = humanTalentMode === 'select' && selectedHumanTalentId
+        ? { id: selectedHumanTalentId }
+        : {
+          id: null,
+          name: updatedFormData.human_talent_name ?? '',
+          email: updatedFormData.human_talent_email ?? '',
+          phone: updatedFormData.human_talent_phone ?? ''
+        };
+
+      const requestPayload: Record<string, string | number> = {
+        apprentice: Number(updatedFormData.apprentice),
+        ficha: Number(updatedFormData.ficha),
+        sede: Number(updatedFormData.sede),
+        modality_productive_stage: Number(updatedFormData.modality_productive_stage),
+      };
+      if (fechaInicio) requestPayload.contract_start_date = fechaInicio;
+      if (fechaFin) requestPayload.contract_end_date = fechaFin;
+
+      const nestedPayload = {
+        enterprise: enterprisePayload,
+        boss: bossPayload,
+        human_talent: humanTalentPayload,
+        request: requestPayload,
+      };
+
+      // Send to backend using existing service (it accepts any JSON body)
+  const submitResponse = await postRequestAssignation(nestedPayload as unknown as requestAsignation);
+  console.log('Respuesta de envío:', submitResponse);
+  // The backend may return the created id either at top-level { id: X, message: '...' }
+  // or nested under `data` depending on the service wrapper. Handle both shapes.
+  const requestId = submitResponse?.data?.id ?? submitResponse?.id ?? null;
+  const backendMessage = submitResponse?.data?.message ?? submitResponse?.message ?? 'La solicitud fue enviada exitosamente.';
 
       // Subir PDF con request_id cuando esté disponible
       if (selectedFile) {
@@ -532,7 +704,32 @@ export default function RequestRegistration() {
             />
 
             {/* Datos de la Empresa */}
-            <EmpresaSection
+            <div className="mb-4 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium">Empresa</div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className={`px-3 py-1 rounded ${enterpriseMode === 'select' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => setEnterpriseMode('select')}>Seleccionar existente</button>
+                  <button type="button" className={`px-3 py-1 rounded ${enterpriseMode === 'create' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => { setEnterpriseMode('create'); setSelectedEnterpriseId(null); }}>Crear nueva</button>
+                </div>
+              </div>
+              {enterpriseMode === 'select' && (
+                <div className="mb-3">
+                  <CustomSelect
+                    value={selectedEnterpriseId ? String(selectedEnterpriseId) : ''}
+                    onChange={(val) => setSelectedEnterpriseId(val ? Number(val) : null)}
+                    options={loadingEnterprises ? [{ value: '', label: 'Cargando...' }] : enterpriseOptions}
+                    label="Empresa existente"
+                    placeholder={loadingEnterprises ? 'Cargando...' : 'Seleccione empresa...'}
+                    classNames={{
+                      trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
+                      label: "block text-sm font-medium mb-2",
+                    }}
+                    disabled={loadingEnterprises}
+                  />
+                </div>
+              )}
+
+              <EmpresaSection
               formData={{
                 name_enterprise: formData.enterprise_name ?? '',
                 nit_enterprise: formData.enterprise_nit ?? 0,
@@ -545,9 +742,36 @@ export default function RequestRegistration() {
                 else if (field === 'locate') updateFormData('enterprise_location', value);
                 else if (field === 'email_enterprise') updateFormData('enterprise_email', value);
               }}
+              disabled={enterpriseMode === 'select'}
             />
+            </div>
 
             {/* Datos del Jefe Inmediato */}
+            <div className="mb-4 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium">Jefe Inmediato</div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className={`px-3 py-1 rounded ${bossMode === 'select' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => setBossMode('select')}>Seleccionar existente</button>
+                  <button type="button" className={`px-3 py-1 rounded ${bossMode === 'create' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => { setBossMode('create'); setSelectedBossId(null); }}>Crear nuevo</button>
+                </div>
+              </div>
+              {bossMode === 'select' && (
+                <div className="mb-3">
+                  <CustomSelect
+                    value={selectedBossId ? String(selectedBossId) : ''}
+                    onChange={(val) => setSelectedBossId(val ? Number(val) : null)}
+                    options={loadingBosses ? [{ value: '', label: 'Cargando...' }] : bossOptions}
+                    label="Jefe existente"
+                    placeholder={loadingBosses ? 'Cargando...' : 'Seleccione jefe...'}
+                    classNames={{
+                      trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
+                      label: "block text-sm font-medium mb-2",
+                    }}
+                    disabled={loadingBosses || (!selectedEnterpriseId && enterpriseMode === 'select')}
+                  />
+                </div>
+              )}
+
             <JefeSection
               formData={{
                 name_boss: formData.boss_name ?? '',
@@ -563,9 +787,36 @@ export default function RequestRegistration() {
               }}
               phoneError={phoneError}
               handlePhoneChange={handlePhoneChange}
+              disabled={bossMode === 'select'}
             />
+            </div>
 
             {/* Datos del Encargado de contratación */}
+            <div className="mb-4 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium">Encargado de contratación / Talento Humano</div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className={`px-3 py-1 rounded ${humanTalentMode === 'select' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => setHumanTalentMode('select')}>Seleccionar existente</button>
+                  <button type="button" className={`px-3 py-1 rounded ${humanTalentMode === 'create' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => { setHumanTalentMode('create'); setSelectedHumanTalentId(null); }}>Crear nuevo</button>
+                </div>
+              </div>
+              {humanTalentMode === 'select' && (
+                <div className="mb-3">
+                  <CustomSelect
+                    value={selectedHumanTalentId ? String(selectedHumanTalentId) : ''}
+                    onChange={(val) => setSelectedHumanTalentId(val ? Number(val) : null)}
+                    options={loadingHumanTalents ? [{ value: '', label: 'Cargando...' }] : humanTalentOptions}
+                    label="Talento humano existente"
+                    placeholder={loadingHumanTalents ? 'Cargando...' : 'Seleccione...'}
+                    classNames={{
+                      trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
+                      label: "block text-sm font-medium mb-2",
+                    }}
+                    disabled={loadingHumanTalents || (!selectedEnterpriseId && enterpriseMode === 'select')}
+                  />
+                </div>
+              )}
+
             <TalentoHumanoSection
               formData={{
                 name: formData.human_talent_name ?? '',
@@ -579,7 +830,9 @@ export default function RequestRegistration() {
               }}
               humanTalentPhoneError={humanTalentPhoneError}
               handleHumanTalentPhoneChange={handleHumanTalentPhoneChange}
+              disabled={humanTalentMode === 'select'}
             />
+            </div>
 
             {/* Archivo PDF */}
             <div >

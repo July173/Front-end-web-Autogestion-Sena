@@ -237,7 +237,29 @@ export const ENDPOINTS = {
     idDocumentType: `${API_BASE_URL}security/document-types/{id}/`,
     softDelete: `${API_BASE_URL}security/document-types/{id}/soft-delete/`,
     filterDocumentType : `${API_BASE_URL}security/document-types/filter/`,
+
   },
+
+  AssignationInstructor :{
+    getAllAssignationInstructor : `${API_BASE_URL}assign/asignation_instructor/`,
+    getAssignationInstructorById : `${API_BASE_URL}assign/asignation_instructor/{id}/`,
+    filterAssignationInstructor : `${API_BASE_URL}assign/asignation_instructor/filtered/`,
+    reassignInstructor : `${API_BASE_URL}assign/asignation_instructor_history/reassign-instructor/`,
+  },
+  Boss :{
+    allBoss : `${API_BASE_URL}assign/boss/`,
+    idBoss : `${API_BASE_URL}assign/boss/{id}/`,
+    filterBoss : `${API_BASE_URL}assign/boss/by-enterprise/`,
+},
+Enterprise :{
+    allEnterprise : `${API_BASE_URL}assign/enterprise/`,
+    idEnterprise : `${API_BASE_URL}assign/enterprise/{id}/`,
+},
+  HumanTalent :{
+    allHumanTalent : `${API_BASE_URL}assign/human_talent/`,
+    idHumanTalent : `${API_BASE_URL}assign/human_talent/{id}/`,
+    filterHumanTalent : `${API_BASE_URL}assign/human_talent/by-enterprise/`,
+},
 };
 
 
