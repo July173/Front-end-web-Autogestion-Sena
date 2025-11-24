@@ -107,10 +107,11 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
         try {
             // Decide type_message and request_state based on modality
             const modality = (modalityStage || apprentice.modality_productive_stage || '').trim();
-            let type_message = 'SIN VERIFICAR';
+            // Always send 'VERIFICACION' as type_message per backend requirement
+            let type_message = 'VERIFICACION';
             let request_state_val = 'VERIFICANDO';
             if (modality === 'Contrato de aprendizaje') {
-                type_message = modality;
+                // For contract modality, the backend expects the request to be already assigned
                 request_state_val = 'ASIGNADO';
             }
 
@@ -119,6 +120,7 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                 content: message,
                 type_message,
                 request_state: request_state_val,
+                whose_message: 'COORDINADOR'
             });
 
             // Default success message

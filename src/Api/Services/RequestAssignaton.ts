@@ -178,7 +178,7 @@ export const getFormRequestById = async (requestId: number): Promise<{ data: any
       apprentice: raw.aprendiz_id ?? raw.apprentice ?? undefined,
       name_apprentice: raw.nombre_aprendiz || raw.name_apprentice || raw.nombre || '',
       type_identification: raw.tipo_identificacion ?? raw.type_identification ?? 0,
-      number_identification: raw.numero_identificacion != null ? String(raw.numero_identificacion) : (raw.number_identification ? String(raw.number_identification) : ''),
+      number_identification: raw.numero_identificacion != null ? String(raw.numero_identificacion) : (raw.number_identification ? String(raw.number_identificacion) : ''),
       phone_apprentice: raw.telefono_aprendiz ?? raw.phone_apprentice ?? raw.phone_apprentice,
       email_apprentice: raw.correo_aprendiz || raw.email_apprentice || raw.email || '',
       ficha: raw.ficha_id ?? raw.ficha ?? raw.ficha,
@@ -249,7 +249,7 @@ export const getRequestAsignationById = async (requestId: number): Promise<{ dat
 export const assignInstructorToRequest = async (
   instructorId: number,
   requestAsignationId: number,
-  extra?: { content?: string; type_message?: string; request_state?: string }
+  extra?: { content?: string; type_message?: string; request_state?: string; whose_message?: string }
 ): Promise<{ success: boolean }> => {
   try {
     const payload: any = {
@@ -261,6 +261,8 @@ export const assignInstructorToRequest = async (
       if (typeof extra.content === 'string') payload.content = extra.content;
       if (typeof extra.type_message === 'string') payload.type_message = extra.type_message;
       if (typeof extra.request_state === 'string') payload.request_state = extra.request_state;
+      // support optional whose_message (e.g. 'COORDINADOR')
+      if (typeof extra.whose_message === 'string') payload.whose_message = extra.whose_message;
     }
 
     const response = await fetch(ENDPOINTS.requestAsignation.postAssignInstructor, {
