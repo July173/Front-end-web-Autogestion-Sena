@@ -59,7 +59,7 @@ const JefeSection: React.FC<JefeSectionProps> = ({ formData, updateFormData, pho
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Número de teléfono *</label>
-          <input type="tel" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el número de teléfono" value={formData.phone_number || ''} onChange={handlePhoneChange} />
+          <input type="tel" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el número de teléfono" value={formData.phone_number || ''} onChange={handlePhoneChange} disabled={disabled} />
           {phoneError && <span className="text-red-600 text-xs">{phoneError}</span>}
         </div>
         <div>

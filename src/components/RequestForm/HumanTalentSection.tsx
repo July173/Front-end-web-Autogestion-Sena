@@ -57,7 +57,7 @@ const TalentoHumanoSection: React.FC<TalentoHumanoSectionProps> = ({ formData, u
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Número de teléfono *</label>
-          <input type="tel" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el número de teléfono" value={formData.phone_number || ''} onChange={handleHumanTalentPhoneChange} />
+          <input type="tel" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el número de teléfono" value={formData.phone_number || ''} onChange={handleHumanTalentPhoneChange} disabled={disabled} />
           {humanTalentPhoneError && <span className="text-red-600 text-xs">{humanTalentPhoneError}</span>}
         </div>
         <div>

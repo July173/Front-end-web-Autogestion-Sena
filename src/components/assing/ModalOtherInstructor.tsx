@@ -1,4 +1,4 @@
-    import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
 import useFilteredInstructors from '@/hook/useFilteredInstructors';
 import { patchInstructorLimit } from "@/Api/Services/Instructor";
@@ -75,13 +75,15 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
      * @returns {string}
      */
     const getKnowledgeArea = (inst: InstructorCustomList) => {
-        if (inst.knowledge_area) return inst.knowledge_area;
-        // Search for area name by id
-        if (inst.knowledge_area) {
-            const area = knowledgeAreas.find((a) => a.id === Number(inst.knowledge_area));
-            if (area) return area.name;
-        }
-        return inst.knowledge_area || "Sin especialidad";
+        const ka = inst.knowledge_area;
+        if (!ka) return "Sin especialidad";
+
+        // Try to resolve by id first (handles cases where API returns an id like "1")
+        const areaById = knowledgeAreas.find((a) => String(a.id) === String(ka));
+        if (areaById) return areaById.name;
+
+        // If no matching id, assume the field already contains the name
+        return String(ka);
     };
 
     // No local filtering, only via API
@@ -123,8 +125,10 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
 
     // Load instructors when modal opens (no filters -> empty search)
     useEffect(() => {
+        // Fetch once on mount to avoid repeated calls caused by unstable function refs
         fetchInstructors({});
-    }, [fetchInstructors]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">

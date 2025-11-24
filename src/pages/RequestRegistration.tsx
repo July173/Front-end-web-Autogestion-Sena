@@ -98,6 +98,10 @@ export default function RequestRegistration() {
   const [enterpriseOptions, setEnterpriseOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [bossOptions, setBossOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [humanTalentOptions, setHumanTalentOptions] = useState<Array<{ value: string; label: string }>>([]);
+  // Maps to keep full records (used to prefill form when selecting existing entities)
+  const [enterpriseMap, setEnterpriseMap] = useState<Record<string, any>>({});
+  const [bossMap, setBossMap] = useState<Record<string, any>>({});
+  const [humanTalentMap, setHumanTalentMap] = useState<Record<string, any>>({});
   // Loading states for selects
   const [loadingEnterprises, setLoadingEnterprises] = useState(false);
   const [loadingBosses, setLoadingBosses] = useState(false);
@@ -159,13 +163,14 @@ export default function RequestRegistration() {
   // Helper mapper for API entities -> select option
   const mapToOption = (it: Record<string, unknown>) => {
     const rec = it || {} as Record<string, unknown>;
-    const id = rec['id'] ?? rec['pk'] ?? rec['enterprise_id'] ?? rec['id_enterprise'] ?? '';
+    const possibleId = rec['id'] ?? rec['pk'] ?? rec['enterprise_id'] ?? rec['id_enterprise'] ?? '';
     const label = (
       rec['name_boss'] || rec['name'] || rec['nombre'] || rec['name_enterprise'] || rec['empresa_nombre'] || rec['nombre_jefe'] ||
       ((rec['first_name'] || rec['name']) ? `${rec['first_name'] ?? rec['name']}${rec['first_last_name'] ? ' ' + rec['first_last_name'] : ''}` : undefined)
-    ) ?? id;
-    const labelStr = typeof label === 'string' ? label : String(label ?? id ?? '');
-    return { value: String(id ?? ''), label: labelStr };
+    ) ?? possibleId;
+    const labelStr = typeof label === 'string' ? label : String(label ?? possibleId ?? '');
+    const value = possibleId ? String(possibleId) : `__noid_${encodeURIComponent(labelStr).slice(0,20)}`;
+    return { value, label: labelStr };
   };
 
   // Load enterprises on mount
@@ -177,9 +182,16 @@ export default function RequestRegistration() {
         const data = await getAllEnterprises();
         if (!mounted) return;
         setEnterpriseOptions((data || []).map(mapToOption));
+        // store raw records by id to prefill fields when the user selects an existing enterprise
+        const map = Object.fromEntries((data || []).map((it: Record<string, unknown>) => {
+          const id = String(it['id'] ?? it['pk'] ?? it['enterprise_id'] ?? it['id_enterprise'] ?? '');
+          return [id, it];
+        }));
+        if (mounted) setEnterpriseMap(map);
       } catch (err) {
         console.error('Error loading enterprises:', err);
         setEnterpriseOptions([]);
+        if (mounted) setEnterpriseMap({});
       } finally {
         if (mounted) setLoadingEnterprises(false);
       }
@@ -197,20 +209,34 @@ export default function RequestRegistration() {
         try {
           // backend expects `enterprise_id` as the query parameter for the by-enterprise endpoints
           const bosses = await filterBosses({ enterprise_id: String(selectedEnterpriseId) });
-          if (mounted) setBossOptions((bosses || []).map(mapToOption));
+          if (mounted) {
+            setBossOptions((bosses || []).map(mapToOption));
+            const bmap = Object.fromEntries((bosses || []).map((it: Record<string, unknown>) => [String(it['id'] ?? it['pk'] ?? it['id_boss'] ?? ''), it]));
+            setBossMap(bmap);
+          }
         } catch (err) {
           console.error('Error loading bosses for enterprise:', err);
-          if (mounted) setBossOptions([]);
+          if (mounted) {
+            setBossOptions([]);
+            setBossMap({});
+          }
         } finally {
           if (mounted) setLoadingBosses(false);
         }
 
         try {
           const hts = await filterHumanTalents({ enterprise_id: String(selectedEnterpriseId) });
-          if (mounted) setHumanTalentOptions((hts || []).map(mapToOption));
+          if (mounted) {
+            setHumanTalentOptions((hts || []).map(mapToOption));
+            const hmap = Object.fromEntries((hts || []).map((it: Record<string, unknown>) => [String(it['id'] ?? it['pk'] ?? it['id_human_talent'] ?? ''), it]));
+            setHumanTalentMap(hmap);
+          }
         } catch (err) {
           console.error('Error loading human talents for enterprise:', err);
-          if (mounted) setHumanTalentOptions([]);
+          if (mounted) {
+            setHumanTalentOptions([]);
+            setHumanTalentMap({});
+          }
         } finally {
           if (mounted) setLoadingHumanTalents(false);
         }
@@ -220,11 +246,78 @@ export default function RequestRegistration() {
         setHumanTalentOptions([]);
         setLoadingBosses(false);
         setLoadingHumanTalents(false);
+        setBossMap({});
+        setHumanTalentMap({});
       }
     };
     loadContacts();
     return () => { mounted = false; };
   }, [enterpriseMode, selectedEnterpriseId]);
+
+  // When the user selects an existing enterprise, prefill the enterprise fields and lock inputs (UI already disables when mode==='select')
+  useEffect(() => {
+    if (enterpriseMode === 'select' && selectedEnterpriseId) {
+      const rec = enterpriseMap[String(selectedEnterpriseId)];
+      if (rec) {
+        const name = (rec['name_enterprise'] || rec['name'] || rec['empresa_nombre'] || '') as any;
+        const nit = (rec['nit_enterprise'] ?? rec['empresa_nit'] ?? rec['enterprise_nit'] ?? 0) as any;
+        const locate = (rec['locate'] || rec['empresa_ubicacion'] || rec['enterprise_location'] || '') as any;
+        const email = (rec['email_enterprise'] || rec['empresa_correo'] || rec['enterprise_email'] || '') as any;
+        // only update if differs to avoid triggering re-renders in a loop
+        if (formData.enterprise_name !== name) updateFormData('enterprise_name', name);
+        if (String(formData.enterprise_nit) !== String(nit)) updateFormData('enterprise_nit', nit);
+        if (formData.enterprise_location !== locate) updateFormData('enterprise_location', locate);
+        if (formData.enterprise_email !== email) updateFormData('enterprise_email', email);
+      }
+    } else if (enterpriseMode === 'create') {
+      if (formData.enterprise_name) updateFormData('enterprise_name', '' as any);
+      if (formData.enterprise_nit) updateFormData('enterprise_nit', 0 as any);
+      if (formData.enterprise_location) updateFormData('enterprise_location', '' as any);
+      if (formData.enterprise_email) updateFormData('enterprise_email', '' as any);
+    }
+  // Intentionally exclude updateFormData and formData from deps to avoid effect firing on every update; effect depends on selection/mode/map
+  }, [enterpriseMode, selectedEnterpriseId, enterpriseMap]);
+
+  // When the user selects an existing boss, prefill boss fields
+  useEffect(() => {
+    if (bossMode === 'select' && selectedBossId) {
+      const rec = bossMap[String(selectedBossId)];
+      if (rec) {
+        const name = (rec['name_boss'] || rec['name'] || rec['first_name'] || '') as any;
+        const email = (rec['email'] || rec['email_boss'] || rec['boss_email'] || '') as any;
+        const phone = (rec['phone'] ?? rec['phone_number'] ?? '') as any;
+        const pos = (rec['position'] || rec['cargo'] || '') as any;
+        if (formData.boss_name !== name) updateFormData('boss_name', name);
+        if (formData.boss_email !== email) updateFormData('boss_email', email);
+        if (String(formData.boss_phone) !== String(phone)) updateFormData('boss_phone', phone);
+        if (formData.boss_position !== pos) updateFormData('boss_position', pos);
+      }
+    } else if (bossMode === 'create') {
+      if (formData.boss_name) updateFormData('boss_name', '' as any);
+      if (formData.boss_email) updateFormData('boss_email', '' as any);
+      if (formData.boss_phone) updateFormData('boss_phone', '' as any);
+      if (formData.boss_position) updateFormData('boss_position', '' as any);
+    }
+  }, [bossMode, selectedBossId, bossMap]);
+
+  // When the user selects an existing human talent, prefill human talent fields
+  useEffect(() => {
+    if (humanTalentMode === 'select' && selectedHumanTalentId) {
+      const rec = humanTalentMap[String(selectedHumanTalentId)];
+      if (rec) {
+        const name = (rec['name'] || rec['name_human_talent'] || rec['first_name'] || '') as any;
+        const email = (rec['email'] || rec['email_human_talent'] || '') as any;
+        const phone = (rec['phone'] ?? rec['phone_number'] ?? '') as any;
+        if (formData.human_talent_name !== name) updateFormData('human_talent_name', name);
+        if (formData.human_talent_email !== email) updateFormData('human_talent_email', email);
+        if (String(formData.human_talent_phone) !== String(phone)) updateFormData('human_talent_phone', phone);
+      }
+    } else if (humanTalentMode === 'create') {
+      if (formData.human_talent_name) updateFormData('human_talent_name', '' as any);
+      if (formData.human_talent_email) updateFormData('human_talent_email', '' as any);
+      if (formData.human_talent_phone) updateFormData('human_talent_phone', '' as any);
+    }
+  }, [humanTalentMode, selectedHumanTalentId, humanTalentMap]);
 
   // Function to get the document type name using dynamic data
   const getDocumentTypeName = (typeValue: string | number) => {
@@ -436,7 +529,8 @@ export default function RequestRegistration() {
           id: null,
           name: updatedFormData.boss_name ?? '',
           email: updatedFormData.boss_email ?? '',
-          phone: updatedFormData.boss_phone ?? ''
+          phone: String(updatedFormData.boss_phone ?? ''),
+          position: updatedFormData.boss_position ?? ''
         };
 
       const humanTalentPayload = humanTalentMode === 'select' && selectedHumanTalentId
@@ -445,7 +539,7 @@ export default function RequestRegistration() {
           id: null,
           name: updatedFormData.human_talent_name ?? '',
           email: updatedFormData.human_talent_email ?? '',
-          phone: updatedFormData.human_talent_phone ?? ''
+          phone: String(updatedFormData.human_talent_phone ?? '')
         };
 
       const requestPayload: Record<string, string | number> = {
@@ -464,13 +558,13 @@ export default function RequestRegistration() {
         request: requestPayload,
       };
 
+      console.log('nestedPayload a enviar:', nestedPayload);
+
       // Send to backend using existing service (it accepts any JSON body)
-  const submitResponse = await postRequestAssignation(nestedPayload as unknown as requestAsignation);
-  console.log('Respuesta de envío:', submitResponse);
-  // The backend may return the created id either at top-level { id: X, message: '...' }
-  // or nested under `data` depending on the service wrapper. Handle both shapes.
-  const requestId = submitResponse?.data?.id ?? submitResponse?.id ?? null;
-  const backendMessage = submitResponse?.data?.message ?? submitResponse?.message ?? 'La solicitud fue enviada exitosamente.';
+      const submitResponse = await postRequestAssignation(nestedPayload as unknown as requestAsignation);
+      console.log('Respuesta de envío (postRequestAssignation):', submitResponse);
+      const requestId = submitResponse?.data?.id ?? submitResponse?.id ?? null;
+      const backendMessage = submitResponse?.data?.message ?? submitResponse?.message ?? 'La solicitud fue enviada exitosamente.';
 
       // Subir PDF con request_id cuando esté disponible
       if (selectedFile) {
@@ -478,7 +572,15 @@ export default function RequestRegistration() {
         setPdfUploading(true);
         try {
           console.log('Enviando PDF:', selectedFile, 'con request_id:', requestId);
-          pdfUploadResult = await uploadPdf(selectedFile, requestId ?? undefined);
+          // ensure requestId is a number when passing to uploadPdf
+          const numericRequestId = requestId ? Number(requestId) : undefined;
+          if (!numericRequestId) {
+            // backend requires request_id; do not attempt upload without it
+            console.error('No requestId available, skipping PDF upload. Backend requires request_id');
+            showNotification({ isOpen: true, type: 'warning', title: 'PDF no subido', message: 'ID de solicitud no disponible para subir el PDF.' });
+            return;
+          }
+          pdfUploadResult = await uploadPdf(selectedFile, numericRequestId);
           console.log('Respuesta de uploadPdf:', pdfUploadResult);
         } catch (pdfErr) {
           console.error('Error al subir PDF:', pdfErr);
@@ -717,7 +819,7 @@ export default function RequestRegistration() {
                   <CustomSelect
                     value={selectedEnterpriseId ? String(selectedEnterpriseId) : ''}
                     onChange={(val) => setSelectedEnterpriseId(val ? Number(val) : null)}
-                    options={loadingEnterprises ? [{ value: '', label: 'Cargando...' }] : enterpriseOptions}
+                    options={loadingEnterprises ? [{ value: '__loading__', label: 'Cargando...' }] : enterpriseOptions}
                     label="Empresa existente"
                     placeholder={loadingEnterprises ? 'Cargando...' : 'Seleccione empresa...'}
                     classNames={{
@@ -760,7 +862,7 @@ export default function RequestRegistration() {
                   <CustomSelect
                     value={selectedBossId ? String(selectedBossId) : ''}
                     onChange={(val) => setSelectedBossId(val ? Number(val) : null)}
-                    options={loadingBosses ? [{ value: '', label: 'Cargando...' }] : bossOptions}
+                    options={loadingBosses ? [{ value: '__loading__', label: 'Cargando...' }] : bossOptions}
                     label="Jefe existente"
                     placeholder={loadingBosses ? 'Cargando...' : 'Seleccione jefe...'}
                     classNames={{
@@ -805,7 +907,7 @@ export default function RequestRegistration() {
                   <CustomSelect
                     value={selectedHumanTalentId ? String(selectedHumanTalentId) : ''}
                     onChange={(val) => setSelectedHumanTalentId(val ? Number(val) : null)}
-                    options={loadingHumanTalents ? [{ value: '', label: 'Cargando...' }] : humanTalentOptions}
+                    options={loadingHumanTalents ? [{ value: '__loading__', label: 'Cargando...' }] : humanTalentOptions}
                     label="Talento humano existente"
                     placeholder={loadingHumanTalents ? 'Cargando...' : 'Seleccione...'}
                     classNames={{
