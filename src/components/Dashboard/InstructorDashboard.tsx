@@ -64,77 +64,85 @@ export const InstructorDashboard: React.FC = () => {
       title: "Visitas programadas",
       value: 2,
       subtitle: "Para esta semana",
-      icon: <BsCalendar2Week className="text-blue-800" size={24} />,
-      bgIcon: "bg-blue-300",
-    },
-    {
-      title: "Recordatorios pendientes",
-      value: 2,
-      subtitle: "Requieren seguimiento",
-      icon: <BsClockHistory className="text-orange-600" size={24} />,
-      bgIcon: "bg-yellow-200",
+      icon: <BsCalendar2Week className="text-green-700" size={24} />,
+      bgIcon: "bg-green-200",
     },
     {
       title: "Aprendices Asignados",
       value: 2,
       subtitle: "Aprendices tienes asignados para ser evaluados",
-      icon: <BsMortarboardFill className="text-fuchsia-500" size={24} />,
-      bgIcon: "bg-fuchsia-200",
+      icon: <BsMortarboardFill className="text-green-700" size={24} />,
+      bgIcon: "bg-green-200",
     },
     {
       title: "Aprendices Evaluados",
       value: 2,
       subtitle: "Aprendices evaluados",
-      icon: <BsPersonCheck className="text-green-600" size={24} />,
-      bgIcon: "bg-green-300",
+      icon: <BsPersonCheck className="text-green-700" size={24} />,
+      bgIcon: "bg-green-200",
     },
   ];
 
   return (
-    <div className="w-full flex flex-col items-center">
-      <div className="bg-white rounded-[10px] px-8 md:px-52 py-8 flex flex-col items-center mb-7 w-full max-w-5xl">
-        <h1 className="text-green-700/80 text-4xl font-bold font-roboto leading-relaxed text-center">
-          BIENVENIDO, {userData?.person?.first_name?.toUpperCase() || "INSTRUCTOR"}!
-        </h1>
+    <div className="w-full flex flex-col items-center px-4 py-6">
+      {/* Title outside the white panel */}
+      <div className="w-full max-w-6xl mb-4 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h1 className="text-green-700 text-3xl md:text-4xl font-bold text-center">BIENVENIDO A AUTOGESTIÓN SENA</h1>
       </div>
-      <div className="w-full flex flex-wrap gap-7 justify-center items-start mb-7 max-w-5xl">
-        {cards.map((card, idx) => (
-          <InstructorDashboardCard key={idx} {...card} />
-        ))}
-      </div>
-      <div className="w-full flex flex-wrap gap-12 justify-center items-start max-w-5xl">
-        {[1,2].map((_, idx) => (
-          <div key={idx} className="w-full max-w-md p-2.5 bg-white rounded-[10px] flex flex-col justify-start items-start gap-5 shadow outline outline-1 outline-neutral-200 overflow-hidden">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-300">
-                <span className="w-5 h-5 flex items-center justify-center">
-                  <span className="w-5 h-5 bg-blue-800 rounded-full block" />
-                </span>
+
+      {/* White panel that contains the rest */}
+      <div className="w-full max-w-6xl bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        {/* Statistics Cards (three) - centered */}
+        <div className="w-full flex flex-wrap gap-5 justify-center items-center mb-6">
+          {cards.map((card, idx) => (
+            <div key={idx} className="w-56 flex justify-center">
+              <InstructorDashboardCard {...card} />
+            </div>
+          ))}
+        </div>
+
+        {/* Section Header (no button) */}
+        <div className="w-full flex justify-start items-center mb-6 px-2">
+          <h2 className="text-black text-2xl font-semibold">Aprendices Asignados</h2>
+        </div>
+
+        {/* Scheduled Visits Cards - centered, stronger shadow */}
+        <div className="w-full flex flex-wrap gap-6 justify-center items-start">
+          {[1, 2].map((_, idx) => (
+            <div key={idx} className="w-full sm:w-6/12 max-w-md p-5 bg-white rounded-lg flex flex-col gap-4 shadow-2xl border border-gray-100">
+              {/* Card Header */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100">
+                  <BsCalendar2Week className="text-green-700" size={20} />
+                </div>
+                <div className="text-black text-lg md:text-xl font-semibold">Visita programada</div>
               </div>
-              <div className="text-black text-2xl font-semibold font-roboto leading-none">Visita programada</div>
+
+              {/* Card Content */}
+              <div className="text-gray-700 text-base">Tienes una visita programada</div>
+              
+              <div className="flex items-center gap-2 text-gray-800">
+                <BsPersonCheck className="text-green-700" size={18} />
+                <div className="text-gray-800 text-base">Carlos ruiz : 11292221893</div>
+              </div>
+
+              <div className="text-gray-700 text-base">
+                <span className="font-medium">Programa de formación:</span>
+                <div className="mt-1">desarrollo de videojuegos</div>
+              </div>
+
+              <div className="flex items-center gap-2 text-gray-800">
+                <BsClockHistory className="text-green-700" size={18} />
+                <div className="text-gray-800 text-base">Mañana</div>
+              </div>
+
+              {/* Button */}
+              <button className="w-full h-12 rounded-lg border border-gray-200 hover:bg-green-50 flex justify-center items-center transition-colors">
+                <span className="text-green-700 text-base font-medium">Ver detalles</span>
+              </button>
             </div>
-            <div className="text-black text-2xl font-normal font-roboto leading-none">Tienes una visita programada</div>
-            <div className="flex items-center gap-2.5">
-              <span className="w-5 h-5 flex items-center justify-center">
-                <span className="w-5 h-3.5 bg-black block" />
-              </span>
-              <div className="text-black text-2xl font-light font-roboto leading-none">Carlos ruiz : 11292221893</div>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-72 text-black text-2xl font-light font-roboto leading-none">Programa de formación :</div>
-            </div>
-            <div className="text-black text-2xl font-light font-roboto leading-none">desarrollo de videojuegos</div>
-            <div className="flex items-start gap-2.5">
-              <span className="w-5 h-5 flex items-center justify-center">
-                <span className="w-5 h-5 bg-black block" />
-              </span>
-              <div className="text-black text-2xl font-extralight font-roboto leading-none">Mañana</div>
-            </div>
-            <div className="w-full h-14 px-10 py-1.5 rounded-[10px] outline outline-1 outline-offset-[-1px] outline-neutral-400/50 flex flex-col justify-center items-center gap-2.5 overflow-hidden">
-              <div className="text-black text-xl font-normal font-roboto leading-none">Ver detalles</div>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

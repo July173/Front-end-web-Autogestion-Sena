@@ -2,6 +2,7 @@ import AdminDashboardView from "../components/Dashboard/AdminDashboardView";
 import ApprenticeDashboardView from "../components/Dashboard/ApprenticeDashboardView";
 import InstructorDashboard from "../components/Dashboard/InstructorDashboard";
 import GenericDashboardView from "../components/Dashboard/GenericDashboardView";
+import OperationSofiaDashboardView from "../components/Dashboard/OperationSofiaDashboardView";
 import { useUserData } from "../hook/useUserData";
 import { useState, useEffect } from "react";
 import { getApprenticesByPerson } from "../Api/Services/Apprentice";
@@ -81,16 +82,18 @@ export const Home = () => {
   }
 
   // Role mapping
-  // 1: admin, 2: aprendiz, 3: instructor, 4: coordinator
-  const roleMap: Record<string | number, "admin" | "coordinator" | "instructor" | "aprendiz"> = {
+  // 1: admin, 2: aprendiz, 3: instructor, 4: coordinator, 5: operation (Sofia)
+  const roleMap: Record<string | number, "admin" | "coordinator" | "instructor" | "aprendiz" | "operation"> = {
     1: "admin",
     2: "aprendiz",
     3: "instructor",
     4: "coordinator",
+    5: "operation",
     "admin": "admin",
     "aprendiz": "aprendiz",
     "instructor": "instructor",
-    "coordinator": "coordinator"
+    "coordinator": "coordinator",
+    "operation": "operation"
   };
 
 
@@ -107,6 +110,9 @@ const role = roleMap[roleRaw] || null;
   if (role === "aprendiz") {
   
     return <ApprenticeDashboardView name={getUserName()} apprenticeId={apprenticeId} />;
+  }
+  if (role === "operation") {
+    return <OperationSofiaDashboardView />;
   }
   if (role === "instructor") {
   
