@@ -5,7 +5,7 @@ import GenericDashboardView from "../components/Dashboard/GenericDashboardView";
 import OperationSofiaDashboardView from "../components/Dashboard/OperationSofiaDashboardView";
 import { useUserData } from "../hook/useUserData";
 import { useState, useEffect } from "react";
-import { getApprenticesByPerson } from "../Api/Services/Apprentice";
+import { getUserById } from "../Api/Services/User";
 import { User } from "../Api/types/entities/user.types"; // Importar el tipo User
 import { useNavigate } from "react-router-dom"; // Importar navigate
 
@@ -27,18 +27,17 @@ export const Home = () => {
     return "Usuario";
   };
 
-  // Get apprentice_id from person_id
+  // Get apprentice_id from user endpoint (avoid general/aprendices/?person=...)
   useEffect(() => {
     const fetchApprenticeId = async () => {
-      if (userData?.person && userData?.role === 2) {
+      if (userData?.id && userData?.role === 2) {
         setLoadingApprentice(true);
         try {
-            const apprentices = await getApprenticesByPerson(userData.person);
-          if (apprentices && apprentices.length > 0) {
-            setApprenticeId(apprentices[0].id);
-          }
+          const fullUser: any = await getUserById(userData.id);
+          const apprenticeIdFromUser = fullUser?.apprentice?.id ?? fullUser?.apprentice ?? null;
+          if (apprenticeIdFromUser) setApprenticeId(apprenticeIdFromUser);
         } catch (error) {
-          console.error("Error al obtener aprendiz ID:", error);
+          console.error("Error al obtener aprendiz ID desde user endpoint:", error);
         } finally {
           setLoadingApprentice(false);
         }

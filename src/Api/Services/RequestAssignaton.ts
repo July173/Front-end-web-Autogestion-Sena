@@ -358,11 +358,12 @@ export const rejectRequest = async (requestId: number, rejectionMessage: string)
  */
 export const getApprenticeDashboard = async (apprenticeId: number): Promise<{ data: any }> => {
   try {
-    const url = `${ENDPOINTS.requestAsignation.getApprenticeDashboard}?apprentice_id=${apprenticeId}`;
-    console.log('Llamando al endpoint:', url); // for debugging
-    
+    // The backend expects the query param name `aprendiz_id` (spanish) as shown in the API docs
+    const url = `${ENDPOINTS.requestAsignation.getApprenticeDashboard}?aprendiz_id=${apprenticeId}`;
+    console.log('Llamando al endpoint (aprendiz_id):', url); // for debugging
+
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Error al obtener el dashboard del aprendiz');

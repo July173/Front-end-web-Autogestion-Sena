@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { getApprenticeDashboard } from "@/Api/Services/RequestAssignaton";
-import { User } from "../../Api/types/entities/user.types";
+import React from "react";
+import { useNavigate } from 'react-router-dom';
+import useApprenticeDashboard, { DashboardData } from '@/hook/useApprenticeDashboard';
 
 
 /**
@@ -28,6 +28,7 @@ interface DashboardData {
   request: {
     id: number;
     enterprise_name: string | null;
+    location?: string | null;
     boss_name: string | null;
     modality: string | null;
     start_date: string;
@@ -56,67 +57,11 @@ interface DashboardData {
  * @param {AprendizDashboardProps} props
  */
 const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprenticeId }) => {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<User | null>(null);
+  const navigate = useNavigate();
+  const { dashboardData, loading, userData, showInstructor, reload } = useApprenticeDashboard(apprenticeId);
 
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user_dashboard");
-    if (storedUser) {
-      try {
-        const parsedUser: User = JSON.parse(storedUser);
-        setUserData(parsedUser);
-      } catch (error) {
-        console.error("Error al parsear los datos del usuario desde el localStorage:", error);
-      }
-    }
-  }, []);
-
-
-  /**
-   * Loads dashboard data for the apprentice.
-   */
-  const loadDashboardData = React.useCallback(async () => {
-    if (!apprenticeId) return;
-
-    try {
-      setLoading(true);
-
-      // Call the service and normalize different possible response shapes
-      const response: any = await getApprenticeDashboard(apprenticeId);
-
-      // The backend might return either { data: {...} } or the object itself
-      const normalized: DashboardData | null = response?.data ?? response ?? null;
-
-      if (!normalized) {
-        console.error('getApprenticeDashboard returned empty response:', response);
-        setDashboardData(null);
-        return;
-      }
-
-      setDashboardData(normalized as DashboardData);
-    } catch (err: any) {
-      // Better error logging to help diagnose 500 errors
-      console.error('Error al cargar dashboard (getApprenticeDashboard):', err);
-      if (err?.response) {
-        try {
-          console.error('Backend status:', err.response.status);
-          console.error('Backend body:', err.response.data ?? err.response);
-        } catch (loggingErr) {
-          console.error('Error al registrar la respuesta del backend:', loggingErr);
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [apprenticeId]);
-
-  useEffect(() => {
-    if (userData?.person?.id) {
-      loadDashboardData();
-    }
-  }, [userData, loadDashboardData]);
+  
 
 
   /**
@@ -171,6 +116,115 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
     return states[dashboardData.request_state as keyof typeof states] || states['PENDIENTE'];
   };
 
+  /**
+   * Renders the timeline of request states with proper colors.
+   */
+  const renderTimeline = () => {
+    const state = dashboardData?.request_state ?? 'PENDIENTE';
+
+    const isCompleted = (step: string) => {
+      if (state === 'RECHAZADO') {
+        // For rejected: Solicitud enviada and En revisión are considered completed
+        return step === 'PENDIENTE' || step === 'EN_REVISION';
+      }
+      if (state === 'ASIGNADO') {
+        return step === 'PENDIENTE' || step === 'EN_REVISION' || step === 'ASIGNADO';
+      }
+      if (state === 'EN_REVISION') {
+        return step === 'PENDIENTE' || step === 'EN_REVISION';
+      }
+      // default treat only PENDIENTE completed
+      return step === 'PENDIENTE';
+    };
+
+    const getDot = (step: string) => {
+      // Larger dots and emoji/icon sizing for better visibility
+      if (state === 'RECHAZADO' && step === 'RECHAZADO') {
+        return (<div className="bg-red-500 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0 text-white text-2xl">⚠</div>);
+      }
+      if (isCompleted(step)) {
+        if (step === 'PENDIENTE') return (<div className="bg-green-500 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0 text-white text-2xl">✓</div>);
+        if (step === 'EN_REVISION') return (<div className="bg-blue-500 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0 text-white text-2xl">⏳</div>);
+        if (step === 'ASIGNADO') return (<div className="bg-green-600 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0 text-white text-2xl">👤</div>);
+      }
+      // not completed
+      return (<div className="bg-gray-300 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0 text-white"> </div>);
+    };
+
+    return (
+      <div className="flex flex-col gap-4 px-6">
+        {/* Solicitud enviada */}
+        <div className="flex items-start gap-3">
+          {getDot('PENDIENTE')}
+          <div className="flex-1">
+            <p className="font-semibold text-lg">Solicitud enviada</p>
+            <p className="text-sm text-gray-600">Has enviado tu solicitud de etapa productiva</p>
+          </div>
+        </div>
+
+        {/* separator */}
+        <div className="h-12 w-0.5 bg-gray-300 ml-6"></div>
+
+        {/* En revisión */}
+        <div className="flex items-start gap-3">
+          {getDot('EN_REVISION')}
+            <div className="flex-1">
+            <p className="font-semibold text-2xl">En revisión</p>
+            <p className="text-base text-gray-600">Tu solicitud está siendo revisada por el coordinador</p>
+            {state === 'EN_REVISION' && (
+              <div className="mt-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-500 h-2 rounded-full" style={{width: '60%'}}></div>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">En Progreso...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* separator */}
+        <div className="h-12 w-0.5 bg-gray-300 ml-6"></div>
+
+        {/* Assigned / Rejected */}
+        {state === 'RECHAZADO' ? (
+          <div className="flex items-start gap-3">
+            {getDot('RECHAZADO')}
+            <div className="flex-1">
+              <p className="font-semibold text-2xl text-red-600">Solicitud rechazada</p>
+              <p className="text-base text-gray-600">Tu solicitud ha sido rechazada</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3">
+            {getDot('ASIGNADO')}
+            <div className="flex-1">
+              <p className="font-semibold text-2xl">Asignación de instructor</p>
+              <p className="text-base text-gray-600">Se te asignará un instructor de seguimiento</p>
+            </div>
+          </div>
+        )}
+
+        {/* If assigned, show approved step */}
+        {state === 'ASIGNADO' && (
+          <>
+            <div className="h-12 w-0.5 bg-gray-300 ml-6"></div>
+            <div className="flex items-start gap-3">
+              <div className="bg-gray-300 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0 text-white"> </div>
+              <div className="flex-1">
+                <p className="font-semibold text-2xl">Proceso aprobado</p>
+                <p className="text-base text-gray-600">Tu solicitud ha sido aprobada completamente</p>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // Determine whether instructor info should be shown.
+  // Hide instructor when the request has been explicitly rejected.
+  const showInstructor = !!dashboardData && dashboardData.request_state !== 'RECHAZADO' && !!dashboardData.instructor;
+
   if (loading) {
     return (
       <div className="flex flex-col items-center gap-4 p-6 w-full">
@@ -184,24 +238,27 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
   return (
     <div className="flex flex-col items-center gap-4 p-6 w-full">
   {/* Welcome banner */}
-      <div className="bg-green-600 rounded-lg flex items-center px-5 py-14 w-[1000px] mb-4">
-        <div className="bg-gray-200/50 rounded-full flex items-center justify-center w-[70px] h-[70px] mr-6">
+      <div className="w-[1000px] mb-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="h-3 bg-green-600 rounded-t-lg" />
+        <div className="flex items-center px-6 py-6">
+          <div className="bg-gray-200/50 rounded-full flex items-center justify-center w-[70px] h-[70px] mr-6">
           <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="white" viewBox="0 0 16 16">
             <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
           </svg>
-        </div>
-        <div className="flex flex-col text-white">
-          <p className="text-3xl font-bold mb-0">¡ Bienvenido !</p>
-          <p className="text-2xl font-normal mb-0">{userData?.person?.first_name || "Aprendiz"}</p>
-          <p className="text-lg font-normal">Gestione Desde Aquí Tus Procesos De Formación</p>
+          </div>
+          <div className="flex flex-col">
+            <p className="text-3xl font-bold text-gray-800 mb-0">¡ Bienvenido !</p>
+            <p className="text-2xl font-normal text-gray-700 mb-0">{userData?.person?.first_name || "Aprendiz"}</p>
+            <p className="text-base text-gray-600">Gestione Desde Aquí Tus Procesos De Formación</p>
+          </div>
         </div>
       </div>
 
       <div className="flex gap-5 w-full justify-center">
   {/* Request status */}
-        <div className="bg-white rounded-lg shadow w-[495px] p-6 flex flex-col">
-          <div className="bg-blue-700/70 rounded-lg w-full py-4 mb-6 flex items-center justify-center">
-            <p className="text-xl font-bold text-black">Estado de tu solicitud</p>
+        <div className="bg-white rounded-lg w-[495px] p-6 flex flex-col" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.06)' }}>
+          <div className="bg-green-600 rounded-t-md w-full py-4 mb-6 flex items-center justify-center text-white">
+            <p className="text-xl font-bold">Estado de tu solicitud</p>
           </div>
           
           {!dashboardData?.has_request ? (
@@ -214,84 +271,16 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
               </div>
               <p className="text-lg text-black font-semibold">Sin solicitudes para tu etapa productiva</p>
               <p className="text-base text-black text-center">Aún no has solicitado ningún proceso para tu etapa productiva, por favor registra una solicitud</p>
-              <button className="bg-green-600 text-white rounded-lg px-6 py-3 font-medium mt-2 hover:bg-green-700">
+              <button
+                className="bg-green-600 text-white rounded-lg px-6 py-3 font-medium mt-2 hover:bg-green-700"
+                onClick={() => navigate('/request-registration')}
+              >
                 Hacer una solicitud
               </button>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {/* State timeline */}
-              <div className="flex flex-col gap-3 px-4">
-                <div className="flex items-start gap-3">
-                  <div className="bg-green-500 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16">
-                      <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-lg">Solicitud enviada</p>
-                    <p className="text-sm text-gray-600">Has enviado tu solicitud de etapa productiva</p>
-                  </div>
-                </div>
-
-                {['EN_REVISION', 'ASIGNADO'].includes(dashboardData.request_state || '') && (
-                  <>
-                    <div className="h-8 w-0.5 bg-gray-300 ml-5"></div>
-                    <div className="flex items-start gap-3">
-                      <div className={`rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 ${
-                        dashboardData.request_state === 'EN_REVISION' || dashboardData.request_state === 'ASIGNADO' 
-                          ? 'bg-blue-500' 
-                          : 'bg-gray-300'
-                      }`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16">
-                          <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-lg">En revisión</p>
-                        <p className="text-sm text-gray-600">Tu solicitud está siendo revisada por el coordinador</p>
-                        {dashboardData.request_state === 'EN_REVISION' && (
-                          <div className="mt-2">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '60%'}}></div>
-                            </div>
-                            <p className="text-xs text-blue-600 mt-1">En Progreso...</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {dashboardData.request_state === 'ASIGNADO' && (
-                  <>
-                    <div className="h-8 w-0.5 bg-gray-300 ml-5"></div>
-                    <div className="flex items-start gap-3">
-                      <div className="bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16">
-                          <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-lg">Asignación de instructor</p>
-                        <p className="text-sm text-gray-600">Se te asignará un instructor de seguimiento</p>
-                      </div>
-                    </div>
-                    <div className="h-8 w-0.5 bg-gray-300 ml-5"></div>
-                    <div className="flex items-start gap-3">
-                      <div className="bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16">
-                          <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-lg">Proceso aprobado</p>
-                        <p className="text-sm text-gray-600">Tu solicitud ha sido aprobada completamente</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {renderTimeline()}
             </div>
           )}
         </div>
@@ -299,12 +288,12 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
           {/* Right column */}
         <div className="flex flex-col gap-5 w-[486px]">
           {/* Your assigned instructor */}
-          <div className="bg-white rounded-lg shadow w-full p-6 flex flex-col items-center">
-            <div className="bg-[#d7b8ff] rounded-lg w-full py-4 mb-4 flex items-center justify-center">
-              <p className="text-lg font-bold text-black">Tu Instructor asignado</p>
+          <div className="bg-white rounded-lg w-full p-6 flex flex-col items-center" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.04)' }}>
+            <div className="bg-green-600 rounded-t-md w-full py-4 mb-4 flex items-center justify-center text-white">
+              <p className="text-lg font-bold">Tu Instructor asignado</p>
             </div>
             
-            {!dashboardData?.instructor ? (
+            {!showInstructor ? (
               <div className="flex flex-col items-center gap-2">
                 <div className="bg-gray-400/70 rounded-full w-[100px] h-[100px] flex items-center justify-center mb-2">
                   <p className="text-2xl font-semibold text-white">CW</p>
@@ -336,7 +325,10 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
                   <p className="text-sm">{dashboardData.instructor.phone}</p>
                 </div>
                 {dashboardData.instructor.email && (
-                  <button className="bg-green-600 text-white rounded-lg px-6 py-2 font-medium mt-2 hover:bg-green-700 flex items-center gap-2">
+                  <button
+                    className="bg-green-600 text-white rounded-lg px-6 py-2 font-medium mt-2 hover:bg-green-700 flex items-center gap-2"
+                    onClick={() => window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(dashboardData.instructor!.email || '')}`, '_blank')}
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/>
                     </svg>
@@ -348,9 +340,9 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
           </div>
 
           {/* Request details */}
-          <div className="bg-white rounded-lg shadow w-full p-6 flex flex-col">
-            <div className="bg-[#fae17e] rounded-lg w-full py-4 mb-4 flex items-center justify-center">
-              <p className="text-lg font-bold text-black">Detalle de tu Solicitud</p>
+          <div className="bg-white rounded-lg w-full p-6 flex flex-col" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.04)' }}>
+            <div className="bg-green-600 rounded-t-md w-full py-4 mb-4 flex items-center justify-center text-white">
+              <p className="text-lg font-bold">Detalle de tu Solicitud</p>
             </div>
             
             {!dashboardData?.has_request ? (
@@ -367,6 +359,15 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
                   <div>
                     <p className="text-sm text-gray-600">Empresa</p>
                     <p className="font-semibold">{dashboardData.request?.enterprise_name || "No especificada"}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 0a5 5 0 0 0-5 5c0 3.5 5 11 5 11s5-7.5 5-11a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+                  </svg>
+                  <div>
+                    <p className="text-sm text-gray-600">Ubicación</p>
+                    <p className="font-semibold">{dashboardData.request?.location || "No especificada"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
