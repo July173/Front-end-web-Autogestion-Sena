@@ -44,7 +44,7 @@ export async function postApprentice(data: CreateApprentice) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!response.ok) throw new Error('Error al registrar aprendiz');
+  if (!response.ok) throw new Error('Error al registrar aprendiz, Verifique los datos e intente nuevamente, recuerda el numero de docuemento y numero de telefono deben llevar maximo 10 digitos   ');
   return response.json();
 }
 

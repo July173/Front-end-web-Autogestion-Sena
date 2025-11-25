@@ -246,3 +246,6 @@ export async function getInstructorAssignments(instructorId: number) {
     throw error;
   }
 }
+
+// Backwards-compatibility alias (if other code expects the old name)
+export { getInstructorAssignments as getFormRequestById };

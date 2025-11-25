@@ -83,8 +83,9 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
   };
 
   return (
-    <div className="w-full rounded-[10px] border border-stone-300/70 bg-white overflow-x-auto">
-      <div className="min-w-full">
+    <div className="w-full rounded-[10px] border border-stone-300/70 bg-white">
+      <div className="overflow-x-auto">
+        <div className="min-w-full">
         <div className="bg-gray-100 flex items-center h-12 border-b border-gray-200">
           <div className="flex-1 px-2 text-center text-stone-500 text-sm max-w-[40px]">#</div>
           <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Nombre</div>
@@ -362,6 +363,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
             );
           })()
         )}
+        </div>
       </div>
     </div>
   );

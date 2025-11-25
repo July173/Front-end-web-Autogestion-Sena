@@ -1,4 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { getFormRequestById, getRequestAsignationById, postMessageRequest } from '@/Api/Services/RequestAssignaton';
+import ConfirmModal from '@/components/ConfirmModal';
+import NotificationModal from '@/components/NotificationModal';
+import LoadingOverlay from '@/components/LoadingOverlay';
+import ModalReject from '@/components/assing/ModalReject';
 
 // Interface similar to ModalAssign's apprentice shape
 interface ApprenticeData {
@@ -17,8 +22,9 @@ interface AssignReviewModalProps {
   apprentice: ApprenticeData;
   isOpen: boolean;
   onClose: () => void;
-  onApprove?: (payload: { startDate: string; endDate: string; coordinatorMessage: string; valuationMessage: string }) => void;
-  onReject?: (payload: { coordinatorMessage: string; valuationMessage: string }) => void;
+  // callbacks invoked after a successful API call (no payload required)
+  onApprove?: () => void;
+  onReject?: () => void;
 }
 
 export default function AssignReviewModal({ apprentice, isOpen, onClose, onApprove, onReject }: AssignReviewModalProps) {
@@ -27,6 +33,15 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [errors, setErrors] = useState<{ coordinator?: string; dates?: string; valuation?: string }>({});
+  const [loading, setLoading] = useState(false);
+  const [fetchedDetail, setFetchedDetail] = useState<any | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifType, setNotifType] = useState<'success' | 'warning'>('success');
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -36,13 +51,36 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
     setStartDate('');
     setEndDate('');
     setErrors({});
+    setFetchedDetail(null);
+
+    // fetch request detail and raw assignation to extract coordinator message
+    (async () => {
+      if (!apprentice.request_id) return;
+      setLoading(true);
+      try {
+        const [formResp, rawResp] = await Promise.all([
+          getFormRequestById(Number(apprentice.request_id)),
+          getRequestAsignationById(Number(apprentice.request_id)),
+        ]);
+        setFetchedDetail(formResp.data || null);
+
+        // rawResp likely includes messages array
+        const raw = rawResp?.data || rawResp;
+        const messages = Array.isArray(raw?.messages) ? raw.messages : (raw?.messages || []);
+        const coord = messages.find((m: any) => String(m.whose_message || '').toUpperCase() === 'COORDINADOR');
+        if (coord) setCoordinatorMessage(coord.content || coord.message || '');
+      } catch (e) {
+        console.error('Error fetching request detail for modal:', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const validateAll = () => {
     const next: typeof errors = {};
-    if (!coordinatorMessage.trim()) next.coordinator = 'El mensaje del coordinador es obligatorio.';
     if (!startDate) next.dates = 'Fecha de inicio es obligatoria.';
     if (!endDate) next.dates = (next.dates ? next.dates + ' ' : '') + 'Fecha de fin es obligatoria.';
     if (startDate && endDate && endDate < startDate) next.dates = 'La fecha fin no puede ser anterior a la fecha inicio.';
@@ -53,20 +91,88 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
 
   const handleApprove = () => {
     if (!validateAll()) return;
-    if (onApprove) {
-      onApprove({ startDate, endDate, coordinatorMessage, valuationMessage });
-    }
-    // no automatic close unless parent wants to
+    // open confirmation modal for approve
+    setConfirmAction('approve');
+    setConfirmOpen(true);
   };
 
   const handleReject = () => {
     // require coordinator message and valuation for rejection as well
     const next: typeof errors = {};
-    if (!coordinatorMessage.trim()) next.coordinator = 'El mensaje del coordinador es obligatorio.';
     if (!valuationMessage.trim()) next.valuation = 'El mensaje de valoración es obligatorio.';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    if (onReject) onReject({ coordinatorMessage, valuationMessage });
+    // open the dedicated reject modal (collects rejection reason)
+    setShowRejectModal(true);
+  };
+
+  const performConfirmedAction = async () => {
+    if (!confirmAction || !apprentice.request_id) return;
+    setConfirmOpen(false);
+    setLoading(true);
+    try {
+      const payload = {
+        content: valuationMessage,
+        type_message: confirmAction === 'approve' ? 'APROBADO' : 'RECHAZADO',
+        whose_message: 'INSTRUCTOR',
+        fecha_inicio_contrato: startDate || undefined,
+        fecha_fin_contrato: endDate || undefined,
+        request_state: 'PRE-APROBADO',
+      } as any;
+
+      await postMessageRequest(Number(apprentice.request_id), payload);
+      setNotifType('success');
+      setNotifTitle(confirmAction === 'approve' ? 'Aprobación enviada' : 'Rechazo enviado');
+      setNotifMessage('La acción se envió correctamente.');
+      setNotifOpen(true);
+      if (confirmAction === 'approve' && onApprove) onApprove();
+      if (confirmAction === 'reject' && onReject) onReject();
+      onClose();
+    } catch (e: any) {
+      console.error('Error performing confirmed action:', e);
+      setNotifType('warning');
+      setNotifTitle('Error');
+      const msg = e?.message || 'Ocurrió un error al procesar la acción';
+      setNotifMessage(msg);
+      setNotifOpen(true);
+      // also set inline error for valuation field
+      setErrors((s) => ({ ...s, valuation: 'Error al enviar la solicitud. Intenta nuevamente.' }));
+    } finally {
+      setLoading(false);
+      setConfirmAction(null);
+    }
+  };
+
+  // Handler passed to ModalReject: receives rejectionMessage and performs API call
+  const handleRejectConfirm = async (rejectionMessage: string) => {
+    setShowRejectModal(false);
+    if (!apprentice.request_id) return;
+    setLoading(true);
+    try {
+      const payload = {
+        content: rejectionMessage,
+        type_message: 'RECHAZADO',
+        whose_message: 'INSTRUCTOR',
+        // no dates for rejection
+        request_state: 'PRE-APROBADO',
+      } as any;
+
+      await postMessageRequest(Number(apprentice.request_id), payload);
+      setNotifType('success');
+      setNotifTitle('Rechazo enviado');
+      setNotifMessage('La solicitud fue rechazada correctamente.');
+      setNotifOpen(true);
+      if (onReject) onReject();
+      onClose();
+    } catch (e: any) {
+      console.error('Error sending rejection:', e);
+      setNotifType('warning');
+      setNotifTitle('Error');
+      setNotifMessage(e?.message || 'Ocurrió un error al enviar el rechazo');
+      setNotifOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getFullName = () => {
@@ -75,6 +181,32 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <LoadingOverlay isOpen={loading} message="Enviando..." />
+      <NotificationModal
+        isOpen={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        type={notifType === 'success' ? 'success' : 'warning'}
+        title={notifTitle}
+        message={notifMessage}
+      />
+      <ConfirmModal
+        isOpen={confirmOpen}
+        title={confirmAction === 'approve' ? 'Confirmar aprobación' : 'Confirmar rechazo'}
+        message={confirmAction === 'approve' ? '¿Deseas aprobar la solicitud?' : '¿Deseas rechazar la solicitud?'}
+        confirmText={confirmAction === 'approve' ? 'Aprobar' : 'Rechazar'}
+        cancelText={'Cancelar'}
+        onConfirm={performConfirmedAction}
+        onCancel={() => setConfirmOpen(false)}
+        errorMessage={null}
+      />
+      {showRejectModal && (
+        <ModalReject
+          apprenticeName={apprentice.name}
+          requestId={Number(apprentice.request_id || 0)}
+          onClose={() => setShowRejectModal(false)}
+          onConfirm={(msg) => handleRejectConfirm(msg)}
+        />
+      )}
       <div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose} />
       <div className="bg-white rounded-[10px] shadow-lg max-w-3xl w-full mx-4 p-6 relative z-10" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="flex items-center gap-3 mb-4">
@@ -114,7 +246,7 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
             </div>
             <div>
               <div className="font-medium">Ficha</div>
-              <div className="text-neutral-500">{apprentice.file_number || '-'}</div>
+                <div className="text-neutral-500">{fetchedDetail?.numero_ficha || fetchedDetail?.ficha || apprentice.file_number || '-'}</div>
             </div>
             <div>
               <div className="font-medium">Fecha de solicitud</div>
@@ -122,7 +254,7 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
             </div>
             <div className="col-span-2 mt-2">
               <div className="font-medium">Programa</div>
-              <div className="text-neutral-500">{apprentice.program || '-'}</div>
+              <div className="text-neutral-500">{fetchedDetail?.program || apprentice.program || '-'}</div>
             </div>
             <div className="col-span-2 mt-2">
               <div className="font-medium">Modalidad etapa práctica</div>
@@ -131,17 +263,12 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
           </div>
         </div>
 
-        {/* Coordinator message */}
+        {/* Coordinator message (read-only, taken from request messages when available) */}
         <div className="mb-4">
           <label className="font-semibold">Mensaje del Coordinador</label>
-          <textarea
-            className="w-full mt-2 border rounded-lg p-3 text-sm"
-            rows={3}
-            value={coordinatorMessage}
-            onChange={(e) => setCoordinatorMessage(e.target.value)}
-            placeholder="Escribe el mensaje del coordinador (obligatorio)"
-          />
-          {errors.coordinator && <div className="text-sm text-red-600 mt-1">{errors.coordinator}</div>}
+          <div className="w-full mt-2 border rounded-lg p-3 text-sm bg-gray-50 text-neutral-700">
+            {loading ? 'Cargando...' : (coordinatorMessage ? coordinatorMessage : 'No hay mensaje del coordinador')}
+          </div>
         </div>
 
         {/* Dates */}

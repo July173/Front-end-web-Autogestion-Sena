@@ -182,6 +182,7 @@ export const ENDPOINTS = {
     postAssignInstructor : `${API_BASE_URL}assign/asignation_instructor/custom-create/`,
     getApprenticeDashboard : `${API_BASE_URL}assign/request_asignation/aprendiz-dashboard/`,
     filterRequest : `${API_BASE_URL}assign/request_asignation/form-request-filtered/`,
+    postMessageRequest : `${API_BASE_URL}assign/request_asignation/{id}/form-request-update/`,
   },
   modalityProductiveStage :{
     getModalityProductiveStage : `${API_BASE_URL}assign/modality_productive_stage/`,

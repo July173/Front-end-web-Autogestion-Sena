@@ -3,7 +3,7 @@ import InstructorAssignmentsTable from '@/components/ApplicationEvaluation/Instr
 import { getUserById } from '@/Api/Services/User';
 import FilterBar from '@/components/FilterBar';
 import ReloadButton from '@/components/ReloadButton';
-import AssignTableView from '@/components/assing/AssignTableView';
+// replaced AssignTableView with InstructorAssignmentsTable below
 import { getPrograms } from '@/Api/Services/Program';
 import { getModalityProductiveStages } from '@/Api/Services/ModalityProductiveStage';
 import { filterRequest } from '@/Api/Services/RequestAssignaton';
@@ -202,39 +202,9 @@ export const ApplicationEvaluation = () => {
         searchPlaceholder="Buscar por nombre, documento..."
       />
 
-      <AssignTableView
-        rows={rows}
-        loading={tableLoading}
-        error={tableError}
-        onAction={() => {}}
-        onRefresh={async () => {
-          // same as reload
-          setTableLoading(true);
-          setTableError(null);
-          try {
-            if (instructorId) {
-              const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
-              const result = await filterRequest(payload);
-              setRows(result.map(r => ({
-                ...r,
-                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-              })));
-            } else {
-              const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
-              const result = await getAllRequests();
-                setRows((result as AssignTableRow[]).map(r => ({
-                  ...r,
-                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-                })));
-            }
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            setTableError(message || 'Error al recargar asignaciones');
-          } finally {
-            setTableLoading(false);
-          }
-        }}
-        actionLabel="Asignar"
+      <InstructorAssignmentsTable
+        instructorId={instructorId ?? 0}
+        filterState="VERIFICANDO"
       />
     </div>
   );

@@ -377,3 +377,42 @@ export const getApprenticeDashboard = async (apprenticeId: number): Promise<{ da
     throw error;
   }
 };
+
+/**
+ * Posts a message (approval/rejection) for a request.
+ * Endpoint: POST /assign/request_asignation/{id}/form-request-update/
+ * @param requestId - Request ID
+ * @param payload - Message payload according to API contract
+ */
+export const postMessageRequest = async (
+  requestId: number,
+  payload: {
+    content: string;
+    type_message: string;
+    whose_message: string;
+    fecha_inicio_contrato?: string;
+    fecha_fin_contrato?: string;
+    request_state?: string;
+  }
+): Promise<any> => {
+  try {
+    const url = ENDPOINTS.requestAsignation.postMessageRequest.replace('{id}', String(requestId));
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al enviar el mensaje de la solicitud');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en postMessageRequest:', error);
+    throw error;
+  }
+};

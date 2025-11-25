@@ -3,6 +3,7 @@ import useInstructorAssignments from '@/hook/useInstructorAssignments';
 import { getFormRequestById } from '@/Api/Services/RequestAssignaton';
 import Paginator from '@/components/Paginator';
 import PdfView from '@/components/assing/PdfView';
+import AssignReviewModal from './AssignReviewModal';
 import { InstructorAssignment } from '@/Api/types/Modules/assign.types';
 
 type AssignmentRow = InstructorAssignment;
@@ -26,6 +27,8 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
   const [detail, setDetail] = useState<any | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [page, setPage] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalApprentice, setModalApprentice] = useState<any | null>(null);
 
   const rowsPerPage = 10;
 
@@ -43,6 +46,8 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
       numero_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
       fecha_solicitud: it.fecha_solicitud || it.request_date || '',
       estado_solicitud: it.estado_solicitud || it.request_state || it.estado_solicitud || '',
+      // messages array returned by the instructor assignments endpoint
+      messages: Array.isArray(it.messages) ? it.messages : (it.messages || it.raw?.messages || []),
       raw: it,
     }));
 
@@ -75,7 +80,8 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
   };
 
   return (
-    <div className="w-full rounded-[10px] border border-stone-300/70 bg-white overflow-x-auto">
+    <>
+      <div className="w-full rounded-[10px] border border-stone-300/70 bg-white overflow-x-auto">
       <div className="min-w-full">
         <div className="bg-gray-100 flex items-center h-12 border-b border-gray-200">
           <div className="flex-1 px-2 text-center text-stone-500 text-sm max-w-[40px]">#</div>
@@ -123,7 +129,42 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
                       <div className="flex-[2] px-2 text-center text-sm text-black">{row.fecha_solicitud}</div>
                       <div className="flex-1 px-2 text-center text-sm text-black">{row.estado_solicitud === 'ASIGNADO' ? 'Asignado' : (row.estado_solicitud === 'VERIFICANDO' ? 'Verificando' : row.estado_solicitud)}</div>
                       <div className="flex-1 px-2 text-center flex justify-center items-center" onClick={(e) => e.stopPropagation()}>
-                        {renderAction ? renderAction(row) : null}
+                        {renderAction ? renderAction(row) : (() => {
+                          const messages = row.messages || row.raw?.messages || [];
+                          const instrMsg = messages.find((m: any) => String(m.whose_message || '').toUpperCase() === 'INSTRUCTOR');
+                          if (!instrMsg) {
+                            return (
+                              <button
+                                className="bg-yellow-100 border border-yellow-300 text-yellow-800 px-2 py-1 rounded-full font-medium hover:bg-yellow-200 hover:shadow-md transition-colors"
+                                onClick={() => {
+                                  // prepare apprentice payload for modal
+                                  const apprentice = {
+                                    name: row.name || '',
+                                    type_identification: row.tipo_identificacion || '',
+                                    number_identification: row.numero_identificacion || '',
+                                    file_number: row.ficha || row.raw?.ficha || '',
+                                    date_start_production_stage: row.raw?.date_start_production_stage || null,
+                                    program: row.raw?.program || null,
+                                    request_date: row.fecha_solicitud || null,
+                                    request_id: row.request_asignation || row.id,
+                                    modality_productive_stage: row.modalidad || row.raw?.modalidad || row.raw?.nombre_modalidad || null,
+                                  };
+                                  setModalApprentice(apprentice);
+                                  setIsModalOpen(true);
+                                }}
+                              >
+                                Sin Valorar
+                              </button>
+                            );
+                          }
+                          const type = String(instrMsg.type_message || '').toUpperCase();
+                          const colorClass = type.includes('APROBADO') ? 'bg-green-100 border border-green-300 text-green-800' : (type.includes('RECHAZADO') ? 'bg-red-100 border border-red-300 text-red-800' : 'bg-gray-100 border border-gray-200 text-gray-800');
+                          return (
+                            <span className={`px-3 py-1 rounded-full font-medium ${colorClass} hover:shadow-sm transition-all`}>
+                              {instrMsg.type_message || type}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -296,7 +337,22 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
           })()
         )}
       </div>
-    </div>
+      </div>
+      {/* Modal for valuation */}
+      <AssignReviewModal
+        apprentice={modalApprentice || { name: '', type_identification: 0, number_identification: '', file_number: '' }}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onApprove={() => {
+          setIsModalOpen(false);
+          refresh();
+        }}
+        onReject={() => {
+          setIsModalOpen(false);
+          refresh();
+        }}
+      />
+    </>
   );
 };
 

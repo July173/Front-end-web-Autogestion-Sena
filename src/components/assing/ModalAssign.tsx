@@ -87,6 +87,7 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
     const MAX_MESSAGE_LENGTH = 500;
     const [modalityStage, setModalityStage] = useState<string | null>(null);
     const [modalities, setModalities] = useState<ModalityProductiveStage[]>([]);
+    const [currentRequestState, setCurrentRequestState] = useState<string | null>(null);
 
 
     /**
@@ -104,15 +105,26 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
         }
         setAssigning(true);
         setShowConfirmModal(false);
-        try {
-            // Decide type_message and request_state based on modality
+            try {
+            // Decide type_message and request_state based on current request state (prefer),
+            // otherwise fallback to modality-based rule.
             const modality = (modalityStage || apprentice.modality_productive_stage || '').trim();
-            // Always send 'VERIFICACION' as type_message per backend requirement
             let type_message = 'VERIFICACION';
             let request_state_val = 'VERIFICANDO';
-            if (modality === 'Contrato de aprendizaje') {
-                // For contract modality, the backend expects the request to be already assigned
+
+            const st = currentRequestState ? String(currentRequestState).toUpperCase() : null;
+            if (st === 'ASIGNADO') {
+                type_message = 'ASIGNADO';
                 request_state_val = 'ASIGNADO';
+            } else if (st === 'VERIFICANDO' || st === 'VERIFICACION' || st === 'EN_REVISION' || st === 'PRE-APROBADO' || st === 'PRE_APROBADO') {
+                type_message = 'VERIFICACION';
+                request_state_val = 'VERIFICANDO';
+            } else {
+                // fallback to modality-based rule
+                if (modality === 'Contrato de aprendizaje') {
+                    type_message = 'ASIGNADO';
+                    request_state_val = 'ASIGNADO';
+                }
             }
 
             // Call assign service and capture response (if any)
@@ -296,6 +308,10 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                     const payload = (resp && (resp.data || resp)) || {};
                     const id = payload.id ?? payload.request_asignation ?? payload.request_asignation_id ?? null;
                     if (id) setRequestAsignationId(id);
+
+                    // Guardar el estado actual de la solicitud si viene desde el backend
+                    const rawState = payload.request_state ?? payload.state ?? null;
+                    if (rawState) setCurrentRequestState(String(rawState));
 
                     const rawModality = payload.modality_productive_stage ?? payload.modality ?? null;
                     if (rawModality != null) {
