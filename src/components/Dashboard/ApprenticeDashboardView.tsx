@@ -3,52 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import useApprenticeDashboard, { DashboardData } from '@/hook/useApprenticeDashboard';
 
 
-/**
- * Props for AprprendiceDashboardView component.
- * @typedef {Object} ApprenticeDashboardProps
- * @property {string} [name] - Apprentice's name
- * @property {number} [apprenticeId] - Apprentice ID
- */
 interface AprendizDashboardProps {
   name?: string;
   apprenticeId?: number;
-}
-
-
-/**
- * Dashboard data structure for apprentice dashboard.
- * @typedef {Object} DashboardData
- * @property {boolean} has_request - Whether the apprentice has a request
- * @property {Object|null} request - Request details
- * @property {Object|null} instructor - Instructor details
- * @property {string|null} request_state - State of the request
- */
-interface DashboardData {
-  has_request: boolean;
-  request: {
-    id: number;
-    enterprise_name: string | null;
-    location?: string | null;
-    boss_name: string | null;
-    modality: string | null;
-    start_date: string;
-    end_date: string;
-    request_date: string;
-    request_state: string;
-    pdf_url: string | null;
-  } | null;
-  instructor: {
-    id: number;
-    first_name: string;
-    second_name: string | null;
-    first_last_name: string;
-    second_last_name: string | null;
-    email: string | null;
-    phone: string;
-    knowledge_area: string | null;
-    assigned_at: string;
-  } | null;
-  request_state: string | null;
 }
 
 /**
@@ -221,9 +178,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
     );
   };
 
-  // Determine whether instructor info should be shown.
-  // Hide instructor when the request has been explicitly rejected.
-  const showInstructor = !!dashboardData && dashboardData.request_state !== 'RECHAZADO' && !!dashboardData.instructor;
+  // Note: `showInstructor` is returned by the hook; use the destructured value above.
 
   if (loading) {
     return (
@@ -289,9 +244,19 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
         <div className="flex flex-col gap-5 w-[486px]">
           {/* Your assigned instructor */}
           <div className="bg-white rounded-lg w-full p-6 flex flex-col items-center" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.04)' }}>
+            {/** Header title: cambiar a 'Instructor de revisión' cuando el estado sea VERIFICANDO o PRE-APROBADO */}
             <div className="bg-green-600 rounded-t-md w-full py-4 mb-4 flex items-center justify-center text-white">
-              <p className="text-lg font-bold">Tu Instructor asignado</p>
-            </div>
+                <p className="text-lg font-bold">
+                  {(() => {
+                    const rawState = dashboardData?.request?.request_state;
+                    const reviewStates = ['VERIFICANDO', 'PRE-APROBADO', 'PRE_APROBADO'];
+                    if (rawState && reviewStates.includes(String(rawState).toUpperCase())) {
+                      return 'Tu Instructor de revisión';
+                    }
+                    return 'Tu Instructor asignado';
+                  })()}
+                </p>
+              </div>
             
             {!showInstructor ? (
               <div className="flex flex-col items-center gap-2">
@@ -370,24 +335,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
                     <p className="font-semibold">{dashboardData.request?.location || "No especificada"}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
-                  </svg>
-                  <div>
-                    <p className="text-sm text-gray-600">Jefe Inmediato</p>
-                    <p className="font-semibold">{dashboardData.request?.boss_name || "No asignado"}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
-                  </svg>
-                  <div>
-                    <p className="text-sm text-gray-600">Fecha inicio</p>
-                    <p className="font-semibold">{dashboardData.request?.start_date ? formatDate(dashboardData.request.start_date) : "No especificada"}</p>
-                  </div>
-                </div>
+                
                 <div className="flex items-start gap-3">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>

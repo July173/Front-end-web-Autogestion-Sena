@@ -126,9 +126,12 @@ export default function useApprenticeDashboard(initialApprenticeId?: number) {
         if (enterpriseId) {
           const ent = await getEnterpriseById(Number(enterpriseId));
           if (ent) {
-            final.request!.enterprise_name = ent.name || ent.empresa_nombre || ent.enterprise_name || String(ent.id);
-            final.request!.location = ent.municipio || ent.ubicacion || ent.location || ent.address || ent.direccion || ent.city || null;
-          }
+              // Prefer common variants returned by different backends.
+              final.request!.enterprise_name =
+                ent.name || ent.empresa_nombre || ent.enterprise_name || ent.name_enterprise || String(ent.id);
+              final.request!.location =
+                ent.municipio || ent.ubicacion || ent.location || ent.address || ent.direccion || ent.city || ent.locate || null;
+            }
         }
 
         const modalityCandidate = raw.modality_productive_stage ?? raw.modality ?? mappedRequest.modality ?? null;
