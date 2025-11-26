@@ -29,6 +29,8 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
   const [page, setPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalApprentice, setModalApprentice] = useState<any | null>(null);
+  const [modalInitialDetail, setModalInitialDetail] = useState<any | null>(null);
+  const [modalInitialMessages, setModalInitialMessages] = useState<any[]>([]);
 
   const rowsPerPage = 10;
 
@@ -135,7 +137,7 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
                           if (!instrMsg) {
                             return (
                               <button
-                                className="bg-yellow-100 border border-yellow-300 text-yellow-800 px-2 py-1 rounded-full font-medium hover:bg-yellow-200 hover:shadow-md transition-colors"
+                                className="bg-yellow-100 border border-yellow-300 text-yellow-800 px-3 py-1 rounded-full font-medium hover:bg-yellow-200 hover:shadow-md transition-colors whitespace-nowrap text-xs sm:text-sm inline-flex items-center justify-center"
                                 onClick={() => {
                                   // prepare apprentice payload for modal
                                   const apprentice = {
@@ -150,17 +152,20 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
                                     modality_productive_stage: row.modalidad || row.raw?.modalidad || row.raw?.nombre_modalidad || null,
                                   };
                                   setModalApprentice(apprentice);
+                                  // pass any already-fetched detail/messages to the modal hook to avoid duplicate calls
+                                  setModalInitialDetail(detail ?? null);
+                                  setModalInitialMessages(Array.isArray(row.messages) ? row.messages : (row.raw?.messages || []));
                                   setIsModalOpen(true);
                                 }}
                               >
-                                Sin Valorar
+                                 Sin Valorar
                               </button>
                             );
                           }
                           const type = String(instrMsg.type_message || '').toUpperCase();
                           const colorClass = type.includes('APROBADO') ? 'bg-green-100 border border-green-300 text-green-800' : (type.includes('RECHAZADO') ? 'bg-red-100 border border-red-300 text-red-800' : 'bg-gray-100 border border-gray-200 text-gray-800');
                           return (
-                            <span className={`px-3 py-1 rounded-full font-medium ${colorClass} hover:shadow-sm transition-all`}>
+                            <span className={`${colorClass} px-3 py-1 rounded-full font-medium hover:shadow-sm transition-all whitespace-nowrap text-xs sm:text-sm inline-flex items-center justify-center`}>
                               {instrMsg.type_message || type}
                             </span>
                           );
@@ -341,14 +346,22 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
       {/* Modal for valuation */}
       <AssignReviewModal
         apprentice={modalApprentice || { name: '', type_identification: 0, number_identification: '', file_number: '' }}
+        initialDetail={modalInitialDetail ?? undefined}
+        initialMessages={modalInitialMessages.length ? modalInitialMessages : undefined}
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => { setIsModalOpen(false); setModalApprentice(null); setModalInitialDetail(null); setModalInitialMessages([]); }}
         onApprove={() => {
           setIsModalOpen(false);
+          setModalApprentice(null);
+          setModalInitialDetail(null);
+          setModalInitialMessages([]);
           refresh();
         }}
         onReject={() => {
           setIsModalOpen(false);
+          setModalApprentice(null);
+          setModalInitialDetail(null);
+          setModalInitialMessages([]);
           refresh();
         }}
       />

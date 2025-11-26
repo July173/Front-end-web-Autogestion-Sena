@@ -6,7 +6,7 @@ import { filterRequest } from "@/Api/Services/RequestAssignaton";
 import { getPrograms } from "@/Api/Services/Program";
 import { getModalityProductiveStages } from '@/Api/Services/ModalityProductiveStage';
 import { AssignTableRow } from '@/Api/types/Modules/assign.types';
-import ModalReasignarInstructor from '@/components/ModalReasignarInstructor';
+import ModalReasignarInstructor from '@/components/Reassign/ModalReasignarInstructor';
 import { reassignInstructor } from '@/Api/Services/AssignationInstructor';
 
 const Reassign: React.FC = () => {

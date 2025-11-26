@@ -5,7 +5,7 @@ import React from "react";
  * Defines the optional callback for canceling the modal.
  */
 import { useEffect, useState } from 'react';
-import ConfirmModal from './ConfirmModal';
+import ConfirmModal from '../ConfirmModal';
 import useFilteredInstructors from '@/hook/useFilteredInstructors';
 import { InstructorCustomList } from '@/Api/types/entities/instructor.types';
 import { AssignTableRow, ReassignInstructorPayload } from '@/Api/types/Modules/assign.types';

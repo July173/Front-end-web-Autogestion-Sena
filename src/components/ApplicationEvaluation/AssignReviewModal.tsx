@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getFormRequestById, getRequestAsignationById, postMessageRequest } from '@/Api/Services/RequestAssignaton';
+import useAssignReviewModal from '@/hook/useAssignReviewModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import NotificationModal from '@/components/NotificationModal';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -25,16 +25,23 @@ interface AssignReviewModalProps {
   // callbacks invoked after a successful API call (no payload required)
   onApprove?: () => void;
   onReject?: () => void;
+  // Optional initial data to avoid refetching when the parent already has details/messages
+  initialDetail?: any;
+  initialMessages?: any[];
 }
 
-export default function AssignReviewModal({ apprentice, isOpen, onClose, onApprove, onReject }: AssignReviewModalProps) {
-  const [coordinatorMessage, setCoordinatorMessage] = useState('');
+export default function AssignReviewModal({ apprentice, isOpen, onClose, onApprove, onReject, initialDetail, initialMessages }: AssignReviewModalProps) {
+  // coordinatorMessage comes from the hook; no local setter needed
   const [valuationMessage, setValuationMessage] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [errors, setErrors] = useState<{ coordinator?: string; dates?: string; valuation?: string }>({});
-  const [loading, setLoading] = useState(false);
-  const [fetchedDetail, setFetchedDetail] = useState<any | null>(null);
+  const { loading, fetchedDetail, coordinatorMessage, performAction, fetchDetails } = useAssignReviewModal(
+    apprentice.request_id,
+    isOpen,
+    initialDetail,
+    initialMessages
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -46,35 +53,13 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
   useEffect(() => {
     if (!isOpen) return;
     // reset on open
-    setCoordinatorMessage('');
     setValuationMessage('');
     setStartDate('');
     setEndDate('');
     setErrors({});
-    setFetchedDetail(null);
 
-    // fetch request detail and raw assignation to extract coordinator message
-    (async () => {
-      if (!apprentice.request_id) return;
-      setLoading(true);
-      try {
-        const [formResp, rawResp] = await Promise.all([
-          getFormRequestById(Number(apprentice.request_id)),
-          getRequestAsignationById(Number(apprentice.request_id)),
-        ]);
-        setFetchedDetail(formResp.data || null);
-
-        // rawResp likely includes messages array
-        const raw = rawResp?.data || rawResp;
-        const messages = Array.isArray(raw?.messages) ? raw.messages : (raw?.messages || []);
-        const coord = messages.find((m: any) => String(m.whose_message || '').toUpperCase() === 'COORDINADOR');
-        if (coord) setCoordinatorMessage(coord.content || coord.message || '');
-      } catch (e) {
-        console.error('Error fetching request detail for modal:', e);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    // hook already fetches when isOpen/requestId change; fetchDetails is exposed for manual refresh if needed
+    fetchDetails();
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -97,48 +82,38 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
   };
 
   const handleReject = () => {
-    // require coordinator message and valuation for rejection as well
-    const next: typeof errors = {};
-    if (!valuationMessage.trim()) next.valuation = 'El mensaje de valoración es obligatorio.';
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
-    // open the dedicated reject modal (collects rejection reason)
+    // For rejection we open a dedicated modal to collect the rejection reason.
+    // Do NOT require the 'Mensaje de valoración' here — that field is only required when approving.
+    setErrors((prev) => {
+      const next = { ...prev } as typeof errors;
+      if ('valuation' in next) delete next.valuation;
+      return next;
+    });
     setShowRejectModal(true);
   };
 
   const performConfirmedAction = async () => {
     if (!confirmAction || !apprentice.request_id) return;
     setConfirmOpen(false);
-    setLoading(true);
     try {
-      const payload = {
-        content: valuationMessage,
-        type_message: confirmAction === 'approve' ? 'APROBADO' : 'RECHAZADO',
-        whose_message: 'INSTRUCTOR',
-        fecha_inicio_contrato: startDate || undefined,
-        fecha_fin_contrato: endDate || undefined,
-        request_state: 'PRE-APROBADO',
-      } as any;
-
-      await postMessageRequest(Number(apprentice.request_id), payload);
-      setNotifType('success');
-      setNotifTitle(confirmAction === 'approve' ? 'Aprobación enviada' : 'Rechazo enviado');
-      setNotifMessage('La acción se envió correctamente.');
-      setNotifOpen(true);
-      if (confirmAction === 'approve' && onApprove) onApprove();
-      if (confirmAction === 'reject' && onReject) onReject();
-      onClose();
-    } catch (e: any) {
-      console.error('Error performing confirmed action:', e);
-      setNotifType('warning');
-      setNotifTitle('Error');
-      const msg = e?.message || 'Ocurrió un error al procesar la acción';
-      setNotifMessage(msg);
-      setNotifOpen(true);
-      // also set inline error for valuation field
-      setErrors((s) => ({ ...s, valuation: 'Error al enviar la solicitud. Intenta nuevamente.' }));
+      const type = confirmAction === 'approve' ? 'APROBADO' : 'RECHAZADO';
+      const result = await performAction({ type, content: valuationMessage, fecha_inicio_contrato: startDate || undefined, fecha_fin_contrato: endDate || undefined });
+      if (result.success) {
+        setNotifType('success');
+        setNotifTitle(confirmAction === 'approve' ? 'Aprobación enviada' : 'Rechazo enviado');
+        setNotifMessage('La acción se envió correctamente.');
+        setNotifOpen(true);
+        if (confirmAction === 'approve' && onApprove) onApprove();
+        if (confirmAction === 'reject' && onReject) onReject();
+        onClose();
+      } else {
+        setNotifType('warning');
+        setNotifTitle('Error');
+        setNotifMessage(result.error || 'Ocurrió un error al procesar la acción');
+        setNotifOpen(true);
+        setErrors((s) => ({ ...s, valuation: 'Error al enviar la solicitud. Intenta nuevamente.' }));
+      }
     } finally {
-      setLoading(false);
       setConfirmAction(null);
     }
   };
@@ -147,36 +122,38 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
   const handleRejectConfirm = async (rejectionMessage: string) => {
     setShowRejectModal(false);
     if (!apprentice.request_id) return;
-    setLoading(true);
     try {
-      const payload = {
-        content: rejectionMessage,
-        type_message: 'RECHAZADO',
-        whose_message: 'INSTRUCTOR',
-        // no dates for rejection
-        request_state: 'PRE-APROBADO',
-      } as any;
-
-      await postMessageRequest(Number(apprentice.request_id), payload);
-      setNotifType('success');
-      setNotifTitle('Rechazo enviado');
-      setNotifMessage('La solicitud fue rechazada correctamente.');
-      setNotifOpen(true);
-      if (onReject) onReject();
-      onClose();
-    } catch (e: any) {
-      console.error('Error sending rejection:', e);
-      setNotifType('warning');
-      setNotifTitle('Error');
-      setNotifMessage(e?.message || 'Ocurrió un error al enviar el rechazo');
-      setNotifOpen(true);
+      const result = await performAction({ type: 'RECHAZADO', content: rejectionMessage });
+      if (result.success) {
+        setNotifType('success');
+        setNotifTitle('Rechazo enviado');
+        setNotifMessage('La solicitud fue rechazada correctamente.');
+        setNotifOpen(true);
+        if (onReject) onReject();
+        onClose();
+      } else {
+        setNotifType('warning');
+        setNotifTitle('Error');
+        setNotifMessage(result.error || 'Ocurrió un error al enviar el rechazo');
+        setNotifOpen(true);
+      }
     } finally {
-      setLoading(false);
+      /* noop */
     }
   };
 
   const getFullName = () => {
     return apprentice.name || 'Sin nombre';
+  };
+
+  const formatDate = (d?: string) => {
+    if (!d) return '-';
+    try {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch {
+      return d;
+    }
   };
 
   return (
@@ -205,6 +182,12 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
           requestId={Number(apprentice.request_id || 0)}
           onClose={() => setShowRejectModal(false)}
           onConfirm={(msg) => handleRejectConfirm(msg)}
+          title="Rechazo en valoración"
+          description={`Dará un rechazo al hacer la valoración de seguimiento para ${apprentice.name}. Esta acción no se puede deshacer.`}
+          reasonLabel="Motivo del rechazo (obligatorio)"
+          reasonPlaceholder="Describe el motivo del rechazo"
+          confirmText="Rechazar solicitud"
+          cancelText="Cancelar"
         />
       )}
       <div className="absolute inset-0 bg-black bg-opacity-40" onClick={onClose} />
@@ -222,43 +205,74 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
         </div>
 
         {/* Apprentice info card */}
-        <div className="border rounded-lg p-4 mb-4 bg-white">
+        <div className="border rounded-lg p-6 mb-4 bg-white">
           <div className="flex items-center gap-4">
-            <div className="bg-green-100 rounded-full w-12 h-12 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#22c55e" viewBox="0 0 16 16">
+            <div className="bg-green-100 rounded-full w-14 h-14 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#22c55e" viewBox="0 0 16 16">
                 <path d="M8 0a5 5 0 100 10A5 5 0 008 0zM2 14s1-1 6-1 6 1 6 1v1H2v-1z" />
               </svg>
             </div>
             <div className="flex-1">
-              <div className="text-xl font-semibold">{getFullName()}</div>
+              <div className="text-2xl font-bold">{getFullName()}</div>
               <div className="text-sm text-neutral-500 mt-1">Información del aprendiz</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-4 text-sm text-neutral-600">
-            <div>
-              <div className="font-medium">Identificación</div>
-              <div className="text-neutral-500">{apprentice.number_identification || '-'}</div>
+          <div className="grid grid-cols-2 gap-4 mt-6 text-sm text-neutral-600">
+            <div className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3z"/>
+                <path d="M8 8a3 3 0 100-6 3 3 0 000 6z"/>
+              </svg>
+              <div>
+                <div className="font-medium">Identificación</div>
+                <div className="text-neutral-500">{apprentice.number_identification || '-'}</div>
+              </div>
             </div>
-            <div>
-              <div className="font-medium">Tipo</div>
-              <div className="text-neutral-500">{apprentice.type_identification ?? '-'}</div>
+
+            <div className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 0a2 2 0 100 4 2 2 0 000-4zM2 6a6 6 0 1112 0v2H2V6z"/>
+              </svg>
+                <div>
+                <div className="font-medium">Tipo</div>
+                <div className="text-neutral-500">{fetchedDetail?.tipo_identificacion_nombre ?? apprentice.type_identification ?? '-'}</div>
+              </div>
             </div>
-            <div>
-              <div className="font-medium">Ficha</div>
+
+            <div className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M6 2v2H2v9a1 1 0 001 1h10a1 1 0 001-1V4H10V2H6z"/>
+              </svg>
+              <div>
+                <div className="font-medium">Ficha</div>
                 <div className="text-neutral-500">{fetchedDetail?.numero_ficha || fetchedDetail?.ficha || apprentice.file_number || '-'}</div>
+              </div>
             </div>
-            <div>
-              <div className="font-medium">Fecha de solicitud</div>
-              <div className="text-neutral-500">{apprentice.request_date || '-'}</div>
+
+            <div className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5z"/>
+              </svg>
+              <div>
+                <div className="font-medium">Fecha de solicitud</div>
+                <div className="text-neutral-500">{formatDate(apprentice.request_date) || '-'}</div>
+              </div>
             </div>
+
             <div className="col-span-2 mt-2">
+              <hr className="my-3" />
+            </div>
+
+
+            <div className="col-span-2 mt-4 text-center">
               <div className="font-medium">Programa</div>
               <div className="text-neutral-500">{fetchedDetail?.program || apprentice.program || '-'}</div>
             </div>
-            <div className="col-span-2 mt-2">
+
+            <div className="col-span-2 mt-2 text-center">
               <div className="font-medium">Modalidad etapa práctica</div>
-              <div className="text-neutral-500">{apprentice.modality_productive_stage || '-'}</div>
+              <div className="text-neutral-500">{fetchedDetail?.modalidad_nombre || apprentice.modality_productive_stage || '-'}</div>
             </div>
           </div>
         </div>

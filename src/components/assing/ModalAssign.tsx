@@ -89,6 +89,9 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
     const [modalities, setModalities] = useState<ModalityProductiveStage[]>([]);
     const [currentRequestState, setCurrentRequestState] = useState<string | null>(null);
 
+    // assign-only modal: no external assignedInstructor/initialMessages
+
+
 
     /**
      * Confirms the assignment of the selected instructor to the apprentice's request.
@@ -128,7 +131,9 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
             }
 
             // Call assign service and capture response (if any)
-            const resp = await assignInstructorToRequest(selectedInstructor.id, requestAsignationId, {
+            let resp;
+            // assign flow: always call assignInstructorToRequest
+            resp = await assignInstructorToRequest(selectedInstructor.id, requestAsignationId, {
                 content: message,
                 type_message,
                 request_state: request_state_val,
@@ -600,6 +605,8 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                     onConfirm={handleConfirmReject}
                 />
             )}
+
+            
             {/* Result modal after assignment (success or error): when accepted, close modals and refresh parent */}
             {showResultModal && (
                 <NotificationModal

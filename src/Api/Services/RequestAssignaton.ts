@@ -416,3 +416,41 @@ export const postMessageRequest = async (
     throw error;
   }
 };
+
+  /**
+   * Patch (update) a message/fields for a request.
+   * Some backend flows expect a PATCH to the same `form-request-update` route instead of POST.
+   * Endpoint: PATCH /assign/request_asignation/{id}/form-request-update/
+   */
+  export const patchMessageRequest = async (
+    requestId: number,
+    payload: {
+      content?: string;
+      type_message?: string;
+      whose_message?: string;
+      fecha_inicio_contrato?: string;
+      fecha_fin_contrato?: string;
+      request_state?: string;
+    }
+  ): Promise<any> => {
+    try {
+      const url = ENDPOINTS.requestAsignation.postMessageRequest.replace('{id}', String(requestId));
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al actualizar el mensaje de la solicitud');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error en patchMessageRequest:', error);
+      throw error;
+    }
+  };

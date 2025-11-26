@@ -17,6 +17,13 @@ interface ModalRejectProps {
   onClose: () => void;
   // onConfirm can be sync or async; return a Promise if async
   onConfirm: (rejectionMessage: string) => void | Promise<void>;
+  // Optional customization props
+  title?: string;
+  description?: string; // paragraph under the title; may include the apprenticeName placeholder
+  reasonLabel?: string; // label for the textarea
+  reasonPlaceholder?: string;
+  confirmText?: string;
+  cancelText?: string;
 }
 
 /**
@@ -24,7 +31,18 @@ interface ModalRejectProps {
  * Allows entering a rejection reason and confirms the action.
  * @param {ModalRejectProps} props
  */
-const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, onClose, onConfirm }) => {
+const ModalReject: React.FC<ModalRejectProps> = ({
+  apprenticeName,
+  requestId,
+  onClose,
+  onConfirm,
+  title = '¿Rechazar Solicitud?',
+  description = `Esta acción rechazará la solicitud de seguimiento para ${apprenticeName}. Esta acción no se puede deshacer.`,
+  reasonLabel = 'Motivo del rechazo (obligatorio)',
+  reasonPlaceholder = 'Describe el motivo del rechazo',
+  confirmText = 'Rechazar solicitud',
+  cancelText = 'Cancelar',
+}) => {
   const [rejectionMessage, setRejectionMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   // track mounted state to avoid setting state after unmount
@@ -80,10 +98,10 @@ const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, on
           </div>
           <div className="flex-1">
             <h3 className="text-black text-2xl font-bold font-['Roboto'] mb-1 text-left">
-              ¿Rechazar Solicitud?
+              {title}
             </h3>
             <p className="text-gray-600 text-base font-normal font-['Roboto'] text-left">
-              Esta acción rechazará la solicitud de seguimiento para <span className="font-semibold">{apprenticeName}</span>. Esta acción no se puede deshacer.
+              {description}
             </p>
           </div>
         </div>
@@ -91,12 +109,16 @@ const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, on
   {/* Text field for rejection reason */}
         <div className="mb-6">
           <label className="text-black text-base font-semibold font-['Roboto'] mb-2 block text-left">
-            Motivo del rechazo <span className="text-red-500">(obligatorio)</span>
+            {reasonLabel.includes('(obligatorio)') ? (
+              <>{reasonLabel.split('(obligatorio)')[0].trim()} <span className="text-red-500">(obligatorio)</span></>
+            ) : (
+              reasonLabel
+            )}
           </label>
           <textarea
             className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base font-normal font-['Roboto'] resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
             rows={4}
-            placeholder="Describe el motivo del rechazo"
+            placeholder={reasonPlaceholder}
             value={rejectionMessage}
             onChange={(e) => setRejectionMessage(e.target.value)}
             disabled={isSubmitting}
@@ -110,7 +132,7 @@ const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, on
             onClick={onClose}
             disabled={isSubmitting}
           >
-            Cancelar
+            {cancelText}
           </button>
           <button
             className="px-6 py-2 rounded-[10px] bg-red-500 text-white font-bold hover:bg-red-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -121,7 +143,7 @@ const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, on
               <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
               <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
             </svg>
-            {isSubmitting ? 'Rechazando...' : 'Rechazar solicitud'}
+            {isSubmitting ? 'Rechazando...' : confirmText}
           </button>
         </div>
       </div>
@@ -129,10 +151,10 @@ const ModalReject: React.FC<ModalRejectProps> = ({ apprenticeName, requestId, on
       {showConfirm && (
         <ConfirmModal
           isOpen={showConfirm}
-          title="Confirmar rechazo"
+          title={title.includes('Rechazar') ? `Confirmar rechazo` : `Confirmar`}
           message={`¿Estás seguro de que deseas rechazar la solicitud? Esta acción no se puede deshacer.`}
-          confirmText="Sí, rechazar"
-          cancelText="Cancelar"
+          confirmText={confirmText}
+          cancelText={cancelText}
           onConfirm={handleSubmit}
           onCancel={() => setShowConfirm(false)}
           zIndex={1000}
