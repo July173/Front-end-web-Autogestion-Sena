@@ -4,7 +4,9 @@ import Paginator from "../../Paginator";
 import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
-import { getAllSupportSchedules, createSupportSchedule, updateSupportSchedule, softDeleteSupportSchedule } from "../../../Api/Services/SupportSchedule";
+import FilterBar from "../../FilterBar";
+import { getAllSupportSchedules, createSupportSchedule, updateSupportSchedule, softDeleteSupportSchedule, filterSupportSchedules } from "../../../Api/Services/SupportSchedule";
+import parseErrorMessage from '../../../utils/parseError';
 import { SupportSchedule } from "../../../Api/types/entities/support.types";
 
 const cardsPerPage = 9;
@@ -59,16 +61,19 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
   const [showAddModal, setShowAddModal] = useState(false);
   const [pendingData, setPendingData] = useState<SupportScheduleForm | null>(null);
   const [showAddConfirm, setShowAddConfirm] = useState(false);
+  const [addConfirmError, setAddConfirmError] = useState<string | null>(null);
 
   // Modal states for editing existing schedule
   const [editData, setEditData] = useState<SupportScheduleForm | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [pendingEditData, setPendingEditData] = useState<SupportScheduleForm | null>(null);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [editConfirmError, setEditConfirmError] = useState<string | null>(null);
 
   // Modal states for disable/enable confirmation
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<SupportScheduleForm | null>(null);
+  const [disableConfirmError, setDisableConfirmError] = useState<string | null>(null);
 
   // Notification modal states
   const [notifOpen, setNotifOpen] = useState(false);
@@ -91,10 +96,46 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
     setLoading(false);
   };
 
+  // Filter UI state (server-side)
+  const [displayedSchedules, setDisplayedSchedules] = useState<SupportScheduleForm[]>([]);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+
   React.useEffect(() => {
     // Initial data loading: fetch all support schedules
-    refresh();
+    (async () => {
+      await refresh();
+    })();
   }, []);
+
+  React.useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedSchedules(schedules || []);
+    }
+  }, [schedules, filtering, search, activeFilter]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedSchedules(schedules || []);
+        setPage(1);
+        return;
+      }
+      const data = await filterSupportSchedules({ search: s, active: a });
+      setDisplayedSchedules(data || []);
+      setPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   /**
    * InfoCard component: Displays individual support schedule information
@@ -160,10 +201,13 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
       setShowAddModal(false);
       setShowAddConfirm(false);
       setPendingData(null);
+      setAddConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Horario registrado correctamente.'); setNotifOpen(true);
     } catch (e: unknown) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear horario'); setNotifOpen(true);
+      const msg = parseErrorMessage(e);
+      setAddConfirmError(msg || 'Error al crear horario');
+      setShowAddConfirm(true);
     }
   };
 
@@ -191,10 +235,13 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
       setShowEditConfirm(false);
       setPendingEditData(null);
       setEditData(null);
+      setEditConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Horario actualizado correctamente.'); setNotifOpen(true);
     } catch (e: unknown) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar horario'); setNotifOpen(true);
+      const msg = parseErrorMessage(e);
+      setEditConfirmError(msg || 'Error al actualizar horario');
+      setShowEditConfirm(true);
     }
   };
 
@@ -215,10 +262,13 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
       }
       setShowDisableConfirm(false);
       setPendingDisable(null);
+      setDisableConfirmError(null);
       await refresh();
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e: unknown) {
-      setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar horario'); setNotifOpen(true);
+      const msg = parseErrorMessage(e);
+      setDisableConfirmError(msg || 'Error al deshabilitar horario');
+      setShowDisableConfirm(true);
     }
   };
 
@@ -231,22 +281,48 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Horarios de Soporte</h3>
-          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{schedules.length} registros</span>
+          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{displayedSchedules.length} registros</span>
         </div>
         {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
       </button>
       {open && (
         <>
-          {/* Add schedule button: opens modal for creating new support schedules */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Horario</button>
+          {/* Filter + Add schedule button section */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por día"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Horario</button>
+            </div>
           </div>
 
           {/* Schedule cards grid: displays schedules with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {schedules.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((s) => (
-              <InfoCard key={s.id} schedule={s} />
-            ))}
+          <div className={`p-6 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedSchedules.length === 0 ? (
+              <div className="w-full text-center text-gray-500 py-12">
+                {search || activeFilter ? 'No se encontraron horarios con esta búsqueda' : 'No hay horarios disponibles'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {displayedSchedules.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((s) => (
+                  <InfoCard key={s.id} schedule={s} />
+                ))}
+              </div>
+            )}
 
             {/* Edit modal: form for updating existing schedules */}
             <ModalFormGeneric isOpen={showEditModal} title="Editar Horario" fields={[
@@ -258,15 +334,33 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
             ]} onClose={() => { setShowEditModal(false); setEditData(null); setPendingEditData(null); }} onSubmit={handleSubmitEdit} submitText="Actualizar" cancelText="Cancelar" initialValues={editData || {}} customRender={undefined} onProgramChange={undefined} />
 
             {/* Edit confirmation modal: confirms schedule update action */}
-            <ConfirmModal isOpen={showEditConfirm} title="¿Confirmar actualización?" message="¿Estás seguro de que deseas actualizar este horario?" confirmText="Sí, actualizar" cancelText="Cancelar" onConfirm={handleConfirmEdit} onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); }} />
+            <ConfirmModal
+              isOpen={showEditConfirm}
+              title="¿Confirmar actualización?"
+              message="¿Estás seguro de que deseas actualizar este horario?"
+              confirmText="Sí, actualizar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmEdit}
+              onCancel={() => { setShowEditConfirm(false); setPendingEditData(null); setEditConfirmError(null); }}
+              errorMessage={editConfirmError}
+            />
 
             {/* Disable confirmation modal: confirms enable/disable schedule action */}
-            <ConfirmModal isOpen={showDisableConfirm} title="¿Confirmar acción?" message="¿Estás seguro de que deseas deshabilitar este horario?" confirmText="Sí, continuar" cancelText="Cancelar" onConfirm={handleConfirmDisable} onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); }} />
+            <ConfirmModal
+              isOpen={showDisableConfirm}
+              title="¿Confirmar acción?"
+              message="¿Estás seguro de que deseas deshabilitar este horario?"
+              confirmText="Sí, continuar"
+              cancelText="Cancelar"
+              onConfirm={handleConfirmDisable}
+              onCancel={() => { setShowDisableConfirm(false); setPendingDisable(null); setDisableConfirmError(null); }}
+              errorMessage={disableConfirmError}
+            />
           </div>
 
           {/* Pagination component: shows page navigation when multiple pages exist */}
-          {Math.ceil(schedules.length / cardsPerPage) > 1 && (
-            <Paginator page={page} totalPages={Math.ceil(schedules.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
+          {Math.ceil(displayedSchedules.length / cardsPerPage) > 1 && (
+            <Paginator page={page} totalPages={Math.ceil(displayedSchedules.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
           )}
 
             {/* Add modal: form for creating new schedules */}
@@ -279,7 +373,16 @@ const SupportScheduleSection = ({ open, onToggle }: SupportScheduleSectionProps)
           ]} onClose={() => setShowAddModal(false)} onSubmit={handleSubmitAdd} submitText="Registrar" cancelText="Cancelar" customRender={undefined} onProgramChange={undefined} />
 
           {/* Add confirmation modal: confirms schedule creation action */}
-          <ConfirmModal isOpen={showAddConfirm} title="¿Confirmar registro?" message="¿Estás seguro de que deseas registrar este horario?" confirmText="Sí, registrar" cancelText="Cancelar" onConfirm={handleConfirmAdd} onCancel={() => { setShowAddConfirm(false); setPendingData(null); }} />
+          <ConfirmModal
+            isOpen={showAddConfirm}
+            title="¿Confirmar registro?"
+            message="¿Estás seguro de que deseas registrar este horario?"
+            confirmText="Sí, registrar"
+            cancelText="Cancelar"
+            onConfirm={handleConfirmAdd}
+            onCancel={() => { setShowAddConfirm(false); setPendingData(null); setAddConfirmError(null); }}
+            errorMessage={addConfirmError}
+          />
 
           {/* Notification modal: displays success/error messages */}
           <NotificationModal isOpen={notifOpen} onClose={() => setNotifOpen(false)} type={notifType} title={notifTitle} message={notifMessage} />

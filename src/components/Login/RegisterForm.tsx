@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import TermsModal from './TermsModal';
 import NotificationModal from '../NotificationModal';
 import useNotification from '../../hook/useNotification';
+import LoadingOverlay from '../LoadingOverlay';
 import { Mail, User, Phone, FileText, Lock, ArrowLeft } from 'lucide-react';
 import SenaLogo from '../SenaLogo';
 import FooterLinks from './FooterLinks';
@@ -100,7 +101,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onNavigate }) => {
     setFormData({ ...formData, [field]: value });
   // Real-time validation
     let error = '';
-    if (field === 'email') error = !isSenaEmail(value) ? 'El correo debe ser institucional (@soy.sena.edu.co o @sena.edu.co)' : '';
+    if (field === 'email') error = !isSenaEmail(value) ? 'El correo debe ser institucional (@soy.sena.edu.co)' : '';
     if (field === 'names') error = isValidNames(value) || '';
     if (field === 'surnames') error = isValidSurnames(value) || '';
     if (field === 'documentNumber') error = isValidDocumentNumber(value) || '';
@@ -112,30 +113,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onNavigate }) => {
     e.preventDefault();
     if (validate()) {
       setLoading(true);
-  // Split names and surnames and capitalize
+      // Split names and surnames and capitalize
       const [first_name, ...restNames] = capitalizeWords(formData.names.trim()).split(' ');
       const second_name = restNames.join(' ');
       const [first_last_name, ...restSurnames] = capitalizeWords(formData.surnames.trim()).split(' ');
       const second_last_name = restSurnames.join(' ');
-          const payload: RegisterPayload = {
-            email: formData.email,
-            first_name,
-            second_name,
-            first_last_name,
-            second_last_name,
-            type_identification: Number(formData.documentType), // send id as number
-            number_identification: Number(formData.documentNumber),
-            phone_number: Number(formData.phone),
-            password: formData.documentNumber, // For now, use document number as password
-            image: formData.image || undefined,
-          };
+      const payload: RegisterPayload = {
+        email: formData.email,
+        first_name,
+        second_name,
+        first_last_name,
+        second_last_name,
+        type_identification: Number(formData.documentType),
+        number_identification: Number(formData.documentNumber),
+        phone_number: Number(formData.phone),
+        password: formData.documentNumber,
+        image: formData.image || undefined,
+      };
       try {
         const response = await registerApprentice(payload);
-  // Show success notification
-        showRegistrationSuccess();
-  setShowPending(true); // To show pending notification after
+        // Show success notification with backend message
+        showNotification('success', 'Registro exitoso', response.detail || 'El registro se completó correctamente.');
+        setShowPending(true);
       } catch (error) {
-  // Show error notification
+        // Log backend response for debugging
+        console.error('Error capturado:', error); // Depuración
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         showNotification('warning', 'Error en el registro', errorMessage);
       } finally {
@@ -146,6 +148,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onNavigate }) => {
 
   return (
     <div className="sena-form-panel">
+      {/* Loading overlay while registering */}
+      <LoadingOverlay isOpen={loading} message={loading ? 'Registrando...' : 'Cargando...'} />
       <div className="sena-form">
         <button
           onClick={() => onNavigate('login')}

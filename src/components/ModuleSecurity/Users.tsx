@@ -1,10 +1,11 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { getUsers, deleteUser, getUserStatus } from '../../Api/Services/User';
+import { getUsers, deleteUser, getUserStatus, filterUsers } from '../../Api/Services/User';
 import { User, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import ModalCreateUser from './ModalCreateUser';
 import ConfirmModal from '../ConfirmModal';
+import LoadingOverlay from '../LoadingOverlay';
 import ModalEditUser from './ModalEditUser';
 import NotificationModal from '../NotificationModal';
 import type { User as UsuarioRegistrado } from '../../Api/types/entities/user.types';
@@ -41,7 +42,7 @@ const Users = () => {
 
   // Main state for users and roles data
   const [users, setUsers] = useState<UsuarioRegistrado[]>([]);
-  const [roles, setRoles] = useState<Array<{ id: number; type_role: string }>>([]);
+  const [roles, setRoles] = useState<Array<{ id: number; name: string }>>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [rolesError, setRolesError] = useState('');
 
@@ -105,15 +106,10 @@ const Users = () => {
     setLoading(true);
     setError('');
     try {
-      const { ENDPOINTS } = await import('../../Api/config/ConfigApi');
-      let url = `${ENDPOINTS.user.filter}?`;
-      if (role) url += `role=${encodeURIComponent(role)}&`;
-      if (search) url += `search=${encodeURIComponent(search)}&`;
-      url = url.replace(/&$/, '');
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Error al filtrar usuarios');
-      const filteredUsers = await response.json();
-      setUsers(filteredUsers);
+      const filteredUsers = await filterUsers({ role, search });
+      if (!Array.isArray(filteredUsers)) {
+        throw new Error('Respuesta de filtrado inválida');
+      } setUsers(filteredUsers);
     } catch (err) {
       setError('No se pudo filtrar usuarios');
     } finally {
@@ -165,6 +161,7 @@ const Users = () => {
   const handleConfirmToggle = async () => {
     if (!pendingUser) return;
     setShowConfirm(false);
+    setLoading(true);
     try {
       await deleteUser(pendingUser.id);
       await fetchAll();
@@ -181,8 +178,10 @@ const Users = () => {
       setNotificationTitle('Error');
       setNotificationMessage('No se pudo cambiar el estado del usuario.');
       setNotificationOpen(true);
+    } finally {
+      setLoading(false);
+      setPendingUser(null);
     }
-    setPendingUser(null);
   };
 
   /**
@@ -203,9 +202,26 @@ const Users = () => {
     });
   };
 
-  // Get current user ID from localStorage to prevent self-disable
-  const userData = localStorage.getItem('user_data');
-  const currentUserId = userData ? JSON.parse(userData).id : null;
+  // Get current user info from localStorage to prevent self-disable/edit
+  // Some deployments store session under different keys (user_dashboard, user_data, user_email)
+  const rawUserData = typeof window !== 'undefined' ? (localStorage.getItem('user_dashboard') || localStorage.getItem('user_data') || null) : null;
+  const rawUserEmail = typeof window !== 'undefined' ? (localStorage.getItem('user_email') || null) : null;
+  let currentUserId: number | null = null;
+  let currentUserEmail: string | null = null;
+  let currentUserPersonId: number | null = null;
+  try {
+    if (rawUserData) {
+      const parsed = JSON.parse(rawUserData);
+      // Support a few possible shapes stored in localStorage
+      currentUserId = parsed?.id ?? parsed?.user?.id ?? parsed?.user_id ?? null;
+      currentUserEmail = parsed?.email ?? parsed?.user?.email ?? parsed?.user_email ?? null;
+      currentUserPersonId = parsed?.person ?? parsed?.person_id ?? parsed?.user?.person ?? parsed?.user?.person_id ?? null;
+    }
+  } catch (e) {
+    // ignore parse errors
+  }
+  // If there's a separate user_email key, prefer that value for email comparison
+  if (!currentUserEmail && rawUserEmail) currentUserEmail = rawUserEmail;
 
   /**
    * RegistradoCard component: Displays individual user information in card format
@@ -221,6 +237,8 @@ const Users = () => {
       ? [user.person.first_name, user.person.second_name, user.person.first_last_name, user.person.second_last_name].filter(Boolean).join(' ')
       : 'Sin nombre';
     const rol = user.role?.type_role || 'Sin rol';
+
+    const isSelf = Number(user.id) === Number(currentUserId) || (currentUserEmail && String(user.email) === String(currentUserEmail)) || (user.person && currentUserPersonId && Number(user.person.id) === Number(currentUserPersonId));
 
     return (
       <div className={`border${color} rounded-lg p-6 m-3 w-[390px] min-h-[120px] flex flex-col justify-between shadow-md hover:shadow-lg transition-shadow duration-200`}>
@@ -239,7 +257,7 @@ const Users = () => {
         </div>
         <div className="flex gap-2 mt-2">
           {/* Prevent self-disable: only show toggle button for other users */}
-          {Number(user.id) !== Number(currentUserId) && (
+          {!isSelf && (
             <button
               className={`flex-1 flex items-center justify-center gap-2 py-1 rounded-3xl text-base font-semibold border transition-all duration-300
                 ${estado === 'activo'
@@ -252,17 +270,19 @@ const Users = () => {
               {estado === 'activo' ? 'Inhabilitar' : 'Habilitar'}
             </button>
           )}
-          {/* Edit user button: opens edit modal with user data */}
-          <button
-            className="flex-1 flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 rounded-3xl text-base font-semibold border border-gray-400"
-            onClick={() => {
-              setModalEditUserProps({ userId: Number(user.id), userRole: rol ? String(rol).toLowerCase() : '' });
-              setShowEditModal(true);
-            }}
-          >
-            <span className="material-icons text-base"></span>
-            Editar
-          </button>
+          {/* Edit user button: opens edit modal with user data (hidden for current user) */}
+          {!isSelf && (
+            <button
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 rounded-3xl text-base font-semibold border border-gray-400"
+              onClick={() => {
+                setModalEditUserProps({ userId: Number(user.id), userRole: rol ? String(rol).toLowerCase() : '' });
+                setShowEditModal(true);
+              }}
+            >
+              <span className="material-icons text-base"></span>
+              Editar
+            </button>
+          )}
         </div>
       </div>
     );
@@ -275,6 +295,8 @@ const Users = () => {
 
   return (
     <div className="bg-white p-8 rounded-lg shadow relative">
+      {/* Loading overlay for actions like enable/disable, fetching */}
+      <LoadingOverlay isOpen={loading} message={loading ? 'Procesando...' : 'Cargando...'} />
       {/* Create user button: positioned in top-right corner */}
       <button
         className="absolute right-8 top-8 flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"
@@ -293,14 +315,15 @@ const Users = () => {
       ) : rolesError ? (
         <div className="mb-6 text-red-500">{rolesError}</div>
       ) : (
-        <FilterBar
+          <FilterBar
           onFilter={handleFilter}
           inputWidth="710px"
           searchPlaceholder="Buscar por nombre, apellido o documento"
           selects={[{
             name: 'role',
             value: '',
-            options: roles.map(r => ({ value: r.type_role, label: r.type_role })),
+            // map service `name` to select value/label
+            options: roles.map(r => ({ value: String(r.name), label: String(r.name) })),
             placeholder: 'Todos los roles',
           }]}
         />

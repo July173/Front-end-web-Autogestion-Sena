@@ -44,7 +44,7 @@ export async function postApprentice(data: CreateApprentice) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!response.ok) throw new Error('Error al registrar aprendiz');
+  if (!response.ok) throw new Error('Error al registrar aprendiz, Verifique los datos e intente nuevamente, recuerda el numero de docuemento y numero de telefono deben llevar maximo 10 digitos   ');
   return response.json();
 }
 
@@ -61,7 +61,31 @@ export async function putApprentice(id: string, data: CreateApprentice) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!response.ok) throw new Error('Error al actualizar aprendiz');
-  return response.json();
+ // Try to parse JSON body so caller can inspect server validation errors
+  let respJson: unknown = null;
+  try {
+    respJson = await response.json();
+  } catch (e) {
+    // ignore parse errors
+  }
+  if (!response.ok) {
+    // Throw an Error but attach the parsed response so callers can extract backend messages
+  const err = new Error('Error al actualizar aprendiz') as Error & { response?: { data?: unknown; status?: number } };
+  err.response = { data: respJson, status: response.status };
+  throw err;
+  }
+  return respJson;
+}
+
+
+/**
+ * Gets a single apprentice by person id.
+ * Uses the existing filtered endpoint and returns the first match or null.
+ * @param personId - Person ID to look up
+ */
+export async function getApprenticeById(personId: string | number) {
+  const apprentices = await getApprenticesByPerson(personId);
+  if (Array.isArray(apprentices) && apprentices.length > 0) return apprentices[0];
+  return null;
 }
 

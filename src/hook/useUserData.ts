@@ -32,9 +32,41 @@ export const useUserData = () => {
     const loadUserData = () => {
       try {
         const storedData = localStorage.getItem('user_data');
+  let parsed: unknown = null;
         if (storedData) {
-          const parsed = JSON.parse(storedData);
-          setUserData(parsed);
+          try {
+            parsed = JSON.parse(storedData);
+          } catch {
+            parsed = null;
+          }
+        }
+
+  // If parsed user_data is missing or doesn't contain an id, try the older `user_dashboard` key
+  const hasId = typeof parsed === 'object' && parsed !== null && 'id' in (parsed as Record<string, unknown>) && !!(parsed as Record<string, unknown>)['id'];
+  if (!parsed || !hasId) {
+          const dashboardRaw = localStorage.getItem('user_dashboard');
+          if (dashboardRaw) {
+            try {
+              const db: Record<string, unknown> = JSON.parse(dashboardRaw);
+              // Map dashboard shape to expected UserData shape
+              const mapped = {
+                id: db.id ? String(db.id) : undefined,
+                email: db.email as string | undefined,
+                role: db.role as number | undefined,
+                person: db.person as string | undefined,
+                access_token: localStorage.getItem('access_token') || undefined,
+              } as UserData;
+              if (mapped.id) setUserData(mapped);
+              else if (parsed) setUserData(parsed as UserData);
+            } catch (err) {
+              // If dashboard parse fails, fallback to parsed if available
+              if (parsed) setUserData(parsed as UserData);
+            }
+          } else if (parsed) {
+            setUserData(parsed as UserData);
+          }
+        } else {
+          setUserData(parsed as UserData);
         }
       } catch (error) {
         console.error('Error loading user data:', error);

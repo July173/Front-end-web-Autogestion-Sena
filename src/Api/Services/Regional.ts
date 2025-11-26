@@ -13,6 +13,19 @@ export async function getRegionales() {
 }
 
 /**
+ * Filters regionals by search and active status.
+ * Endpoint: GET /general/regionals/filter/?search=...&active=...
+ */
+export async function filterRegionals(params?: { search?: string; active?: string }) {
+  const url = new URL(ENDPOINTS.regional.filterRegional);
+  if (params?.search) url.searchParams.append('search', params.search);
+  if (params?.active) url.searchParams.append('active', params.active);
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error('Error al filtrar regionales');
+  return response.json();
+}
+
+/**
  * Creates a new regional.
  * Endpoint: POST /general/regionals/
  * @param data - Regional data to create

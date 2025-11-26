@@ -25,7 +25,16 @@ export async function createSupportSchedule(data: Partial<SupportSchedule>) {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data),
 	});
-	if (!res.ok) throw new Error('Error al crear el horario de soporte');
+	if (!res.ok) {
+		const txt = await res.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(msg || `Error al crear el horario de soporte (${res.status})`);
+		} catch (_err) {
+			throw new Error(txt || `Error al crear el horario de soporte (${res.status})`);
+		}
+	}
 	return res.json();
 }
 
@@ -43,7 +52,16 @@ export async function updateSupportSchedule(id: number, data: Partial<SupportSch
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data),
 	});
-	if (!res.ok) throw new Error('Error al actualizar el horario de soporte');
+	if (!res.ok) {
+		const txt = await res.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(msg || `Error al actualizar el horario de soporte (${res.status})`);
+		} catch (_err) {
+			throw new Error(txt || `Error al actualizar el horario de soporte (${res.status})`);
+		}
+	}
 	return res.json();
 }
 
@@ -59,11 +77,35 @@ export async function softDeleteSupportSchedule(id: number) {
 		method: 'DELETE',
 		headers: { 'Content-Type': 'application/json' },
 	});
-	if (!res.ok) throw new Error('Error al deshabilitar el horario de soporte');
+	if (!res.ok) {
+		const txt = await res.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(msg || `Error al deshabilitar el horario de soporte (${res.status})`);
+		} catch (_err) {
+			throw new Error(txt || `Error al deshabilitar el horario de soporte (${res.status})`);
+		}
+	}
 	const text = await res.text();
 	try {
 		return text ? JSON.parse(text) : {};
 	} catch {
 		return {};
 	}
+}
+
+/**
+ * Filters support schedules by search text and active flag.
+ * Endpoint: GET /support/schedules/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ * @returns Promise with filtered array of support schedules
+ */
+export async function filterSupportSchedules(params?: { search?: string; active?: string }): Promise<SupportSchedule[]> {
+    const url = new URL(ENDPOINTS.SupportSchedule.filterSupportSchedule, window.location.origin);
+    if (params?.search) url.searchParams.append('search', params.search);
+    if (params?.active) url.searchParams.append('active', params.active);
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('Error al filtrar los horarios de soporte');
+    return res.json();
 }

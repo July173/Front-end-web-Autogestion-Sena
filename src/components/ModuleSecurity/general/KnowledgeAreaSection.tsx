@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import Paginator from "../../Paginator";
 import ModalFormGeneric from ".././ModalFormGeneric";
@@ -6,6 +6,9 @@ import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import { useGeneralData } from "../../../hook/useGeneralData";
 import type { KnowledgeArea } from "../../../Api/types/Modules/general.types";
+import FilterBar from "../../FilterBar";
+import { filterKnowledgeAreas } from "../../../Api/Services/KnowledgeArea";
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -39,6 +42,40 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
 
   // Pagination state for knowledge areas grid
   const [areasPage, setAreasPage] = useState(1);
+  const [displayedAreas, setDisplayedAreas] = useState<KnowledgeArea[]>(knowledgeAreas || []);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    // sync displayedAreas when underlying data changes only when not filtering
+    // and there are no active filter inputs — avoid overwriting server-filtered results
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedAreas(knowledgeAreas || []);
+    }
+  }, [knowledgeAreas, filtering]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedAreas(knowledgeAreas || []);
+        return;
+      }
+      const data = await filterKnowledgeAreas({ search: s, active: a });
+      setDisplayedAreas(data || []);
+      setAreasPage(1);
+    } catch (e) {
+      // console.error(e);
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   // Modal states for adding knowledge areas
   const [showAreaModal, setShowAreaModal] = useState(false);
@@ -93,6 +130,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
     setShowAreaConfirm(true);
   };
   const handleConfirmArea = async () => {
+    setActionLoading(true);
     try {
       await createKnowledgeArea(pendingAreaData);
       setShowAreaModal(false);
@@ -108,6 +146,8 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al crear área');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -121,6 +161,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
     setShowEditAreaConfirm(true);
   };
   const handleConfirmEditArea = async () => {
+    setActionLoading(true);
     try {
       await updateKnowledgeArea(editArea.id, pendingEditArea);
       setShowEditArea(false);
@@ -137,6 +178,8 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar área');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -146,6 +189,7 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
     setShowDisableConfirm(true);
   };
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await deleteKnowledgeArea(pendingDisable.id);
       setShowDisableConfirm(false);
@@ -160,6 +204,8 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
       setNotifTitle('Error');
       setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar área');
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -173,11 +219,10 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
   if (loading) return <div className="p-8">Cargando...</div>;
   if (error) return <div className="p-8 text-red-500">{error}</div>;
 
-  if (loading) return <div className="p-8">Cargando...</div>;
-  if (error) return <div className="p-8 text-red-500">{error}</div>;
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : (loading ? 'Cargando...' : 'Cargando...'))} />
       {/* Section header with toggle button and record count */}
       <button
         onClick={onToggle}
@@ -197,15 +242,33 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
       </button>
       {open && (
         <>
-          {/* Add knowledge area button */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAddArea} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
-              <Plus className="w-4 h-4" /> Agregar Área
-            </button>
-          </div>
+              {/* Filter bar and Add knowledge area button */}
+              <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+                <div>
+                  <FilterBar
+                    onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                    inputWidth="520px"
+                    searchPlaceholder="Buscar por nombre"
+                    selects={[{
+                      name: 'active',
+                      value: activeFilter,
+                      options: [
+                        { value: 'true', label: 'Activos' },
+                        { value: 'false', label: 'Inactivos' }
+                      ],
+                      placeholder: 'Todos',
+                    }]}
+                  />
+                </div>
+                <div className="flex items-center gap-4 justify-between">
+                  <button onClick={handleAddArea} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg">
+                    <Plus className="w-4 h-4" /> Agregar Área
+                  </button>
+                </div>
+              </div>
           {/* Knowledge areas grid with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {knowledgeAreas.slice((areasPage - 1) * cardsPerPage, areasPage * cardsPerPage).map((area) => (
+          <div className={`p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {(displayedAreas.slice((areasPage - 1) * cardsPerPage, areasPage * cardsPerPage)).map((area) => (
               <div key={area.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
@@ -259,10 +322,10 @@ const KnowledgeAreaSection = ({ open, onToggle }: KnowledgeAreaSectionProps) => 
             />
           </div>
           {/* Pagination component - only shown if there are multiple pages */}
-          {Math.ceil(knowledgeAreas.length / cardsPerPage) > 1 && (
+          {Math.ceil(displayedAreas.length / cardsPerPage) > 1 && (
             <Paginator
               page={areasPage}
-              totalPages={Math.ceil(knowledgeAreas.length / cardsPerPage)}
+              totalPages={Math.ceil(displayedAreas.length / cardsPerPage)}
               onPageChange={setAreasPage}
               className="mt-4 px-6"
             />

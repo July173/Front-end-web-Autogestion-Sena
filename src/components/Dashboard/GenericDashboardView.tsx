@@ -1,10 +1,25 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { User } from "../../Api/types/entities/user.types";
 
 /**
  * Generic dashboard view for users without a specific role view.
  * @param {{ name?: string }} props
  */
 const GenericDashboardView: React.FC<{ name?: string }> = ({ name }) => {
+  const [userData, setUserData] = useState<User | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user_dashboard");
+    if (storedUser) {
+      try {
+        const parsedUser: User = JSON.parse(storedUser);
+        setUserData(parsedUser);
+      } catch (error) {
+        console.error("Error al parsear los datos del usuario desde el localStorage:", error);
+      }
+    }
+  }, []);
+
   return (
     <div className="flex flex-col items-center gap-8 p-6 w-full min-h-[60vh] justify-center">
       <div className="bg-gray-100 rounded-lg flex items-center px-5 py-14 w-full max-w-xl mb-4 shadow">
@@ -13,7 +28,7 @@ const GenericDashboardView: React.FC<{ name?: string }> = ({ name }) => {
         </div>
         <div className="flex flex-col text-gray-700">
           <p className="text-3xl font-bold mb-0">¡ Bienvenido !</p>
-          <p className="text-2xl font-normal mb-0">{name || "Usuario"}</p>
+          <p className="text-2xl font-normal mb-0">{userData?.person?.first_name || name || "Usuario"}</p>
           <p className="text-lg font-normal">No tienes una vista personalizada asignada</p>
         </div>
       </div>

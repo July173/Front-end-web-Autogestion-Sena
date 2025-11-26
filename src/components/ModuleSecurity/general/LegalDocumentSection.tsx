@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { LegalDocument } from '../../../Api/types/entities/legalDocument.types';
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import Paginator from '../../Paginator';
 import ModalFormGeneric from '.././ModalFormGeneric';
 import ConfirmModal from '../../ConfirmModal';
 import NotificationModal from '../../NotificationModal';
-import { getAllLegalDocuments, createLegalDocument, updateLegalDocument, softDeleteLegalDocument } from '../../../Api/Services/LegalDocument';
+import { getAllLegalDocuments, createLegalDocument, updateLegalDocument, softDeleteLegalDocument, filterLegalDocuments } from '../../../Api/Services/LegalDocument';
+import FilterBar from '../../FilterBar';
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -47,6 +49,13 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<LegalDocument | null>(null);
 
+  // Filter UI state
+  const [displayedDocs, setDisplayedDocs] = useState<LegalDocument[]>(docs || []);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
   // Notification modal state
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifType, setNotifType] = useState<'success'|'info'|'warning'|'password-changed'|'email-sent'|'pending'|'completed'>('success');
@@ -71,6 +80,33 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
 
   // Load data on component mount
   React.useEffect(() => { refresh(); }, []);
+
+  useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedDocs(docs || []);
+    }
+  }, [docs, filtering]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedDocs(docs || []);
+        return;
+      }
+      const data = await filterLegalDocuments({ search: s, active: a });
+      setDisplayedDocs(data || []);
+      setPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   /**
    * InfoCard component for displaying individual legal document information
@@ -99,6 +135,7 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
   const handleAdd = () => setShowAddModal(true);
   const handleSubmitAdd = (values: LegalDocument) => { setPendingData(values); setShowAddConfirm(true); };
   const handleConfirmAdd = async () => {
+    setActionLoading(true);
     try {
       await createLegalDocument(pendingData);
       setShowAddModal(false); setShowAddConfirm(false); setPendingData(null);
@@ -106,12 +143,15 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Documento creado correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear documento'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Handler functions for edit operations
   const handleSubmitEdit = (values: LegalDocument) => { setPendingEditData(values); setShowEditConfirm(true); };
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       await updateLegalDocument(editData.id, pendingEditData);
       setShowEditModal(false); setShowEditConfirm(false); setPendingEditData(null); setEditData(null);
@@ -119,11 +159,14 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Documento actualizado correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar documento'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Handler functions for toggle operations
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       if (!pendingDisable) throw new Error('No hay documento seleccionado');
       if (pendingDisable.active) {
@@ -138,6 +181,8 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar documento'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -147,31 +192,53 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : 'Cargando...')} />
       {/* Section header with toggle button and record count */}
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Documentos Legales</h3>
-          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{docs.length} registros</span>
+              <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{displayedDocs.length} registros</span>
         </div>
         {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
       </button>
       {open && (
         <>
-          {/* Add legal document button */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Documento</button>
+          {/* Filter bar and Add legal document button */}
+          <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+            <div>
+              <FilterBar
+                onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                inputWidth="520px"
+                searchPlaceholder="Buscar por título"
+                selects={[{
+                  name: 'active',
+                  value: activeFilter,
+                  options: [
+                    { value: 'true', label: 'Activos' },
+                    { value: 'false', label: 'Inactivos' }
+                  ],
+                  placeholder: 'Todos',
+                }]}
+              />
+            </div>
+            <div className="flex items-center gap-4 justify-between">
+              <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Documento</button>
+            </div>
           </div>
 
           {/* Legal documents grid with pagination */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {docs.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((d) => <InfoCard key={d.id} doc={d} />)}
+          <div className={`p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedDocs.length === 0 ? (
+              <div className="col-span-3 text-center text-gray-600 py-8">{(search || activeFilter) ? 'No se encontraron documentos legales con esta búsqueda' : 'No hay documentos legales disponibles'}</div>
+            ) : (
+              displayedDocs.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((d) => <InfoCard key={d.id} doc={d} />)
+            )}
 
             {/* Edit modal */}
             <ModalFormGeneric isOpen={showEditModal} title="Editar Documento" fields={[
               { label: 'Título', name: 'title', type: 'text', placeholder: 'Título', required: true },
               { label: 'Tipo', name: 'type', type: 'text', placeholder: 'privacy|terms', required: true, disabled: true },
               { label: 'Fecha efectiva', name: 'effective_date', type: 'text', placeholder: 'YYYY-MM-DD', required: true },
-              { label: '¿Activo?', name: 'active', type: 'checkbox', placeholder: '', required: false },
             ]} onClose={() => { setShowEditModal(false); setEditData(null); setPendingEditData(null); }} onSubmit={handleSubmitEdit} submitText="Actualizar" cancelText="Cancelar" initialValues={editData || {}} customRender={undefined} onProgramChange={undefined} />
 
             {/* Edit confirmation modal */}
@@ -182,14 +249,13 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
           </div>
 
           {/* Pagination component - only shown if there are multiple pages */}
-          {Math.ceil(docs.length / cardsPerPage) > 1 && <Paginator page={page} totalPages={Math.ceil(docs.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />}
+          {Math.ceil(displayedDocs.length / cardsPerPage) > 1 && <Paginator page={page} totalPages={Math.ceil(displayedDocs.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />}
 
           {/* Add modal */}
           <ModalFormGeneric isOpen={showAddModal} title="Agregar Documento" fields={[
             { label: 'Título', name: 'title', type: 'text', placeholder: 'Título', required: true },
             { label: 'Tipo', name: 'type', type: 'text', placeholder: 'privacy|terms', required: true },
             { label: 'Fecha efectiva', name: 'effective_date', type: 'text', placeholder: 'YYYY-MM-DD', required: true },
-            { label: '¿Activo?', name: 'active', type: 'checkbox', placeholder: '', required: false },
           ]} onClose={() => setShowAddModal(false)} onSubmit={handleSubmitAdd} submitText="Registrar" cancelText="Cancelar" customRender={undefined} onProgramChange={undefined} />
 
           {/* Add confirmation modal */}

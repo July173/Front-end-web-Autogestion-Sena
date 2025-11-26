@@ -5,7 +5,7 @@ import JefeSection from '../components/RequestForm/BossSection';
 import TalentoHumanoSection from '../components/RequestForm/HumanTalentSection';
 import PdfUploadSection from '../components/RequestForm/PdfUploadSection';
 import { 
-  JournalText,
+  JournalText,          
   Person,
   Buildings,
   FileEarmarkPdf,
@@ -15,12 +15,18 @@ import {
 import { useApprenticeData } from '../hook/useApprenticeData';
 import { useRequestAssignation } from '../hook/useRequestAssignation';
 import { useFormValidations } from '../hook/useFormValidations';
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from 'react-router-dom';
 import { getDocumentTypesWithEmpty } from '../Api/Services/TypeDocument';
+import { getAllEnterprises } from '../Api/Services/Enterprise';
+import { getAllBosses, filterBosses } from '../Api/Services/Boss';
+import { getAllHumanTalents, filterHumanTalents } from '../Api/Services/HumanTalent';
 import { requestAsignation } from '../Api/types/Modules/assign.types';
+import { postRequestAssignation } from '../Api/Services/RequestAssignaton';
 import NotificationModal from '../components/NotificationModal';
 import ConfirmModal from '../components/ConfirmModal';
 import TermsModal from '../components/Login/TermsModal';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 // Colors used
 const COLORS = {
@@ -78,7 +84,32 @@ export default function RequestRegistration() {
   });
 
   const [showConfirm, setShowConfirm] = useState(false);
+  // Modes and selections for create vs select flows
+  const [enterpriseMode, setEnterpriseMode] = useState<'select' | 'create'>('create');
+  const [selectedEnterpriseId, setSelectedEnterpriseId] = useState<number | null>(null);
+
+  const [bossMode, setBossMode] = useState<'select' | 'create'>('create');
+  const [selectedBossId, setSelectedBossId] = useState<number | null>(null);
+
+  const [humanTalentMode, setHumanTalentMode] = useState<'select' | 'create'>('create');
+  const [selectedHumanTalentId, setSelectedHumanTalentId] = useState<number | null>(null);
+
+  // Options populated from API
+  const [enterpriseOptions, setEnterpriseOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [bossOptions, setBossOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [humanTalentOptions, setHumanTalentOptions] = useState<Array<{ value: string; label: string }>>([]);
+  // Maps to keep full records (used to prefill form when selecting existing entities)
+  const [enterpriseMap, setEnterpriseMap] = useState<Record<string, any>>({});
+  const [bossMap, setBossMap] = useState<Record<string, any>>({});
+  const [humanTalentMap, setHumanTalentMap] = useState<Record<string, any>>({});
+  // Loading states for selects
+  const [loadingEnterprises, setLoadingEnterprises] = useState(false);
+  const [loadingBosses, setLoadingBosses] = useState(false);
+  const [loadingHumanTalents, setLoadingHumanTalents] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [redirectAfterSuccess, setRedirectAfterSuccess] = useState(false);
+  const navigate = useNavigate();
 
   // Calculate allowed range for end date (after declaring formData)
   let minEndDate = '';
@@ -128,6 +159,165 @@ export default function RequestRegistration() {
   useEffect(() => {
     getDocumentTypesWithEmpty().then(setDocumentTypes);
   }, []);
+
+  // Helper mapper for API entities -> select option
+  const mapToOption = (it: Record<string, unknown>) => {
+    const rec = it || {} as Record<string, unknown>;
+    const possibleId = rec['id'] ?? rec['pk'] ?? rec['enterprise_id'] ?? rec['id_enterprise'] ?? '';
+    const label = (
+      rec['name_boss'] || rec['name'] || rec['nombre'] || rec['name_enterprise'] || rec['empresa_nombre'] || rec['nombre_jefe'] ||
+      ((rec['first_name'] || rec['name']) ? `${rec['first_name'] ?? rec['name']}${rec['first_last_name'] ? ' ' + rec['first_last_name'] : ''}` : undefined)
+    ) ?? possibleId;
+    const labelStr = typeof label === 'string' ? label : String(label ?? possibleId ?? '');
+    const value = possibleId ? String(possibleId) : `__noid_${encodeURIComponent(labelStr).slice(0,20)}`;
+    return { value, label: labelStr };
+  };
+
+  // Load enterprises on mount
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoadingEnterprises(true);
+      try {
+        const data = await getAllEnterprises();
+        if (!mounted) return;
+        setEnterpriseOptions((data || []).map(mapToOption));
+        // store raw records by id to prefill fields when the user selects an existing enterprise
+        const map = Object.fromEntries((data || []).map((it: Record<string, unknown>) => {
+          const id = String(it['id'] ?? it['pk'] ?? it['enterprise_id'] ?? it['id_enterprise'] ?? '');
+          return [id, it];
+        }));
+        if (mounted) setEnterpriseMap(map);
+      } catch (err) {
+        console.error('Error loading enterprises:', err);
+        setEnterpriseOptions([]);
+        if (mounted) setEnterpriseMap({});
+      } finally {
+        if (mounted) setLoadingEnterprises(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  // When selecting an enterprise, load bosses and human talents filtered by enterprise
+  useEffect(() => {
+    let mounted = true;
+    const loadContacts = async () => {
+      if (enterpriseMode === 'select' && selectedEnterpriseId) {
+        setLoadingBosses(true);
+        setLoadingHumanTalents(true);
+        try {
+          // backend expects `enterprise_id` as the query parameter for the by-enterprise endpoints
+          const bosses = await filterBosses({ enterprise_id: String(selectedEnterpriseId) });
+          if (mounted) {
+            setBossOptions((bosses || []).map(mapToOption));
+            const bmap = Object.fromEntries((bosses || []).map((it: Record<string, unknown>) => [String(it['id'] ?? it['pk'] ?? it['id_boss'] ?? ''), it]));
+            setBossMap(bmap);
+          }
+        } catch (err) {
+          console.error('Error loading bosses for enterprise:', err);
+          if (mounted) {
+            setBossOptions([]);
+            setBossMap({});
+          }
+        } finally {
+          if (mounted) setLoadingBosses(false);
+        }
+
+        try {
+          const hts = await filterHumanTalents({ enterprise_id: String(selectedEnterpriseId) });
+          if (mounted) {
+            setHumanTalentOptions((hts || []).map(mapToOption));
+            const hmap = Object.fromEntries((hts || []).map((it: Record<string, unknown>) => [String(it['id'] ?? it['pk'] ?? it['id_human_talent'] ?? ''), it]));
+            setHumanTalentMap(hmap);
+          }
+        } catch (err) {
+          console.error('Error loading human talents for enterprise:', err);
+          if (mounted) {
+            setHumanTalentOptions([]);
+            setHumanTalentMap({});
+          }
+        } finally {
+          if (mounted) setLoadingHumanTalents(false);
+        }
+      } else {
+        // Clear dependent selects when not selecting an enterprise
+        setBossOptions([]);
+        setHumanTalentOptions([]);
+        setLoadingBosses(false);
+        setLoadingHumanTalents(false);
+        setBossMap({});
+        setHumanTalentMap({});
+      }
+    };
+    loadContacts();
+    return () => { mounted = false; };
+  }, [enterpriseMode, selectedEnterpriseId]);
+
+  // When the user selects an existing enterprise, prefill the enterprise fields and lock inputs (UI already disables when mode==='select')
+  useEffect(() => {
+    if (enterpriseMode === 'select' && selectedEnterpriseId) {
+      const rec = enterpriseMap[String(selectedEnterpriseId)];
+      if (rec) {
+        const name = (rec['name_enterprise'] || rec['name'] || rec['empresa_nombre'] || '') as any;
+        const nit = (rec['nit_enterprise'] ?? rec['empresa_nit'] ?? rec['enterprise_nit'] ?? 0) as any;
+        const locate = (rec['locate'] || rec['empresa_ubicacion'] || rec['enterprise_location'] || '') as any;
+        const email = (rec['email_enterprise'] || rec['empresa_correo'] || rec['enterprise_email'] || '') as any;
+        // only update if differs to avoid triggering re-renders in a loop
+        if (formData.enterprise_name !== name) updateFormData('enterprise_name', name);
+        if (String(formData.enterprise_nit) !== String(nit)) updateFormData('enterprise_nit', nit);
+        if (formData.enterprise_location !== locate) updateFormData('enterprise_location', locate);
+        if (formData.enterprise_email !== email) updateFormData('enterprise_email', email);
+      }
+    } else if (enterpriseMode === 'create') {
+      if (formData.enterprise_name) updateFormData('enterprise_name', '' as any);
+      if (formData.enterprise_nit) updateFormData('enterprise_nit', 0 as any);
+      if (formData.enterprise_location) updateFormData('enterprise_location', '' as any);
+      if (formData.enterprise_email) updateFormData('enterprise_email', '' as any);
+    }
+  // Intentionally exclude updateFormData and formData from deps to avoid effect firing on every update; effect depends on selection/mode/map
+  }, [enterpriseMode, selectedEnterpriseId, enterpriseMap]);
+
+  // When the user selects an existing boss, prefill boss fields
+  useEffect(() => {
+    if (bossMode === 'select' && selectedBossId) {
+      const rec = bossMap[String(selectedBossId)];
+      if (rec) {
+        const name = (rec['name_boss'] || rec['name'] || rec['first_name'] || '') as any;
+        const email = (rec['email'] || rec['email_boss'] || rec['boss_email'] || '') as any;
+        const phone = (rec['phone'] ?? rec['phone_number'] ?? '') as any;
+        const pos = (rec['position'] || rec['cargo'] || '') as any;
+        if (formData.boss_name !== name) updateFormData('boss_name', name);
+        if (formData.boss_email !== email) updateFormData('boss_email', email);
+        if (String(formData.boss_phone) !== String(phone)) updateFormData('boss_phone', phone);
+        if (formData.boss_position !== pos) updateFormData('boss_position', pos);
+      }
+    } else if (bossMode === 'create') {
+      if (formData.boss_name) updateFormData('boss_name', '' as any);
+      if (formData.boss_email) updateFormData('boss_email', '' as any);
+      if (formData.boss_phone) updateFormData('boss_phone', '' as any);
+      if (formData.boss_position) updateFormData('boss_position', '' as any);
+    }
+  }, [bossMode, selectedBossId, bossMap]);
+
+  // When the user selects an existing human talent, prefill human talent fields
+  useEffect(() => {
+    if (humanTalentMode === 'select' && selectedHumanTalentId) {
+      const rec = humanTalentMap[String(selectedHumanTalentId)];
+      if (rec) {
+        const name = (rec['name'] || rec['name_human_talent'] || rec['first_name'] || '') as any;
+        const email = (rec['email'] || rec['email_human_talent'] || '') as any;
+        const phone = (rec['phone'] ?? rec['phone_number'] ?? '') as any;
+        if (formData.human_talent_name !== name) updateFormData('human_talent_name', name);
+        if (formData.human_talent_email !== email) updateFormData('human_talent_email', email);
+        if (String(formData.human_talent_phone) !== String(phone)) updateFormData('human_talent_phone', phone);
+      }
+    } else if (humanTalentMode === 'create') {
+      if (formData.human_talent_name) updateFormData('human_talent_name', '' as any);
+      if (formData.human_talent_email) updateFormData('human_talent_email', '' as any);
+      if (formData.human_talent_phone) updateFormData('human_talent_phone', '' as any);
+    }
+  }, [humanTalentMode, selectedHumanTalentId, humanTalentMap]);
 
   // Function to get the document type name using dynamic data
   const getDocumentTypeName = (typeValue: string | number) => {
@@ -185,8 +375,8 @@ export default function RequestRegistration() {
     setShowConfirm(false);
     clearError();
     // Helper to show notification after confirm closes
-    const showNotification = (notif) => {
-  setTimeout(() => setNotification({ ...notif, key: Date.now() }), 200); // force remount with unique key
+    const showNotification = (notif: typeof notification) => {
+      setTimeout(() => setNotification({ ...notif, key: Date.now() }), 200); // force remount with unique key
     };
     if (!person) {
       showNotification({
@@ -212,51 +402,81 @@ export default function RequestRegistration() {
       apprentice: Number(apprenticeId) || 0,
     };
     // Verify required fields
-    const requiredFields = {
-      apprenticeId: updatedFormData.apprentice!,
-      fichaId: updatedFormData.ficha!,
-      dateEndContract: updatedFormData.date_end_contract!,
-      dateStartContract: updatedFormData.date_start_contract!,
-      enterpriseName: updatedFormData.enterprise_name!,
-      enterpriseNit: updatedFormData.enterprise_nit!,
-      enterpriseLocation: updatedFormData.enterprise_location!,
-      enterpriseEmail: updatedFormData.enterprise_email!,
-      bossName: updatedFormData.boss_name!,
-      bossPhone: updatedFormData.boss_phone!,
-      bossEmail: updatedFormData.boss_email!,
-      bossPosition: updatedFormData.boss_position!,
-      humanTalentName: updatedFormData.human_talent_name!,
-      humanTalentEmail: updatedFormData.human_talent_email!,
-      humanTalentPhone: updatedFormData.human_talent_phone!,
-      sede: updatedFormData.sede!,
-      modalityProductiveStage: updatedFormData.modality_productive_stage!,
-    };
+    // Determine if modality is 'Contrato de Aprendizaje' so dates are conditionally required
+    const isContratoSelected = (() => {
+      try {
+        const m = modalidades.find(mod => Number(mod.id) === Number(updatedFormData.modality_productive_stage));
+        return !!m && typeof m.name_modality === 'string' && m.name_modality.toLowerCase().includes('contrato');
+      } catch {
+        return false;
+      }
+    })();
+
+    // Validate required fields depending on create/select modes
+    const missingFields: string[] = [];
+
+    // Basic required ids
+    if (!updatedFormData.apprentice) missingFields.push('apprenticeId');
+    if (!updatedFormData.ficha) missingFields.push('fichaId');
+    if (!updatedFormData.sede) missingFields.push('sede');
+    if (!updatedFormData.modality_productive_stage) missingFields.push('modalityProductiveStage');
+
+    // If the selected modality is 'Contrato', require start/end dates
+    if (isContratoSelected) {
+      if (!updatedFormData.date_start_contract) missingFields.push('dateStartContract');
+      if (!updatedFormData.date_end_contract) missingFields.push('dateEndContract');
+    }
+
+    // Enterprise: either select existing or create new (name, nit, location, email)
+    if (enterpriseMode === 'select') {
+      if (!selectedEnterpriseId) missingFields.push('enterprise (select)');
+    } else {
+      if (!updatedFormData.enterprise_name) missingFields.push('enterpriseName');
+      if (!updatedFormData.enterprise_nit) missingFields.push('enterpriseNit');
+      if (!updatedFormData.enterprise_location) missingFields.push('enterpriseLocation');
+      if (!updatedFormData.enterprise_email) missingFields.push('enterpriseEmail');
+    }
+
+    // Boss: either select existing or create new
+    if (bossMode === 'select') {
+      if (!selectedBossId) missingFields.push('boss (select)');
+    } else {
+      if (!updatedFormData.boss_name) missingFields.push('bossName');
+      if (!updatedFormData.boss_phone) missingFields.push('bossPhone');
+      if (!updatedFormData.boss_email) missingFields.push('bossEmail');
+      if (!updatedFormData.boss_position) missingFields.push('bossPosition');
+    }
+
+    // Human talent: either select existing or create new
+    if (humanTalentMode === 'select') {
+      if (!selectedHumanTalentId) missingFields.push('human_talent (select)');
+    } else {
+      if (!updatedFormData.human_talent_name) missingFields.push('humanTalentName');
+      if (!updatedFormData.human_talent_email) missingFields.push('humanTalentEmail');
+      if (!updatedFormData.human_talent_phone) missingFields.push('humanTalentPhone');
+    }
+
     // Extra validations
     const bossPhoneValidation = validatePhone(updatedFormData.boss_phone ?? '');
     const humanTalentPhoneValidation = validatePhone(updatedFormData.human_talent_phone ?? '');
-    const dateValidation = validateEndDate(updatedFormData.date_start_contract ?? null, updatedFormData.date_end_contract ?? null);
+    const dateValidation = isContratoSelected
+      ? validateEndDate(updatedFormData.date_start_contract ?? null, updatedFormData.date_end_contract ?? null)
+      : '';
+
     // Filter only non-empty errors
-    const validationErrors = [bossPhoneValidation, humanTalentPhoneValidation, dateValidation]
-      .filter(error => error !== '');
+  const validationErrors = [bossPhoneValidation, humanTalentPhoneValidation];
+    if (dateValidation) validationErrors.push(dateValidation);
+    const nonEmptyValidationErrors = validationErrors.filter(error => error !== '');
     
-    if (validationErrors.length > 0) {
+    if (nonEmptyValidationErrors.length > 0) {
       showNotification({
         isOpen: true,
         type: 'warning',
         title: 'Errores de validación',
-        message: `Errores encontrados:\n${validationErrors.join('\n')}`
+        message: `Errores encontrados:\n${nonEmptyValidationErrors.join('\n')}`
       });
       return;
     }
-
-    Object.entries(requiredFields).forEach(([key, value]) => {
-      const isEmpty = value === 0 || value === '' || value === null || value === undefined;
-    });
-
-    // Check which fields are empty
-    const missingFields = Object.entries(requiredFields)
-      .filter(([key, value]) => value === 0 || value === '' || value === null || value === undefined)
-      .map(([key]) => key);
 
     if (missingFields.length > 0) {
       showNotification({
@@ -271,14 +491,96 @@ export default function RequestRegistration() {
     // PASS THE TRANSFORMED DATA TO SUBMIT
     try {
       console.log('Enviando datos principales:', updatedFormData);
-      const requestId = await submitRequest(updatedFormData);
-      console.log('ID de solicitud recibido:', requestId);
-      if (requestId && selectedFile) {
-        // Subir PDF con request_id como campo obligatorio
+
+      // Prepare date formatting helper
+      const toDateStringLocal = (value: string | number | undefined) => {
+        if (!value && value !== 0) return undefined;
+        if (typeof value === 'number') {
+          const d = new Date(value);
+          if (isNaN(d.getTime())) return undefined;
+          return d.toISOString().split('T')[0];
+        }
+        if (typeof value === 'string') {
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+          return value;
+        }
+        return undefined;
+      };
+
+      const fechaInicio = updatedFormData.date_start_contract ? toDateStringLocal(updatedFormData.date_start_contract) : undefined;
+      const fechaFin = updatedFormData.date_end_contract ? toDateStringLocal(updatedFormData.date_end_contract) : undefined;
+
+      // Build nested payload matching Swagger expectation
+      const enterprisePayload = enterpriseMode === 'select' && selectedEnterpriseId
+        ? { id: selectedEnterpriseId }
+        : {
+          id: null,
+          name: updatedFormData.enterprise_name ?? '',
+          tax_id: updatedFormData.enterprise_nit ?? '',
+          address: updatedFormData.enterprise_location ?? '',
+          email: updatedFormData.enterprise_email ?? '',
+          phone: ''
+        };
+
+      const bossPayload = bossMode === 'select' && selectedBossId
+        ? { id: selectedBossId }
+        : {
+          id: null,
+          name: updatedFormData.boss_name ?? '',
+          email: updatedFormData.boss_email ?? '',
+          phone: String(updatedFormData.boss_phone ?? ''),
+          position: updatedFormData.boss_position ?? ''
+        };
+
+      const humanTalentPayload = humanTalentMode === 'select' && selectedHumanTalentId
+        ? { id: selectedHumanTalentId }
+        : {
+          id: null,
+          name: updatedFormData.human_talent_name ?? '',
+          email: updatedFormData.human_talent_email ?? '',
+          phone: String(updatedFormData.human_talent_phone ?? '')
+        };
+
+      const requestPayload: Record<string, string | number> = {
+        apprentice: Number(updatedFormData.apprentice),
+        ficha: Number(updatedFormData.ficha),
+        sede: Number(updatedFormData.sede),
+        modality_productive_stage: Number(updatedFormData.modality_productive_stage),
+      };
+      if (fechaInicio) requestPayload.contract_start_date = fechaInicio;
+      if (fechaFin) requestPayload.contract_end_date = fechaFin;
+
+      const nestedPayload = {
+        enterprise: enterprisePayload,
+        boss: bossPayload,
+        human_talent: humanTalentPayload,
+        request: requestPayload,
+      };
+
+      console.log('nestedPayload a enviar:', nestedPayload);
+
+      // Send to backend using existing service (it accepts any JSON body)
+      const submitResponse = await postRequestAssignation(nestedPayload as unknown as requestAsignation);
+      console.log('Respuesta de envío (postRequestAssignation):', submitResponse);
+      const requestId = submitResponse?.data?.id ?? submitResponse?.id ?? null;
+      const backendMessage = submitResponse?.data?.message ?? submitResponse?.message ?? 'La solicitud fue enviada exitosamente.';
+
+      // Subir PDF con request_id cuando esté disponible
+      if (selectedFile) {
         let pdfUploadResult = null;
+        setPdfUploading(true);
         try {
           console.log('Enviando PDF:', selectedFile, 'con request_id:', requestId);
-          pdfUploadResult = await uploadPdf(selectedFile, requestId);
+          // ensure requestId is a number when passing to uploadPdf
+          const numericRequestId = requestId ? Number(requestId) : undefined;
+          if (!numericRequestId) {
+            // backend requires request_id; do not attempt upload without it
+            console.error('No requestId available, skipping PDF upload. Backend requires request_id');
+            showNotification({ isOpen: true, type: 'warning', title: 'PDF no subido', message: 'ID de solicitud no disponible para subir el PDF.' });
+            return;
+          }
+          pdfUploadResult = await uploadPdf(selectedFile, numericRequestId);
           console.log('Respuesta de uploadPdf:', pdfUploadResult);
         } catch (pdfErr) {
           console.error('Error al subir PDF:', pdfErr);
@@ -289,14 +591,18 @@ export default function RequestRegistration() {
             message: pdfErr?.message || 'La solicitud fue enviada pero hubo un error al subir el archivo PDF.'
           });
           return;
+        } finally {
+          setPdfUploading(false);
         }
-        if (pdfUploadResult && pdfUploadResult.ok !== false) {
+
+        if (pdfUploadResult) {
           showNotification({
             isOpen: true,
             type: 'success',
             title: 'Solicitud enviada',
-            message: 'La solicitud fue enviada exitosamente y el archivo PDF se ha subido correctamente.'
+            message: backendMessage
           });
+          setRedirectAfterSuccess(true);
         } else {
           showNotification({
             isOpen: true,
@@ -305,13 +611,14 @@ export default function RequestRegistration() {
             message: 'La solicitud fue enviada pero hubo un error al subir el archivo PDF.'
           });
         }
-      } else if (requestId) {
+      } else {
         showNotification({
           isOpen: true,
           type: 'success',
           title: 'Solicitud enviada',
-          message: 'La solicitud fue enviada exitosamente.'
+          message: backendMessage
         });
+        setRedirectAfterSuccess(true);
       }
     } catch (err) {
       console.error('Error al enviar solicitud principal:', err);
@@ -324,6 +631,16 @@ export default function RequestRegistration() {
     }
   };
 
+  // Compute whether the currently selected modality is 'Contrato de Aprendizaje'
+  const modalityIsContrato = useMemo(() => {
+    try {
+      const m = modalidades.find(mod => Number(mod.id) === Number(formData.modality_productive_stage));
+      return !!m && typeof m.name_modality === 'string' && m.name_modality.toLowerCase().includes('contrato');
+    } catch {
+      return false;
+    }
+  }, [modalidades, formData.modality_productive_stage]);
+
   if (userLoading) return <div className="p-8">Cargando información del aprendiz...</div>;
   if (userError) return <div className="p-8 text-red-500">{userError}</div>;
   if (!person) return <div className="p-8 text-orange-500">No se encontró la información del aprendiz.</div>;
@@ -333,7 +650,13 @@ export default function RequestRegistration() {
       <NotificationModal
         key={notification.key}
         isOpen={notification.isOpen}
-        onClose={() => setNotification({ ...notification, isOpen: false, key: Date.now() })}
+        onClose={() => {
+          setNotification({ ...notification, isOpen: false, key: Date.now() });
+          if (redirectAfterSuccess) {
+            setRedirectAfterSuccess(false);
+            navigate('/home');
+          }
+        }}
         type={notification.type}
         title={notification.title}
         message={notification.message}
@@ -347,7 +670,8 @@ export default function RequestRegistration() {
         onConfirm={handleConfirmSend}
         onCancel={() => setShowConfirm(false)}
       />
-      <TermsModal isOpen={isTermsModalOpen} onClose={() => setIsTermsModalOpen(false)} />
+  <TermsModal isOpen={isTermsModalOpen} onClose={() => setIsTermsModalOpen(false)} />
+  <LoadingOverlay isOpen={loading || pdfUploading} message={pdfUploading ? 'Subiendo PDF...' : 'Enviando solicitud...'} />
       <div className="min-h-screen py-8 rounded-md" style={{ background: '#f8f9fa' }}>
         <div className="w-full max-w-4xl mx-auto px-4">
           <form onSubmit={handleFormSubmit}>
@@ -436,7 +760,6 @@ export default function RequestRegistration() {
               </div>
             </div>
 
-            // Datos del Aprendiz - campos pre-cargados + campos editables
 
             <ApprenticeSection
               person={{
@@ -483,7 +806,32 @@ export default function RequestRegistration() {
             />
 
             {/* Datos de la Empresa */}
-            <EmpresaSection
+            <div className="mb-4 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium">Empresa</div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className={`px-3 py-1 rounded ${enterpriseMode === 'select' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => setEnterpriseMode('select')}>Seleccionar existente</button>
+                  <button type="button" className={`px-3 py-1 rounded ${enterpriseMode === 'create' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => { setEnterpriseMode('create'); setSelectedEnterpriseId(null); }}>Crear nueva</button>
+                </div>
+              </div>
+              {enterpriseMode === 'select' && (
+                <div className="mb-3">
+                  <CustomSelect
+                    value={selectedEnterpriseId ? String(selectedEnterpriseId) : ''}
+                    onChange={(val) => setSelectedEnterpriseId(val ? Number(val) : null)}
+                    options={loadingEnterprises ? [{ value: '__loading__', label: 'Cargando...' }] : enterpriseOptions}
+                    label="Empresa existente"
+                    placeholder={loadingEnterprises ? 'Cargando...' : 'Seleccione empresa...'}
+                    classNames={{
+                      trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
+                      label: "block text-sm font-medium mb-2",
+                    }}
+                    disabled={loadingEnterprises}
+                  />
+                </div>
+              )}
+
+              <EmpresaSection
               formData={{
                 name_enterprise: formData.enterprise_name ?? '',
                 nit_enterprise: formData.enterprise_nit ?? 0,
@@ -496,9 +844,36 @@ export default function RequestRegistration() {
                 else if (field === 'locate') updateFormData('enterprise_location', value);
                 else if (field === 'email_enterprise') updateFormData('enterprise_email', value);
               }}
+              disabled={enterpriseMode === 'select'}
             />
+            </div>
 
             {/* Datos del Jefe Inmediato */}
+            <div className="mb-4 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium">Jefe Inmediato</div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className={`px-3 py-1 rounded ${bossMode === 'select' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => setBossMode('select')}>Seleccionar existente</button>
+                  <button type="button" className={`px-3 py-1 rounded ${bossMode === 'create' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => { setBossMode('create'); setSelectedBossId(null); }}>Crear nuevo</button>
+                </div>
+              </div>
+              {bossMode === 'select' && (
+                <div className="mb-3">
+                  <CustomSelect
+                    value={selectedBossId ? String(selectedBossId) : ''}
+                    onChange={(val) => setSelectedBossId(val ? Number(val) : null)}
+                    options={loadingBosses ? [{ value: '__loading__', label: 'Cargando...' }] : bossOptions}
+                    label="Jefe existente"
+                    placeholder={loadingBosses ? 'Cargando...' : 'Seleccione jefe...'}
+                    classNames={{
+                      trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
+                      label: "block text-sm font-medium mb-2",
+                    }}
+                    disabled={loadingBosses || (!selectedEnterpriseId && enterpriseMode === 'select')}
+                  />
+                </div>
+              )}
+
             <JefeSection
               formData={{
                 name_boss: formData.boss_name ?? '',
@@ -514,9 +889,36 @@ export default function RequestRegistration() {
               }}
               phoneError={phoneError}
               handlePhoneChange={handlePhoneChange}
+              disabled={bossMode === 'select'}
             />
+            </div>
 
             {/* Datos del Encargado de contratación */}
+            <div className="mb-4 bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium">Encargado de contratación / Talento Humano</div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className={`px-3 py-1 rounded ${humanTalentMode === 'select' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => setHumanTalentMode('select')}>Seleccionar existente</button>
+                  <button type="button" className={`px-3 py-1 rounded ${humanTalentMode === 'create' ? 'bg-gray-200' : 'bg-white'}`} onClick={() => { setHumanTalentMode('create'); setSelectedHumanTalentId(null); }}>Crear nuevo</button>
+                </div>
+              </div>
+              {humanTalentMode === 'select' && (
+                <div className="mb-3">
+                  <CustomSelect
+                    value={selectedHumanTalentId ? String(selectedHumanTalentId) : ''}
+                    onChange={(val) => setSelectedHumanTalentId(val ? Number(val) : null)}
+                    options={loadingHumanTalents ? [{ value: '__loading__', label: 'Cargando...' }] : humanTalentOptions}
+                    label="Talento humano existente"
+                    placeholder={loadingHumanTalents ? 'Cargando...' : 'Seleccione...'}
+                    classNames={{
+                      trigger: "w-full border-2 rounded-lg px-3 py-2 text-sm flex items-center justify-between bg-white",
+                      label: "block text-sm font-medium mb-2",
+                    }}
+                    disabled={loadingHumanTalents || (!selectedEnterpriseId && enterpriseMode === 'select')}
+                  />
+                </div>
+              )}
+
             <TalentoHumanoSection
               formData={{
                 name: formData.human_talent_name ?? '',
@@ -530,16 +932,19 @@ export default function RequestRegistration() {
               }}
               humanTalentPhoneError={humanTalentPhoneError}
               handleHumanTalentPhoneChange={handleHumanTalentPhoneChange}
+              disabled={humanTalentMode === 'select'}
             />
+            </div>
 
             {/* Archivo PDF */}
             <div >
               
               <PdfUploadSection
-                selectedFile={selectedFile}
-                handleFileSelect={handleFileSelect}
-                triggerFileInput={triggerFileInput}
-              />
+                  selectedFile={selectedFile}
+                  handleFileSelect={handleFileSelect}
+                  triggerFileInput={triggerFileInput}
+                  modalityIsContrato={modalityIsContrato}
+                />
               
             </div>
             

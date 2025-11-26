@@ -7,6 +7,8 @@ import FooterLinks from './FooterLinks';
 import { validateInstitutionalLogin } from '../../Api/Services/User';
 import { isSenaEmail, isValidPassword } from '../../hook/validationlogin';
 import SenaLogo from '../SenaLogo';
+import SecondFactorModal from './SecondFactorModal';
+import LoadingOverlay from '../LoadingOverlay';
 
 /**
  * Props for LoginForm component.
@@ -31,15 +33,16 @@ interface LoginFormProps {
  * @returns {JSX.Element} Login form.
  */
 const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
-  const navigate = useNavigate(); // ✅ AGREGAR ESTO
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [documentType, setDocumentType] = useState('');
-  const [documentTypes, setDocumentTypes] = useState<{ id: number | ""; name: string }[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<{ id: number | ''; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [isSecondFactorModalOpen, setSecondFactorModalOpen] = useState(false);
 
   useEffect(() => {
     getDocumentTypesWithEmpty().then(setDocumentTypes);
@@ -60,12 +63,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (emailError || passwordError ) return;
+    if (emailError || passwordError) return;
     setLoading(true);
     try {
-  // Here you must send documentType (id) along with email and password to the backend
       const result = await validateInstitutionalLogin(email, password);
-      // ...resto igual
       let userData;
       if (result.user) {
         userData = {
@@ -74,7 +75,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
           role: result.user.role,
           person: result.user.person ? String(result.user.person) : undefined,
           access_token: result.access,
-          refresh_token: result.refresh
+          refresh_token: result.refresh,
         };
       } else {
         userData = {
@@ -83,13 +84,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
           role: result.role,
           person: result.person ? String(result.person) : undefined,
           access_token: result.access,
-          refresh_token: result.refresh
+          refresh_token: result.refresh,
         };
       }
       localStorage.setItem('user_data', JSON.stringify(userData));
       localStorage.setItem('access_token', result.access);
       localStorage.setItem('refresh_token', result.refresh);
-      navigate('/home');
+      localStorage.setItem('user_email', email); // Guardar el correo en localStorage
+
+      // Abrir el modal de segundo factor
+      setSecondFactorModalOpen(true);
     } catch (err: unknown) {
       setError((err as Error).message || 'Error al iniciar sesión');
     } finally {
@@ -99,15 +103,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
 
   return (
     <div className="sena-form-panel">
+      <LoadingOverlay isOpen={loading} message={loading ? 'Procesando...' : undefined} />
       <div className="sena-form">
-       <SenaLogo />
+        <SenaLogo />
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-600 mb-2">
-            Iniciar Sesión
-          </h2>
-          <p className="sena-text-muted">
-            Ingresa tus credenciales para acceder a tu cuenta.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-600 mb-2">Iniciar Sesión</h2>
+          <p className="sena-text-muted">Ingresa tus credenciales para acceder a tu cuenta.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -137,9 +138,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
             {passwordError && <span className="text-red-500 text-xs">{passwordError}</span>}
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
-          )}
+          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
           <div className="text-center">
             <button
@@ -151,11 +150,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
             </button>
           </div>
 
-          <button
-            type="submit"
-            className="sena-button"
-            disabled={loading}
-          >
+          <button type="submit" className="sena-button" disabled={loading}>
             {loading ? 'Procesando...' : 'Iniciar Sesión'}
           </button>
 
@@ -173,6 +168,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
 
         <FooterLinks />
       </div>
+
+      {/* Modal de segundo factor */}
+      <SecondFactorModal
+        isOpen={isSecondFactorModalOpen}
+        onClose={() => setSecondFactorModalOpen(false)}
+        onSuccess={() => navigate('/home')}
+      />
     </div>
   );
 };

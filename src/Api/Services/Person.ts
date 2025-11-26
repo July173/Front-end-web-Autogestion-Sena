@@ -45,7 +45,6 @@ export async function getPersonById(id: string): Promise<Person> {
   return response.json();
 }
 
-
 /**
  * Registers a new apprentice in the system.
  * @param payload - Apprentice data to register
@@ -60,7 +59,12 @@ export async function registerApprentice(payload: RegisterPayload): Promise<Regi
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    throw new Error("Error en el registro");
+    // Extract backend response for debugging
+    const errorResponse = await response.text(); 
+    // debugging
+    console.log('Respuesta del backend:', errorResponse); 
+    throw new Error(errorResponse || "Error en el registro");
   }
   return response.json();
 }
+

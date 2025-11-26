@@ -12,6 +12,19 @@ export async function getSedes() {
 }
 
 /**
+ * Filters sedes by search and active status.
+ * Endpoint: GET /general/sedes/filter/?search=...&active=...
+ */
+export async function filterSedes(params?: { search?: string; active?: string }) {
+  const url = new URL(ENDPOINTS.sede.filterSede);
+  if (params?.search) url.searchParams.append('search', params.search);
+  if (params?.active) url.searchParams.append('active', params.active);
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error('Error al filtrar sedes');
+  return response.json();
+}
+
+/**
  * Creates a new headquarters (sede).
  * Endpoint: POST /general/sedes/
  * @param data - Headquarters data
@@ -23,7 +36,16 @@ export async function createSede(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al crear sede');
+  if (!response.ok) {
+    const txt = await response.text();
+    try {
+      const parsed = txt ? JSON.parse(txt) : null;
+      const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+      throw new Error(msg || `Error al crear sede (${response.status})`);
+    } catch (_err) {
+      throw new Error(txt || `Error al crear sede (${response.status})`);
+    }
+  }
   return response.json();
 }
 
@@ -41,7 +63,16 @@ export async function updateSede(id, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error('Error al actualizar sede');
+  if (!response.ok) {
+    const txt = await response.text();
+    try {
+      const parsed = txt ? JSON.parse(txt) : null;
+      const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+      throw new Error(msg || `Error al actualizar sede (${response.status})`);
+    } catch (_err) {
+      throw new Error(txt || `Error al actualizar sede (${response.status})`);
+    }
+  }
   return response.json();
 }
 
@@ -57,7 +88,16 @@ export async function softDeleteSede(id) {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
   });
-  if (!response.ok) throw new Error('Error al deshabilitar sede');
+  if (!response.ok) {
+    const txt = await response.text();
+    try {
+      const parsed = txt ? JSON.parse(txt) : null;
+      const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+      throw new Error(msg || `Error al deshabilitar sede (${response.status})`);
+    } catch (_err) {
+      throw new Error(txt || `Error al deshabilitar sede (${response.status})`);
+    }
+  }
   const text = await response.text();
   try {
     return text ? JSON.parse(text) : {};

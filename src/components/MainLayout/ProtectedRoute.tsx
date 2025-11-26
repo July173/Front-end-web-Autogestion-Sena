@@ -24,7 +24,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const navigate = useNavigate();
 
   // Inactivity hook: removes session and shows modal even if session is already gone
-  useIdleTimer(20 * 60 * 1000, () => {
+  useIdleTimer(40 * 60 * 1000, () => {
     localStorage.removeItem("user_data");
     setShowSessionExpired(true);
     setSessionExpiredByIdle(true);

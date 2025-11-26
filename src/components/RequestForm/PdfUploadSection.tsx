@@ -12,6 +12,8 @@ interface PdfUploadSectionProps {
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   /** Function to trigger the hidden file input click */
   triggerFileInput: () => void;
+  /** Whether the selected modality is 'Contrato de Aprendizaje' */
+  modalityIsContrato?: boolean;
 }
 
 /**
@@ -32,7 +34,7 @@ interface PdfUploadSectionProps {
  * @param props - Component props as defined in PdfUploadSectionProps
  * @returns React component for PDF file upload section
  */
-const PdfUploadSection: React.FC<PdfUploadSectionProps> = ({ selectedFile, handleFileSelect, triggerFileInput }) => (
+const PdfUploadSection: React.FC<PdfUploadSectionProps> = ({ selectedFile, handleFileSelect, triggerFileInput, modalityIsContrato = false }) => (
   <div className="mb-6 bg-white rounded-lg shadow-md border-2" style={{ borderColor: '#7BCC7C' }}>
     {/* Header section with PDF icon and upload instructions */}
     <div className="flex items-center gap-3 px-6 py-4 rounded-t-lg border-b" style={{ backgroundColor: '#E7FFE8', borderBottomColor: '#7BCC7C' }}>
@@ -43,13 +45,23 @@ const PdfUploadSection: React.FC<PdfUploadSectionProps> = ({ selectedFile, handl
       </span>
     </div>
     <div className="p-6 bg-white rounded-b-lg">
-      {/* Instructions paragraph with detailed requirements for different modalities */}
-      <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-        Favor tenga en cuenta que, para Contrato de Aprendizaje debe cargar la copia del contrato celebrado con la empresa. Para las modalidades de Desempeño a través de vinculación laboral o contractual, Participación en un proyecto productivo, De apoyo a una unidad productiva familiar o Pasantías, debe cargar la evidencia mediante la cual el Coordinador Académico le Aprobó realizar su etapa práctica bajo algunas de estas modalidades. Si aún no cuenta con dicha autorización puede ingresar al siguiente enlace y solicitar la aprobación.{' '}
-        <a href="#" className="text-green-700 underline hover:text-green-800">
-          1-2-2 Autorización Modalidad Etapa Práctica Aprendiz, diferente a Contrato de Aprendizaje.
-        </a>
-      </p>  
+        {/* Instructions paragraph with detailed requirements for different modalities (dynamic) */}
+        {modalityIsContrato ? (
+          <div className="text-sm text-gray-600 mb-4 leading-relaxed">
+            <p>
+              Por favor tenga en cuenta que, para Contrato de Aprendizaje debe cargar la copia del contrato celebrado con la empresa. 1-2-2 Autorización Modalidad Etapa Práctica Aprendiz, diferente a Contrato de Aprendizaje.
+            </p>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-600 mb-4 leading-relaxed">
+            <p>
+              Para las modalidades de Desempeño a través de vinculación laboral o contractual, Participación en un proyecto productivo, De apoyo a una unidad productiva familiar o Pasantías, debe cargar la evidencia mediante la cual el Coordinador Académico le Aprobó realizar su etapa práctica bajo algunas de estas modalidades. Si aún no cuenta con dicha autorización puede ingresar al siguiente enlace y solicitar la aprobación. <a href="#" className="text-green-700 underline hover:text-green-800">1-2-2 Autorización Modalidad Etapa Práctica Aprendiz, diferente a Contrato de Aprendizaje.</a>
+            </p>
+            <p className="mt-3">
+              Tenga en cuenta que para demostrar la relación por Vínculo Laboral debe enviar Certificado laboral expedido por la empresa para la que trabaja, en la cual especifiquen las actividades y/o funciones que realiza y la certificación de afiliación ARL. Para el caso de Vínculo Formativo, debe remitir copia del contrato de Vínculo Formativo celebrado con la empresa en el cual se indiquen las actividades o constancia de la práctica que va a realizar con las labores y la certificación de afiliación ARL. Si su caso es el de Unidad Productiva Familiar, debe remitir el certificado de Cámara y Comercio, RUT y copia del documento del representante legal para definir el vínculo familiar de dicha unidad, documento en el cual indique las actividades afines a su programa de formación que va a realizar en dicha Unidad y la certificación de afiliación ARL. Si desea acogerse a la opción de participar en un proyecto productivo, debe anexar la propuesta del proyecto en el que se involucrará, el cual debe estar enmarcado en las competencias de su programa de formación. Si usted fue seleccionado(a) como Monitor fase productiva en su centro de formación debe presentar la copia de la Resolución expedida por el centro de formación en la que se encuentra incluido(a) como seleccionado(a) y el certificado de afiliación ARL. Cuando por el tiempo asignado en la monitoria (horas semanales y meses) y las horas totales que se realicen sean menores a las estipuladas para su etapa productiva, el aprendiz deberá completar las horas establecidas para la Etapa Productiva con otra alternativa, según la Resolución 2198 de 2019 y el diseño curricular.
+            </p>
+          </div>
+        )}
       <div className={`w-full flex flex-col items-center border-2 border-dashed rounded-lg py-8 cursor-pointer hover:bg-gray-50 transition-colors duration-200 ${!selectedFile ? 'border-red-300 bg-red-50' : ''}`}
         style={{ borderColor: !selectedFile ? '#DC395F' : '#7BCC7C' }}
         onClick={triggerFileInput}

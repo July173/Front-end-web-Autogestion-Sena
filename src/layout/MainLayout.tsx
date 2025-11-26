@@ -83,13 +83,15 @@ export default function MainLayout() {
         userImage={personData?.image}
         onMenuItemClick={handleMenuItemClick}
       />
-      <div className="flex-1 overflow-y-auto ">
-        <div className="sticky top-0 z-30 ">
+      <div className="flex-1 flex flex-col min-h-screen">
+        <div className="sticky top-0 z-30">
           <Header moduleName={activeModule} formName={activeFormName} />
         </div>
-        <main className="flex-1 p-4 ">
+
+        <main className="flex-1 overflow-y-auto p-4">
           <Outlet />
         </main>
+
         <Footer />
       </div>
     </div>

@@ -1,6 +1,23 @@
 import { ENDPOINTS } from "../config/ConfigApi";
-import { ValidateLoginResponse ,UserStatus} from "../types/entities/user.types";
+import { ValidateLoginResponse ,UserStatus, User} from "../types/entities/user.types";
 
+
+// methodo post for send code 2fa
+export async function verifySecondFactorCode({ email, code }: { email: string; code: string }): Promise<{ success: boolean; message?: string; user?: User }> {
+	const response = await fetch(ENDPOINTS.user.validateSecondFactor, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ email, code }),
+	});
+	const data = await response.json();
+	if (response.ok) {
+		return { success: true, user: data.user };
+	} else {
+		return { success: false, message: data.error || "Código inválido" };
+	}
+}
 
 /**
  * Gets a user by ID, including nested person and role data.
@@ -156,3 +173,20 @@ export function getUserStatus(user: UserStatus) {
 }
 
 
+/**
+ * Filters users using the backend filter endpoint.
+ * Endpoint: GET /security/users/filter/?role=...&search=...
+ * @param params - Filter params { role?: string, search?: string }
+ * @returns Promise with the array of filtered users
+ */
+export async function filterUsers(params: { role?: string; search?: string }) {
+	const { role, search } = params || {};
+	const base = ENDPOINTS.user.filter;
+	let url = `${base}?`;
+	if (role) url += `role=${encodeURIComponent(String(role))}&`;
+	if (search) url += `search=${encodeURIComponent(String(search))}&`;
+	url = url.replace(/&$/, '');
+	const response = await fetch(url);
+	if (!response.ok) throw new Error('Error al filtrar usuarios');
+	return response.json();
+}

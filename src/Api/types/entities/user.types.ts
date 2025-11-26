@@ -33,6 +33,7 @@ export interface User {
 }
 
 export interface RegisterResponse {
+  detail: string;
   person: import('./person.types').Person;
   user: User;
   success: string;
@@ -56,4 +57,9 @@ export interface ValidateLoginResponse {
 export interface UserStatus {
   is_active?: boolean;
   estado?: string;
+}
+
+export interface SecondFactorRequest {
+  email: string;
+  code: string;
 }

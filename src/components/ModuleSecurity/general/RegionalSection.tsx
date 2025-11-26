@@ -5,7 +5,9 @@ import ModalFormGeneric from ".././ModalFormGeneric";
 import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import DescriptionModal from "../../DescriptionModal";
-import { getRegionales, createRegional, updateRegional, softDeleteRegional } from "../../../Api/Services/Regional";
+import FilterBar from "../../FilterBar";
+import LoadingOverlay from '../../LoadingOverlay';
+import { getRegionales, createRegional, updateRegional, softDeleteRegional, filterRegionals } from "../../../Api/Services/Regional";
 import type { Regional } from "../../../Api/types/Modules/general.types";
 
 const cardsPerPage = 9;
@@ -28,6 +30,13 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
   const [error, setError] = useState<string | null>(null);
   // Pagination state for regional grid display
   const [page, setPage] = useState(1);
+
+  // Filter UI state (server-side)
+  const [displayedRegionals, setDisplayedRegionals] = useState<Regional[]>([]);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Modal visibility states for regional creation
   const [showAddModal, setShowAddModal] = useState(false);
@@ -73,6 +82,34 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
   React.useEffect(() => {
     refresh();
   }, []);
+
+  React.useEffect(() => {
+    if (!filtering && (!search || search === '') && (!activeFilter || activeFilter === '')) {
+      setDisplayedRegionals(regionals || []);
+    }
+  }, [regionals, filtering, search, activeFilter]);
+
+  const handleFilter = async (params?: { search?: string; active?: string }) => {
+    const s = params && params.search !== undefined ? params.search : (search || undefined);
+    const a = params && params.active !== undefined ? params.active : activeFilter;
+    setSearch(s ?? '');
+    setActiveFilter(a ?? '');
+    setFiltering(true);
+    try {
+      if ((!s || s === '') && (!a || a === '')) {
+        setDisplayedRegionals(regionals || []);
+        setPage(1);
+        return;
+      }
+      const data = await filterRegionals({ search: s, active: a });
+      setDisplayedRegionals(data || []);
+      setPage(1);
+    } catch (e) {
+      // ignore
+    } finally {
+      setTimeout(() => setFiltering(false), 180);
+    }
+  };
 
   /**
    * InfoCard component for displaying individual regional information.
@@ -147,8 +184,17 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    * Confirms and executes regional creation via API
    */
   const handleConfirmAdd = async () => {
+    setActionLoading(true);
     try {
-      await createRegional(pendingData);
+      // Normalize payload to backend expected keys (code_regional)
+      const pd = pendingData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingData?.name,
+        code_regional: pd['codeRegional'] !== undefined && pd['codeRegional'] !== null ? String(pd['codeRegional']) : (pd['codeRegional'] as string | undefined),
+        description: pendingData?.description,
+        address: pendingData?.address,
+      };
+      await createRegional(payload as unknown as Record<string, unknown>);
       setShowAddModal(false);
       setShowAddConfirm(false);
       setPendingData(null);
@@ -156,6 +202,8 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Regional creada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear regional'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -169,8 +217,17 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    * Confirms and executes regional update via API
    */
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
-      await updateRegional(editData.id, pendingEditData);
+      const ped = pendingEditData as unknown as Record<string, unknown>;
+      const ed = editData as unknown as Record<string, unknown>;
+      const payload = {
+        name: pendingEditData?.name ?? editData?.name,
+        code_regional: ped['codeRegional'] !== undefined && ped['codeRegional'] !== null ? String(ped['codeRegional']) : (ped['codeRegional'] as string | undefined) ?? (ed['codeRegional'] as string | undefined) ?? (ed['code_regional'] as string | undefined),
+        description: pendingEditData?.description ?? editData?.description,
+        address: pendingEditData?.address ?? editData?.address,
+      };
+      await updateRegional(editData.id, payload as unknown as Record<string, unknown>);
       setShowEditModal(false);
       setShowEditConfirm(false);
       setPendingEditData(null);
@@ -179,6 +236,8 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Regional actualizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar regional'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -186,6 +245,7 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    * Confirms and executes regional disable/enable toggle via API
    */
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await softDeleteRegional(pendingDisable.id);
       setShowDisableConfirm(false);
@@ -194,6 +254,8 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar regional'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -204,11 +266,12 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
   return (
     // Main container with collapsible section styling
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : 'Cargando...')} />
       {/* Collapsible header button with title and record count */}
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900">Regionales</h3>
-          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{regionals.length} registros</span>
+          <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{displayedRegionals.length} registros</span>
         </div>
         {/* Chevron icon indicating open/closed state */}
         {open ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
@@ -216,17 +279,43 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
       {/* Expandable content section */}
       {open && (
         <>
-          {/* Action bar with add regional button */}
-          <div className="flex items-center gap-4 mb-6 justify-between px-6 pt-6">
-            <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Regional</button>
-          </div>
+              {/* Filter + add regional button */}
+              <div className="flex flex-col gap-4 mb-6 px-6 pt-6">
+                <div>
+                  <FilterBar
+                    onFilter={(params) => { setSearch(params.search ?? ''); setActiveFilter(params.active ?? ''); handleFilter(params); }}
+                    inputWidth="520px"
+                    searchPlaceholder="Buscar por nombre"
+                    selects={[{
+                      name: 'active',
+                      value: activeFilter,
+                      options: [
+                        { value: 'true', label: 'Activos' },
+                        { value: 'false', label: 'Inactivos' }
+                      ],
+                      placeholder: 'Todos',
+                    }]}
+                  />
+                </div>
+                <div className="flex items-center gap-4 justify-between">
+                  <button onClick={handleAdd} className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700 hover:shadow-lg"><Plus className="w-4 h-4" /> Agregar Regional</button>
+                </div>
+              </div>
 
           {/* Regional cards grid with responsive layout */}
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Map through paginated regionals to create InfoCard components */}
-            {regionals.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((regional) => (
-              <InfoCard key={regional.id} regional={regional} />
-            ))}
+          <div className={`p-6 transition-opacity duration-300 ${filtering ? 'opacity-60' : 'opacity-100'}`}>
+            {displayedRegionals.length === 0 ? (
+              <div className="w-full text-center text-gray-500 py-12">
+                {search || activeFilter ? 'No se encontraron regionales con esta búsqueda' : 'No hay regionales disponibles'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Map through paginated regionals to create InfoCard components */}
+                {displayedRegionals.slice((page - 1) * cardsPerPage, page * cardsPerPage).map((regional) => (
+                  <InfoCard key={regional.id} regional={regional} />
+                ))}
+              </div>
+            )}
 
             {/* Modal for editing existing regional */}
             <ModalFormGeneric
@@ -242,7 +331,14 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
               onSubmit={handleSubmitEdit}
               submitText="Actualizar"
               cancelText="Cancelar"
-              initialValues={editData || {}}
+              initialValues={(() => {
+                if (!editData) return {};
+                const ed = editData as unknown as Record<string, unknown>;
+                return {
+                  ...editData,
+                  codeRegional: ed['code_regional'] ?? ed['codeRegional'],
+                } as Regional;
+              })()}
               customRender={undefined}
               onProgramChange={undefined}
             />
@@ -255,8 +351,8 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
           </div>
 
           {/* Pagination component when multiple pages exist */}
-          {Math.ceil(regionals.length / cardsPerPage) > 1 && (
-            <Paginator page={page} totalPages={Math.ceil(regionals.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
+          {Math.ceil(displayedRegionals.length / cardsPerPage) > 1 && (
+            <Paginator page={page} totalPages={Math.ceil(displayedRegionals.length / cardsPerPage)} onPageChange={setPage} className="mt-4 px-6" />
           )}
 
           {/* Modal for creating new regional */}

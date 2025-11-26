@@ -27,7 +27,16 @@ export async function createSupportContact(data: Partial<SupportContact>) {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(payload),
 	});
-	if (!res.ok) throw new Error('Error al crear el contacto de soporte');
+	if (!res.ok) {
+		const txt = await res.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(msg || `Error al crear el contacto de soporte (${res.status})`);
+		} catch (_err) {
+			throw new Error(txt || `Error al crear el contacto de soporte (${res.status})`);
+		}
+	}
 	return res.json();
 }
 
@@ -47,7 +56,16 @@ export async function updateSupportContact(id: number, data: Partial<SupportCont
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(payload),
 	});
-	if (!res.ok) throw new Error('Error al actualizar el contacto de soporte');
+	if (!res.ok) {
+		const txt = await res.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(msg || `Error al actualizar el contacto de soporte (${res.status})`);
+		} catch (_err) {
+			throw new Error(txt || `Error al actualizar el contacto de soporte (${res.status})`);
+		}
+	}
 	return res.json();
 }
 
@@ -63,12 +81,36 @@ export async function softDeleteSupportContact(id: number) {
 		method: 'DELETE',
 		headers: { 'Content-Type': 'application/json' },
 	});
-	if (!res.ok) throw new Error('Error al deshabilitar el contacto de soporte');
+	if (!res.ok) {
+		const txt = await res.text();
+		try {
+			const parsed = txt ? JSON.parse(txt) : null;
+			const msg = parsed && (parsed.detail || parsed.message || parsed.error) ? (parsed.detail || parsed.message || parsed.error) : null;
+			throw new Error(msg || `Error al deshabilitar el contacto de soporte (${res.status})`);
+		} catch (_err) {
+			throw new Error(txt || `Error al deshabilitar el contacto de soporte (${res.status})`);
+		}
+	}
 	const text = await res.text();
 	try {
 		return text ? JSON.parse(text) : {};
 	} catch {
 		return {};
 	}
+}
+
+/**
+ * Filters support contacts by search text and active flag.
+ * Endpoint: GET /support/contacts/filter/?search=...&active=...
+ * @param params - Optional search and active params
+ * @returns Promise with filtered array of support contacts
+ */
+export async function filterSupportContacts(params?: { search?: string; active?: string }): Promise<SupportContact[]> {
+    const url = new URL(ENDPOINTS.SupportContact.filterSupportContact, window.location.origin);
+    if (params?.search) url.searchParams.append('search', params.search);
+    if (params?.active) url.searchParams.append('active', params.active);
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('Error al filtrar los contactos de soporte');
+    return res.json();
 }
 

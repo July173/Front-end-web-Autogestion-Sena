@@ -199,10 +199,10 @@ const ModalFormGeneric = ({
                   value={values[field.name] !== undefined && values[field.name] !== null ? String(values[field.name]) : ''}
                   onChange={val => {
                     setValues(prev => ({ ...prev, [field.name]: val }));
-                    if (field.name === 'documentId' && typeof onProgramChange === 'function') {
-                      // Simulate event object for compatibility
-                      onProgramChange({ target: { name: 'documentId', value: val } });
-                    }
+                    if ((field.name === 'documentId' || field.name === 'document_id') && typeof onProgramChange === 'function') {
+                          // Simulate event object for compatibility with both naming conventions
+                          onProgramChange({ target: { name: field.name, value: val } });
+                        }
                   }}
                   options={field.options.map(opt => ({
                     ...opt,

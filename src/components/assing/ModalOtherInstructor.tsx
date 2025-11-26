@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
-import { getInstructoresSeguimiento, patchInstructorLimit } from "@/Api/Services/Instructor";
+import { patchInstructorLimit } from "@/Api/Services/Instructor";
 import { getKnowledgeAreas } from "@/Api/Services/KnowledgeArea";
 import { KnowledgeArea } from "@/Api/types/Modules/general.types";
 import FilterBar from "@/components/FilterBar";
+import useInstructorsQuery from '@/hook/useInstructorsQuery';
 import { ENDPOINTS } from "@/Api/config/ConfigApi";
 import EditLimitModal from "./EditLimitModal";
 import useNotification from "@/hook/useNotification";
 import NotificationModal from "@/components/NotificationModal";
-import { get } from "http";
+import useAssignmentColor from '@/hook/useAssignmentColor';
 
 
 /**
@@ -28,10 +29,10 @@ interface ModalOtroInstructorProps {
  * @param {ModalOtroInstructorProps} props
  */
 export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInstructorProps) {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [selectedArea, setSelectedArea] = useState<string>("");
+    // Note: search and area filters are handled by FilterBar -> fetchFilteredInstructors
     const [editLimitInstructor, setEditLimitInstructor] = useState<InstructorCustomList | null>(null);
-    const [instructores, setInstructores] = useState<InstructorCustomList[]>([]);
+    const [params, setParams] = useState<Record<string, string>>({});
+    const { data: instructores = [], isFetching: loadingInstructors, refetch } = useInstructorsQuery(params);
     const [knowledgeAreas, setKnowledgeAreas] = useState<KnowledgeArea[]>([]);
     const [loading, setLoading] = useState(false);
     const { notification, showNotification, hideNotification } = useNotification();
@@ -52,48 +53,10 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
      * Fetches filtered instructors from the API based on search and filters.
      * @param {Record<string, string>} params - Filter parameters
      */
-    const fetchFilteredInstructors = async (params: Record<string, string>) => {
-        setLoading(true);
-        try {
-            // Always send search, even if empty
-            const payload = { ...params };
-            if (!payload.search) payload.search = '';
-            payload.is_followup_instructor = 'true';
-            const query = Object.entries(payload)
-                .filter(([_, v]) => v !== undefined && v !== null)
-                .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-                .join("&");
-            const url = `${ENDPOINTS.instructor.filterInstructores}?${query}`;
-            const response = await fetch(url);
-            const result = await response.json();
-            // Supports both formats: { data: [...] } or [...]
-            let instructoresArr = [];
-            if (Array.isArray(result)) {
-                instructoresArr = result;
-            } else if (Array.isArray(result.data)) {
-                instructoresArr = result.data;
-            }
-            // Filter only follow-up instructors
-            setInstructores(instructoresArr.filter(inst => inst.is_followup_instructor === true));
-        } catch {
-            setInstructores([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // useFilteredInstructors hook provides fetchInstructors
 
-    /**
-     * Returns color classes for assignment badge based on percentage assigned.
-     * @param {number} assigned - Number of assigned learners
-     * @param {number} max - Maximum allowed learners
-     * @returns {{bg: string, text: string}}
-     */
-    const getAssignmentColor = (assigned: number, max: number) => {
-        const percentage = (assigned / max) * 100;
-        if (percentage <= 30) return { bg: "bg-green-400", text: "text-green-900" };
-        if (percentage <= 70) return { bg: "bg-amber-200", text: "text-yellow-700" };
-        return { bg: "bg-rose-400", text: "text-red-600" };
-    };
+    // Hook that returns a function to compute assignment colors dynamically
+    const getAssignmentColor = useAssignmentColor();
 
     /**
      * Utility to get instructor's full name.
@@ -113,13 +76,15 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
      * @returns {string}
      */
     const getKnowledgeArea = (inst: InstructorCustomList) => {
-        if (inst.knowledge_area) return inst.knowledge_area;
-        // Search for area name by id
-        if (inst.knowledge_area) {
-            const area = knowledgeAreas.find((a) => a.id === Number(inst.knowledge_area));
-            if (area) return area.name;
-        }
-        return inst.knowledge_area || "Sin especialidad";
+        const ka = inst.knowledge_area;
+        if (!ka) return "Sin especialidad";
+
+        // Try to resolve by id first (handles cases where API returns an id like "1")
+        const areaById = knowledgeAreas.find((a) => String(a.id) === String(ka));
+        if (areaById) return areaById.name;
+
+        // If no matching id, assume the field already contains the name
+        return String(ka);
     };
 
     // No local filtering, only via API
@@ -135,9 +100,8 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         try {
             await patchInstructorLimit(editLimitInstructor.id, newLimit);
             
-            // Refresh instructors after updating limit
-            const data = await getInstructoresSeguimiento();
-            setInstructores(data);
+            // Refresh instructors using the query refetch
+            await refetch();
             
             // Show success notification
             showNotification(
@@ -160,10 +124,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         }
     };
 
-    // Load instructors when modal opens (no filters -> empty search)
-    useEffect(() => {
-        fetchFilteredInstructors({ search: '' });
-    }, []);
+    // Query hook auto-fetches based on `params` state; nothing to run on mount.
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
@@ -198,7 +159,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                 {/* Filters with FilterBar */}
                                 <div className="absolute left-[66px] top-[111px] flex gap-4 items-center">
                                     <FilterBar
-                                        onFilter={fetchFilteredInstructors}
+                                        onFilter={(p) => setParams(p)}
                                         inputWidth="620px"
                                         searchPlaceholder="Buscar por nombre o número de documento..."
                                         selects={[{

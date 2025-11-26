@@ -38,7 +38,24 @@ export async function putRolFormPerms(id, data) {
 export async function getRolesFormsPerms() {
 	const response = await fetch(ENDPOINTS.rol.getRolesFormsPerms);
 	if (!response.ok) throw new Error('Error al obtener la matriz de permisos');
-	return response.json();
+	const data = await response.json();
+	// Normalize backend variants to a consistent shape used by frontend
+	// Backend may return keys like { rol, formulario, Ver, Editar, ... }
+	if (Array.isArray(data)) {
+		return (data as unknown[]).map((it: unknown) => {
+			const o = it as Record<string, unknown>;
+			return {
+				role: o['role'] ?? o['rol'] ?? o['nombre'] ?? o['role_name'] ?? o['role_id'] ?? o['rol_id'],
+				form: o['form'] ?? o['formulario'] ?? o['formulario_name'] ?? o['formulario_id'] ?? o['form_id'],
+				Ver: !!o['Ver'],
+				Editar: !!o['Editar'],
+				Registrar: !!o['Registrar'],
+				Eliminar: !!o['Eliminar'],
+				Activar: !!o['Activar'],
+			};
+		});
+	}
+	return data;
 }
 
 /**
@@ -51,8 +68,8 @@ export async function getRolesFormsPerms() {
  */
 export async function toggleRoleActive(id: number, active: boolean) {
 	// If active, disables (DELETE); if inactive, reactivates (DELETE)
-		const url = ENDPOINTS.rol.deleteRolUsers.replace('{id}', id.toString());
-		const options: RequestInit = { method: 'DELETE' };
+	const url = ENDPOINTS.rol.deleteRolUsers.replace('{id}', id.toString());
+	const options: RequestInit = { method: 'DELETE' };
 	const response = await fetch(url, options);
 	if (!response.ok) {
 		let errorMsg = 'Error al cambiar el estado del rol';
@@ -92,7 +109,25 @@ export async function toggleRoleActive(id: number, active: boolean) {
 export async function getRoles() {
 	const response = await fetch(ENDPOINTS.rol.getRoles);
 	if (!response.ok) throw new Error('Error al obtener roles');
-	return response.json();
+	const data = await response.json();
+	// Normalize backend shape: { id, nombre, descripcion, active, cantidad_usuarios }
+	if (Array.isArray(data)) {
+		return (data as unknown[]).map((r: unknown) => {
+			const o = r as Record<string, unknown>;
+			const id = (o['id'] as number) ?? Number(String(o['id'] ?? 0));
+			return {
+				id,
+				// Prefer localized 'nombre', then 'name', then legacy 'type_role', finally id as string
+				name: (o['nombre'] as string) ?? (o['name'] as string) ?? (o['type_role'] as string) ?? String(id),
+				// keep legacy `type_role` for components that expect it
+				type_role: (o['type_role'] as string) ?? (o['nombre'] as string) ?? (o['name'] as string) ?? String(id),
+				description: (o['descripcion'] as string) ?? (o['description'] as string) ?? '',
+				active: typeof o['active'] === 'boolean' ? (o['active'] as boolean) : ((o['active'] as boolean) ?? true),
+				user_count: (o['cantidad_usuarios'] as number) ?? (o['user_count'] as number) ?? 0,
+			};
+		});
+	}
+	return data;
 }
 
 
@@ -104,7 +139,42 @@ export async function getRoles() {
 export async function getRolesUser() {
 	const response = await fetch(ENDPOINTS.rol.getRolUser);
 	if (!response.ok) throw new Error('Error al obtener roles con los usuarios');
-	return response.json();
+	const data = await response.json();
+	// Normalize backend variants to a consistent frontend shape
+	if (Array.isArray(data)) {
+		return (data as unknown[]).map((r: unknown) => {
+			const o = r as Record<string, unknown>;
+			const id = (o['id'] as number) ?? Number(String(o['id'] ?? 0));
+			return {
+				id,
+				name: (o['nombre'] as string) ?? (o['name'] as string) ?? (o['type_role'] as string) ?? String(id),
+				type_role: (o['type_role'] as string) ?? (o['nombre'] as string) ?? (o['name'] as string) ?? String(id),
+				description: (o['descripcion'] as string) ?? (o['description'] as string) ?? '',
+				active: typeof o['active'] === 'boolean' ? (o['active'] as boolean) : ((o['active'] as boolean) ?? true),
+				user_count: (o['cantidad_usuarios'] as number) ?? (o['user_count'] as number) ?? 0,
+			};
+		});
+	}
+	return data;
+}
+
+// Helper: normalize a single role-like object (exported for reuse)
+export function normalizeRoleObject(o: Record<string, unknown>) {
+	const id = (o['id'] as number) ?? Number(String(o['id'] ?? 0));
+	return {
+		id,
+		name: (o['nombre'] as string) ?? (o['name'] as string) ?? (o['type_role'] as string) ?? String(id),
+		type_role: (o['type_role'] as string) ?? (o['nombre'] as string) ?? (o['name'] as string) ?? String(id),
+		description: (o['descripcion'] as string) ?? (o['description'] as string) ?? '',
+		active: typeof o['active'] === 'boolean' ? (o['active'] as boolean) : ((o['active'] as boolean) ?? true),
+		user_count: (o['cantidad_usuarios'] as number) ?? (o['user_count'] as number) ?? 0,
+	};
+}
+
+// Helper: normalize an array of role-like objects
+export function normalizeRolesArray(data: unknown) {
+	if (!Array.isArray(data)) return [];
+	return (data as unknown[]).map(it => normalizeRoleObject(it as Record<string, unknown>));
 }
 
 /**
