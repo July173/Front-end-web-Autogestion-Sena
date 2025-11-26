@@ -218,3 +218,34 @@ export async function getInstructoresSeguimiento() {
   if (!response.ok) throw new Error('Error al obtener instructores de seguimiento');
   return response.json();
 }
+
+/**
+ * Gets the assignments related to a specific instructor.
+ * Endpoint: GET /general/instructors/{id}/asignations/
+ * @param instructorId - Instructor ID
+ * @returns Promise with the array of assignments
+ */
+export async function getInstructorAssignments(instructorId: number) {
+  try {
+    const url = ENDPOINTS.instructor.getInstructorAssignments.replace('{id}', String(instructorId));
+    const response = await fetch(url);
+    if (!response.ok) {
+      try {
+        const err = await response.json();
+        throw new Error(err.message || 'Error al obtener asignaciones del instructor');
+      } catch (e) {
+        throw new Error('Error al obtener asignaciones del instructor');
+      }
+    }
+
+    const result = await response.json();
+    // Support both { data: [...] } and [...] shapes
+    return Array.isArray(result) ? result : (result.data || []);
+  } catch (error) {
+    console.error('Error en getInstructorAssignments:', error);
+    throw error;
+  }
+}
+
+// Backwards-compatibility alias (if other code expects the old name)
+export { getInstructorAssignments as getFormRequestById };

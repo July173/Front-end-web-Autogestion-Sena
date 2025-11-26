@@ -8,6 +8,7 @@ import { validateInstitutionalLogin } from '../../Api/Services/User';
 import { isSenaEmail, isValidPassword } from '../../hook/validationlogin';
 import SenaLogo from '../SenaLogo';
 import SecondFactorModal from './SecondFactorModal';
+import LoadingOverlay from '../LoadingOverlay';
 
 /**
  * Props for LoginForm component.
@@ -102,6 +103,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
 
   return (
     <div className="sena-form-panel">
+      <LoadingOverlay isOpen={loading} message={loading ? 'Procesando...' : undefined} />
       <div className="sena-form">
         <SenaLogo />
         <div className="mb-8">

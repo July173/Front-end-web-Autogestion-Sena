@@ -26,6 +26,8 @@ export interface AssignTableRow {
   request_date: string;
   id?: number;
   request_state?: string;
+  /** Optional: modalidad asociada (nombre) retornada por el backend */
+  nombre_modalidad?: string;
 }
 
 export interface DetailData {
@@ -63,6 +65,34 @@ export interface DetailData {
 
  
 }
+
+/**
+ * Assignment record as returned by the instructor assignments endpoint
+ */
+export interface InstructorAssignment {
+  id: number;
+  instructor?: number;
+  request_asignation?: number;
+  content?: string;
+  type_message?: string;
+  aprendiz_id?: number;
+  nombre?: string;
+  name?: string;
+  tipo_identificacion?: string | number;
+  numero_identificacion?: string | number;
+  fecha_solicitud?: string;
+  estado_solicitud?: string;
+  nombre_modalidad?: string;
+}
+
+/** Payload used to reassign an instructor to an existing asignation */
+export interface ReassignInstructorPayload {
+  asignation_instructor: number;
+  new_instructor_id: number;
+  message?: string;
+}
+
+export type AssignmentRow = InstructorAssignment;
 
  export interface Enterprise {
     name_enterprise: string;

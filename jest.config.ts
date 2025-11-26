@@ -3,6 +3,7 @@ import type { Config } from '@jest/types';
 const config: Config.InitialOptions = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  setupFiles: ['<rootDir>/jest.env.setup.js'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^.+\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
@@ -12,6 +13,8 @@ const config: Config.InitialOptions = {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  // Transform some ESM modules under node_modules (msw and friends) so Jest can parse them
+  transformIgnorePatterns: ['/node_modules/(?!(msw|@mswjs|until-async)/)'],
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },

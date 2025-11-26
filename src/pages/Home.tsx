@@ -2,9 +2,10 @@ import AdminDashboardView from "../components/Dashboard/AdminDashboardView";
 import ApprenticeDashboardView from "../components/Dashboard/ApprenticeDashboardView";
 import InstructorDashboard from "../components/Dashboard/InstructorDashboard";
 import GenericDashboardView from "../components/Dashboard/GenericDashboardView";
+import OperationSofiaDashboardView from "../components/Dashboard/OperationSofiaDashboardView";
 import { useUserData } from "../hook/useUserData";
 import { useState, useEffect } from "react";
-import { getApprenticesByPerson } from "../Api/Services/Apprentice";
+import { getUserById } from "../Api/Services/User";
 import { User } from "../Api/types/entities/user.types"; // Importar el tipo User
 import { useNavigate } from "react-router-dom"; // Importar navigate
 
@@ -26,19 +27,17 @@ export const Home = () => {
     return "Usuario";
   };
 
-  // Get apprentice_id from person_id
+  // Get apprentice_id from user endpoint (avoid general/aprendices/?person=...)
   useEffect(() => {
     const fetchApprenticeId = async () => {
-      if (userData?.person && userData?.role === 2) {
+      if (userData?.id && userData?.role === 2) {
         setLoadingApprentice(true);
         try {
-            const apprentices = await getApprenticesByPerson(userData.person);
-          if (apprentices && apprentices.length > 0) {
-            setApprenticeId(apprentices[0].id);
-            console.log("Apprentice ID encontrado:", apprentices[0].id);
-          }
+          const fullUser: any = await getUserById(userData.id);
+          const apprenticeIdFromUser = fullUser?.apprentice?.id ?? fullUser?.apprentice ?? null;
+          if (apprenticeIdFromUser) setApprenticeId(apprenticeIdFromUser);
         } catch (error) {
-          console.error("Error al obtener aprendiz ID:", error);
+          console.error("Error al obtener aprendiz ID desde user endpoint:", error);
         } finally {
           setLoadingApprentice(false);
         }
@@ -82,16 +81,18 @@ export const Home = () => {
   }
 
   // Role mapping
-  // 1: admin, 2: aprendiz, 3: instructor, 4: coordinator
-  const roleMap: Record<string | number, "admin" | "coordinator" | "instructor" | "aprendiz"> = {
+  // 1: admin, 2: aprendiz, 3: instructor, 4: coordinator, 5: operation (Sofia)
+  const roleMap: Record<string | number, "admin" | "coordinator" | "instructor" | "aprendiz" | "operation"> = {
     1: "admin",
     2: "aprendiz",
     3: "instructor",
     4: "coordinator",
+    5: "operation",
     "admin": "admin",
     "aprendiz": "aprendiz",
     "instructor": "instructor",
-    "coordinator": "coordinator"
+    "coordinator": "coordinator",
+    "operation": "operation"
   };
 
 
@@ -108,6 +109,9 @@ const role = roleMap[roleRaw] || null;
   if (role === "aprendiz") {
   
     return <ApprenticeDashboardView name={getUserName()} apprenticeId={apprenticeId} />;
+  }
+  if (role === "operation") {
+    return <OperationSofiaDashboardView />;
   }
   if (role === "instructor") {
   

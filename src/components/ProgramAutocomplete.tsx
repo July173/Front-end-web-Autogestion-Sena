@@ -24,6 +24,10 @@ interface ProgramAutocompleteProps {
   onChange: (option: OptionType | null) => void;
   /** Placeholder text shown when no option is selected. Defaults to "Programa" */
   placeholder?: string;
+  /** When true the component will expand to full width of its container */
+  fullWidth?: boolean;
+  /** If provided, use these options instead of fetching programs from the API */
+  optionsOverride?: OptionType[];
 }
 
 /**
@@ -55,15 +59,19 @@ interface ProgramAutocompleteProps {
  * />
  * ```
  */
-const ProgramAutocomplete: React.FC<ProgramAutocompleteProps> = ({ value, onChange, placeholder }) => {
+const ProgramAutocomplete: React.FC<ProgramAutocompleteProps> = ({ value, onChange, placeholder, fullWidth = false, optionsOverride }) => {
   // State for available program options
   const [options, setOptions] = useState<OptionType[]>([]);
 
   // Loading state during API fetch
   const [loading, setLoading] = useState(false);
 
-  // Fetch programs from API on component mount
+  // Fetch programs from API on component mount, unless optionsOverride is provided
   useEffect(() => {
+    if (optionsOverride && Array.isArray(optionsOverride)) {
+      setOptions(optionsOverride);
+      return;
+    }
     setLoading(true);
     getPrograms()
       .then((programs: { id: number; name: string }[]) => {
@@ -74,7 +82,9 @@ const ProgramAutocomplete: React.FC<ProgramAutocompleteProps> = ({ value, onChan
         ]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  // We intentionally run this effect only on mount. If optionsOverride changes dynamically,
+  // the parent component should re-create this component or handle updates externally.
+  }, [optionsOverride]);
 
   return (
     <Select
@@ -87,19 +97,22 @@ const ProgramAutocomplete: React.FC<ProgramAutocompleteProps> = ({ value, onChan
       isLoading={loading}
       styles={{
         // Container styling with responsive width constraints
-        container: (base) => ({ ...base, minWidth: 220, maxWidth: 320, height: 40, display: 'flex', alignItems: 'center' }),
-        // Control (input container) styling
+        // When fullWidth is true, force 100% width and allow shrinking (minWidth: 0)
+        container: (base) => ({ ...base, width: fullWidth ? '100%' : undefined, minWidth: fullWidth ? 0 : 220, maxWidth: fullWidth ? '100%' : 320, height: 40, display: 'flex', alignItems: 'center' }),
+        // Control (input container) styling - tuned to match form inputs (w-full, border-2, rounded-lg, px-3, py-2, text-sm)
         control: (base) => ({
           ...base,
+          width: '100%',
           minHeight: 40,
           height: 40,
           borderRadius: 8,
           borderColor: '#d1d5db',
+          borderWidth: 2,
           boxShadow: 'none',
-          fontSize: '1rem',
+          fontSize: '0.875rem', // text-sm
         }),
-        // Value container (selected value display area)
-        valueContainer: (base) => ({ ...base, height: 40, padding: '0 8px', display: 'flex', alignItems: 'center' }),
+  // Value container (selected value display area)
+  valueContainer: (base) => ({ ...base, height: 40, padding: '0 12px', display: 'flex', alignItems: 'center' }),
         // Input field styling
         input: (base) => ({ ...base, margin: 0, padding: 0 }),
         // Indicators container (dropdown arrow, clear button)

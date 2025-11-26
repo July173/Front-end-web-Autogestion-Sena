@@ -6,6 +6,7 @@ import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import DescriptionModal from "../../DescriptionModal";
 import FilterBar from "../../FilterBar";
+import LoadingOverlay from '../../LoadingOverlay';
 import { getRegionales, createRegional, updateRegional, softDeleteRegional, filterRegionals } from "../../../Api/Services/Regional";
 import type { Regional } from "../../../Api/types/Modules/general.types";
 
@@ -35,6 +36,7 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Modal visibility states for regional creation
   const [showAddModal, setShowAddModal] = useState(false);
@@ -182,6 +184,7 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    * Confirms and executes regional creation via API
    */
   const handleConfirmAdd = async () => {
+    setActionLoading(true);
     try {
       // Normalize payload to backend expected keys (code_regional)
       const pd = pendingData as unknown as Record<string, unknown>;
@@ -199,6 +202,8 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Regional creada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear regional'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -212,6 +217,7 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    * Confirms and executes regional update via API
    */
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       const ped = pendingEditData as unknown as Record<string, unknown>;
       const ed = editData as unknown as Record<string, unknown>;
@@ -230,6 +236,8 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Regional actualizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar regional'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -237,6 +245,7 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
    * Confirms and executes regional disable/enable toggle via API
    */
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       await softDeleteRegional(pendingDisable.id);
       setShowDisableConfirm(false);
@@ -245,6 +254,8 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar regional'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -255,6 +266,7 @@ const RegionalSection = ({ open, onToggle }: RegionalSectionProps) => {
   return (
     // Main container with collapsible section styling
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : 'Cargando...')} />
       {/* Collapsible header button with title and record count */}
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
           <div className="flex items-center gap-3">

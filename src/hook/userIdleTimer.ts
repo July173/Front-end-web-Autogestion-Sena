@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
  * @param onSessionExpired - Optional callback function called when session expires
  */
 export default function useIdleTimer(
-  timeout: number = 20 * 60 * 1000,
+  timeout: number = 40 * 60 * 1000,
   onSessionExpired?: () => void
 ) {
   const navigate = useNavigate();

@@ -36,6 +36,7 @@ interface ConfirmModalProps {
   onConfirm: () => void;
   onCancel: () => void;
   errorMessage?: string | null;
+  zIndex?: number;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -47,11 +48,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onCancel,
   errorMessage = null,
+  zIndex = 50,
 }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center" style={{ zIndex }}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg" style={{ zIndex: zIndex + 1 }}>
         <h3 className="text-lg font-bold mb-2">{title}</h3>
         <p className="mb-2 text-gray-700">{message}</p>
         {errorMessage && (

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import ModalAsignar from "./ModalAssign";
+import ModalPreApprove from "./ModalPreApprove";
 import { getFormRequestById } from "@/Api/Services/RequestAssignaton";
 
 /**
@@ -9,18 +10,19 @@ interface ApprenticeData {
   name: string;
   type_identification: number;
   number_identification: string;
-  file_number: number;
+  file_number: string;
   date_start_production_stage: string;
   program: string;
   request_date: string;
   request_id?: number;
+  modality_productive_stage?: string;
 }
 
 /**
  * Props for the AssignButton component.
  */
 interface AssignButtonProps {
-  state?: "Asignar" | "Asignado" | "Rechazado";
+  state?: "Asignar" | "Asignado" | "Rechazado" | "Verificando" | "PreAprobado";
   onClick?: () => void;
   requestId?: number;
   onAssignmentComplete?: () => void;
@@ -43,10 +45,21 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
     style = "bg-[#fb8383] border border-[#773939] h-[26px] w-[90px] rounded-[10px] flex items-center justify-center relative cursor-default";
     text = "text-[#5c1515]";
     label = "Rechazado";
+  } else if (state === "Verificando") {
+    style = "bg-amber-100 border border-amber-300 h-[26px] w-[100px] rounded-[10px] flex items-center justify-center relative cursor-default";
+    text = "text-amber-800";
+    label = "Verificando";
+  } else if (state === "PreAprobado") {
+    // blue button for PRE-APROBADO
+    style = "bg-blue-100 border border-blue-300 h-[28px] w-[120px] rounded-[10px] flex items-center justify-center relative cursor-pointer hover:bg-blue-200";
+    text = "text-blue-800";
+    label = "Pre-Aprobado";
   }
 
   const handleClick = async () => {
-    if (state === "Asignar" && requestId) {
+    if (!requestId) return;
+    // Open assign modal when state is 'Asignar'
+    if (state === "Asignar") {
       setLoading(true);
       try {
         const res = await getFormRequestById(requestId);
@@ -55,11 +68,13 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
           name: d.name_apprentice,
           type_identification: d.type_identification,
           number_identification: d.number_identification,
-          file_number: d.file_number?.toString() || "",
+          // The API maps the file number as 'numero_ficha' (or 'ficha'). Prefer that field.
+          file_number: d.numero_ficha ? String(d.numero_ficha) : (d.ficha ? String(d.ficha) : ""),
           date_start_production_stage: d.date_start_production_stage,
           program: d.program,
           request_date: d.request_date,
-          request_id: requestId, // Pasar el ID del request que viene de la tabla
+          request_id: requestId,
+          modality_productive_stage: d.modality_productive_stage ?? d.modality ?? undefined,
         });
         setShowModal(true);
       } catch (e) {
@@ -68,6 +83,42 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
         setLoading(false);
       }
       if (onClick) onClick();
+      return;
+    }
+
+    // Open pre-approval modal when state is 'PreAprobado'
+    if (state === "PreAprobado") {
+      setLoading(true);
+      try {
+        // Fetch both the form detail and the raw request (which should include assigned instructor and messages)
+        const [formResp, rawResp] = await Promise.all([
+          getFormRequestById(requestId),
+          // dynamic import to avoid circular deps
+          (await import("@/Api/Services/RequestAssignaton")).getRequestAsignationById(requestId),
+        ]);
+        const d = formResp.data;
+        const raw = rawResp.data || rawResp || {};
+        setApprenticeData({
+          name: d.name_apprentice,
+          type_identification: d.type_identification,
+          number_identification: d.number_identification,
+          file_number: d.numero_ficha ? String(d.numero_ficha) : (d.ficha ? String(d.ficha) : ""),
+          date_start_production_stage: d.date_start_production_stage,
+          program: d.program,
+          request_date: d.request_date,
+          request_id: requestId,
+          modality_productive_stage: d.modality_productive_stage ?? d.modality ?? undefined,
+        });
+        // Attach raw data (messages, assigned instructor) onto apprenticeData via a temp property
+        (setApprenticeData as any)((prev) => ({ ...(prev as any), raw }));
+        setShowModal(true);
+      } catch (e) {
+        setApprenticeData(null);
+      } finally {
+        setLoading(false);
+      }
+      if (onClick) onClick();
+      return;
     }
   };
 
@@ -85,8 +136,9 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
         className={style}
         style={{ fontFamily: 'Roboto, sans-serif', fontWeight: 400 }}
         onClick={handleClick}
-        disabled={state !== "Asignar" || loading}
-        data-node-id={state === "Asignar" ? "823:13305" : state === "Asignado" ? "823:13205" : "823:13209"}
+        // Allow clicks when state is 'Asignar' or 'PreAprobado'. Disable only while loading or when state is a non-interactive final state.
+        disabled={loading || state === "Asignado" || state === "Rechazado" || state === "Verificando"}
+        data-node-id={state === "Asignar" ? "823:13305" : state === "Asignado" ? "823:13205" : state === "Rechazado" ? "823:13209" : "823:13210"}
       >
         <span className={`text-[14px] leading-[32px] ${text}`}>{loading ? "Cargando..." : label}</span>
       </button>
@@ -96,12 +148,22 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
           onClick={(e) => e.stopPropagation()} // prevent overlay clicks from reaching the table
         >
           <div className="relative">
-            <ModalAsignar
-              apprentice={apprenticeData}
-              onClose={() => setShowModal(false)}
-              onReject={handleReject}
-              onAssignmentComplete={onAssignmentComplete}
-            />
+            {state === 'PreAprobado' ? (
+              <ModalPreApprove
+                apprentice={apprenticeData}
+                onClose={() => setShowModal(false)}
+                onAssignmentComplete={onAssignmentComplete}
+                assignedInstructor={(apprenticeData as any)?.raw?.assigned_instructor ?? (apprenticeData as any)?.raw?.instructor ?? null}
+                initialMessages={(apprenticeData as any)?.raw?.messages ?? (apprenticeData as any)?.raw?.messages_list ?? []}
+              />
+            ) : (
+              <ModalAsignar
+                apprentice={apprenticeData}
+                onClose={() => setShowModal(false)}
+                onReject={handleReject}
+                onAssignmentComplete={onAssignmentComplete}
+              />
+            )}
             <button
               className="absolute top-2 right-2 bg-gray-200 rounded-full px-3 py-1 text-black text-sm font-bold shadow hover:bg-gray-300"
               onClick={() => setShowModal(false)}

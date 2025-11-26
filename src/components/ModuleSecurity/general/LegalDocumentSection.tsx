@@ -7,6 +7,7 @@ import ConfirmModal from '../../ConfirmModal';
 import NotificationModal from '../../NotificationModal';
 import { getAllLegalDocuments, createLegalDocument, updateLegalDocument, softDeleteLegalDocument, filterLegalDocuments } from '../../../Api/Services/LegalDocument';
 import FilterBar from '../../FilterBar';
+import LoadingOverlay from '../../LoadingOverlay';
 
 const cardsPerPage = 9;
 
@@ -53,6 +54,7 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Notification modal state
   const [notifOpen, setNotifOpen] = useState(false);
@@ -133,6 +135,7 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
   const handleAdd = () => setShowAddModal(true);
   const handleSubmitAdd = (values: LegalDocument) => { setPendingData(values); setShowAddConfirm(true); };
   const handleConfirmAdd = async () => {
+    setActionLoading(true);
     try {
       await createLegalDocument(pendingData);
       setShowAddModal(false); setShowAddConfirm(false); setPendingData(null);
@@ -140,12 +143,15 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Documento creado correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al crear documento'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Handler functions for edit operations
   const handleSubmitEdit = (values: LegalDocument) => { setPendingEditData(values); setShowEditConfirm(true); };
   const handleConfirmEdit = async () => {
+    setActionLoading(true);
     try {
       await updateLegalDocument(editData.id, pendingEditData);
       setShowEditModal(false); setShowEditConfirm(false); setPendingEditData(null); setEditData(null);
@@ -153,11 +159,14 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Documento actualizado correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al actualizar documento'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Handler functions for toggle operations
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       if (!pendingDisable) throw new Error('No hay documento seleccionado');
       if (pendingDisable.active) {
@@ -172,6 +181,8 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
       setNotifType('success'); setNotifTitle('Éxito'); setNotifMessage('Acción realizada correctamente.'); setNotifOpen(true);
     } catch (e) {
       setNotifType('warning'); setNotifTitle('Error'); setNotifMessage(e instanceof Error ? e.message : 'Error al deshabilitar documento'); setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -181,6 +192,7 @@ const LegalDocumentSection = ({ open, onToggle }: Props) => {
 
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : 'Cargando...')} />
       {/* Section header with toggle button and record count */}
       <button onClick={onToggle} className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors">
         <div className="flex items-center gap-3">

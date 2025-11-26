@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import ProgramAutocomplete from './ProgramAutocomplete';
@@ -18,6 +18,12 @@ interface SelectConfig {
   placeholder?: string;
   /** Whether this select should use autocomplete functionality */
   autocomplete?: boolean;
+  /** Optional fixed CSS width (eg '320px' or '40%') */
+  width?: string;
+  /** Optional minimum width for the select container */
+  minWidth?: string;
+  /** Optional maximum width for the select container */
+  maxWidth?: string;
 }
 
 /**
@@ -94,25 +100,44 @@ const FilterBar: React.FC<FilterBarProps> = ({
   // State for program autocomplete selection
   const [programOption, setProgramOption] = useState<{ value: string; label: string } | null>(null);
 
-  // Handle search input changes and trigger filter callback
+  // Handle search input changes (debounced filter execution)
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearch(value);
-    onFilter({ search: value, ...selectValues });
   };
 
   // Handle select dropdown changes and trigger filter callback
   const handleSelectChange = (name: string, value: string) => {
     const newSelects = { ...selectValues, [name]: value };
     setSelectValues(newSelects);
-    onFilter({ search, ...newSelects, programa: programOption?.value || '' });
   };
 
   // Handle program autocomplete changes and trigger filter callback
   const handleProgramChange = (option: { value: string; label: string } | null) => {
     setProgramOption(option);
-    onFilter({ search, ...selectValues, programa: option?.value || '' });
   };
+
+  // Debounce calling onFilter to avoid firing many requests while user types or changes selects
+  const debounceRef = useRef<number | null>(null);
+  useEffect(() => {
+    // clear existing timer
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+    }
+    // schedule new call
+    debounceRef.current = window.setTimeout(() => {
+      onFilter({ search, ...selectValues, programa: programOption?.value || '' });
+      debounceRef.current = null;
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, selectValues, programOption]);
 
   // Clear all filters and reset to initial state
   const handleClear = () => {
@@ -147,7 +172,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
       {selects.map(sel => (
         sel.name === 'programa' ? (
           // Special handling for program autocomplete
-          <div key={sel.name} style={{ minWidth: '320px', maxWidth: '220px', display: 'flex', alignItems: 'center', gap: '0px' }}>
+          <div key={sel.name} style={{ minWidth: sel.minWidth || '320px', maxWidth: sel.maxWidth || '220px', display: 'flex', alignItems: 'center', gap: '0px', width: sel.width || undefined }}>
             <ProgramAutocomplete
               value={programOption}
               onChange={handleProgramChange}
@@ -157,22 +182,28 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
         ) : (
           // Regular select dropdown
-          <div key={sel.name} style={{ minWidth: '190px', maxWidth: '220px' }}>
-            <CustomSelect
-              value={selectValues[sel.name] === '' ? 'all' : selectValues[sel.name]}
-              onChange={val => handleSelectChange(sel.name, val === 'all' ? '' : val)}
-              options={[
-                { value: 'all', label: sel.placeholder || 'Todos' },
-                ...sel.options.filter(opt => opt.value !== '')
-              ]}
-              placeholder={sel.placeholder || 'Todos'}
-              label={''}
-              classNames={{
-                trigger: 'border rounded px-3 py-2 w-full flex items-center justify-between h-10 min-h-[40px]',
-                content: 'bg-white border border-gray-300 rounded-lg shadow-lg z-50',
-                item: 'px-4 py-2 cursor-pointer hover:bg-[#bdbdbd] hover:text-white focus:bg-[#bdbdbd] focus:text-gray-700 rounded-md flex items-center gap-2',
-              }}
-            />
+          <div key={sel.name} style={{ minWidth: sel.minWidth || '190px', maxWidth: sel.maxWidth || '220px', width: sel.width || undefined }}>
+            {(() => {
+              // Build options for the custom select. If the provided options already include
+              // a universal choice like 'TODOS' or 'all', don't prepend the default 'all' option
+              const filtered = sel.options.filter(opt => opt.value !== '');
+              const hasUniversal = filtered.some(o => o.value === 'TODOS' || o.value === 'all' || o.value === '');
+              const optionsList = hasUniversal ? filtered : [{ value: 'all', label: sel.placeholder || 'Todos' }, ...filtered];
+              return (
+                <CustomSelect
+                  value={selectValues[sel.name] === '' ? (hasUniversal ? (filtered[0]?.value || '') : 'all') : selectValues[sel.name]}
+                  onChange={val => handleSelectChange(sel.name, val === 'all' ? '' : val)}
+                  options={optionsList}
+                  placeholder={sel.placeholder || 'Todos'}
+                  label={''}
+                  classNames={{
+                    trigger: 'border rounded px-3 py-2 w-full flex items-center justify-between h-10 min-h-[40px]',
+                    content: 'bg-white border border-gray-300 rounded-lg shadow-lg z-50',
+                    item: 'px-4 py-2 cursor-pointer hover:bg-[#bdbdbd] hover:text-white focus:bg-[#bdbdbd] focus:text-gray-700 rounded-md flex items-center gap-2',
+                  }}
+                />
+              );
+            })()}
           </div>
         )
       ))}

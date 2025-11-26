@@ -14,6 +14,8 @@ interface TalentoHumanoSectionProps {
   humanTalentPhoneError: string;
   /** Handler for HR phone number input changes with validation */
   handleHumanTalentPhoneChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** When true, inputs are disabled (used when selecting an existing human talent) */
+  disabled?: boolean;
 }
 
 /**
@@ -32,7 +34,7 @@ interface TalentoHumanoSectionProps {
  * @param props - Component props as defined in TalentoHumanoSectionProps
  * @returns React component for HR/recruitment contact information section
  */
-const TalentoHumanoSection: React.FC<TalentoHumanoSectionProps> = ({ formData, updateFormData, humanTalentPhoneError, handleHumanTalentPhoneChange }) => (
+const TalentoHumanoSection: React.FC<TalentoHumanoSectionProps> = ({ formData, updateFormData, humanTalentPhoneError, handleHumanTalentPhoneChange, disabled = false }) => (
   <div className="mb-6 bg-white rounded-lg shadow-md border-2" style={{ borderColor: '#7BCC7C' }}>
     {/* Header section with Person icon and title */}
     <div className="flex items-center gap-3 px-6 py-4 rounded-t-lg border-b" style={{ backgroundColor: '#E7FFE8', borderBottomColor: '#7BCC7C' }}>
@@ -43,16 +45,32 @@ const TalentoHumanoSection: React.FC<TalentoHumanoSectionProps> = ({ formData, u
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Nombre completo *</label>
-          <input type="text" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el nombre completo" onChange={e => updateFormData('name', e.target.value)} />
+          <input
+            type="text"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese el nombre completo"
+            value={formData.name ?? ''}
+            onChange={e => updateFormData('name', e.target.value)}
+            disabled={disabled}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Número de teléfono *</label>
-          <input type="tel" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el número de teléfono" value={formData.phone_number || ''} onChange={handleHumanTalentPhoneChange} />
+          <input type="tel" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el número de teléfono" value={formData.phone_number || ''} onChange={handleHumanTalentPhoneChange} disabled={disabled} />
           {humanTalentPhoneError && <span className="text-red-600 text-xs">{humanTalentPhoneError}</span>}
         </div>
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: '#2D7430' }}>Correo electrónico *</label>
-          <input type="email" className="w-full border-2 rounded-lg px-3 py-2 text-sm" required placeholder="Ingrese el correo" onChange={e => updateFormData('email', e.target.value)} />
+          <input
+            type="email"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+            required
+            placeholder="Ingrese el correo"
+            value={formData.email ?? ''}
+            onChange={e => updateFormData('email', e.target.value)}
+            disabled={disabled}
+          />
         </div>
       </div>
     </div>

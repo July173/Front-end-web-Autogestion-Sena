@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import ModalOtroInstructor from "./ModalOtherInstructor";
 import ModalReject from "./ModalReject";
+import LoadingOverlay from "../LoadingOverlay";
 import { getDocumentTypesWithEmpty } from "@/Api/Services/TypeDocument";
 import { getInstructoresCustomList } from "@/Api/Services/Instructor";
 import { assignInstructorToRequest, getRequestAsignationById, rejectRequest } from "@/Api/Services/RequestAssignaton";
+import { getModalityProductiveStages, ModalityProductiveStage } from '@/Api/Services/ModalityProductiveStage';
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
 import useNotification from "@/hook/useNotification";
 import NotificationModal from "@/components/NotificationModal";
@@ -34,11 +36,12 @@ interface ApprenticeData {
     name: string;
     type_identification: number;
     number_identification: string;
-    file_number: number;
+    file_number: string;
     date_start_production_stage: string;
     program: string;
     request_date: string;
     request_id?: number;
+    modality_productive_stage?: string;
 }
 
 
@@ -75,6 +78,19 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [requestAsignationId, setRequestAsignationId] = useState<number | null>(null);
+    const [message, setMessage] = useState<string>("");
+    const [messageError, setMessageError] = useState<string>("");
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [resultMessage, setResultMessage] = useState('');
+    // notification type used by NotificationModal: we'll use 'success' or 'warning'
+    const [resultType, setResultType] = useState<'success' | 'warning'>('success');
+    const MAX_MESSAGE_LENGTH = 500;
+    const [modalityStage, setModalityStage] = useState<string | null>(null);
+    const [modalities, setModalities] = useState<ModalityProductiveStage[]>([]);
+    const [currentRequestState, setCurrentRequestState] = useState<string | null>(null);
+
+    // assign-only modal: no external assignedInstructor/initialMessages
+
 
 
     /**
@@ -86,17 +102,102 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
             // Only show visual error, no alert
             return;
         }
+        if (!message || !message.trim()) {
+            setMessageError('El mensaje es obligatorio');
+            return;
+        }
         setAssigning(true);
         setShowConfirmModal(false);
-        try {
-            await assignInstructorToRequest(selectedInstructor.id, requestAsignationId);
-            // Show success notification
-            showNotification('success', 'Acción completada', 'Se ha llevado a cabo con éxito tu solicitud.');
-            onAssignmentComplete?.(); // Notify assignment completion
-            onClose();
+            try {
+            // Decide type_message and request_state based on current request state (prefer),
+            // otherwise fallback to modality-based rule.
+            const modality = (modalityStage || apprentice.modality_productive_stage || '').trim();
+            let type_message = 'VERIFICACION';
+            let request_state_val = 'VERIFICANDO';
+
+            const st = currentRequestState ? String(currentRequestState).toUpperCase() : null;
+            if (st === 'ASIGNADO') {
+                type_message = 'ASIGNADO';
+                request_state_val = 'ASIGNADO';
+            } else if (st === 'VERIFICANDO' || st === 'VERIFICACION' || st === 'EN_REVISION' || st === 'PRE-APROBADO' || st === 'PRE_APROBADO') {
+                type_message = 'VERIFICACION';
+                request_state_val = 'VERIFICANDO';
+            } else {
+                // fallback to modality-based rule
+                if (modality === 'Contrato de aprendizaje') {
+                    type_message = 'ASIGNADO';
+                    request_state_val = 'ASIGNADO';
+                }
+            }
+
+            // Call assign service and capture response (if any)
+            let resp;
+            // assign flow: always call assignInstructorToRequest
+            resp = await assignInstructorToRequest(selectedInstructor.id, requestAsignationId, {
+                content: message,
+                type_message,
+                request_state: request_state_val,
+                whose_message: 'COORDINADOR'
+            });
+
+            // Default success message
+            let msg = 'Se ha llevado a cabo con éxito tu solicitud.';
+            let t: 'success' | 'warning' = 'success';
+
+            // Try to extract server-provided message when available (safely narrow unknown)
+            try {
+                let rawData: unknown = null;
+                if (resp) {
+                    const maybe = (resp as { data?: unknown }).data;
+                    rawData = maybe ?? resp;
+                }
+                if (rawData && typeof rawData === 'object') {
+                    const d = rawData as Record<string, unknown>;
+                    const statusVal = typeof d.status === 'string' ? d.status.toLowerCase() : undefined;
+                    if (statusVal === 'error') {
+                        t = 'warning';
+                        if (typeof d.detail === 'string') msg = d.detail;
+                        else if (typeof d.message === 'string') msg = d.message;
+                    } else if (typeof d.detail === 'string') {
+                        msg = d.detail;
+                    }
+                }
+            } catch (e) {
+                // ignore parsing errors
+            }
+
+            setResultType(t);
+            setResultMessage(msg);
+            setShowResultModal(true);
         } catch (error) {
             console.error('Error al asignar instructor:', error);
-            // Solo mostrar error visual, no alert
+            // Parse axios/server error to extract a useful message for the user
+            let msg = 'Ocurrió un error al asignar el instructor.';
+            try {
+                const errObj: unknown = error;
+                if (errObj && typeof errObj === 'object') {
+                    const eObj = errObj as Record<string, unknown>;
+                    const respObj = eObj.response as Record<string, unknown> | undefined;
+                    if (respObj && respObj.data) {
+                        const d = respObj.data;
+                        if (typeof d === 'string') msg = d;
+                        else if (d && typeof d === 'object') {
+                            const dd = d as Record<string, unknown>;
+                            if (typeof dd.detail === 'string') msg = dd.detail;
+                            else if (typeof dd.message === 'string') msg = dd.message;
+                            else msg = JSON.stringify(dd);
+                        }
+                    } else if (typeof eObj.message === 'string') {
+                        msg = eObj.message;
+                    }
+                }
+            } catch (e) {
+                // fallback to generic
+            }
+
+            setResultType('warning');
+            setResultMessage(msg);
+            setShowResultModal(true);
         } finally {
             setAssigning(false);
         }
@@ -111,6 +212,12 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
             // Only show visual error, no alert
             return;
         }
+        // Validate message is present before opening confirmation
+        if (!message || !message.trim()) {
+            setMessageError('El mensaje es obligatorio');
+            return;
+        }
+        setMessageError('');
         setShowConfirmModal(true);
     };
 
@@ -185,22 +292,63 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                 setLoading(false);
             });
 
-        // Load the request_asignation
-        if (apprentice.request_id) {
-            getRequestAsignationById(apprentice.request_id)
-                .then(data => {
-                    setRequestAsignationId(data.id);
-                })
-                .catch(error => {
-                    console.error("Error al cargar request asignation:", error);
-                    setError("Error al cargar la solicitud de asignación");
-                });
-        }
+        // Load modalities and the request_asignation; then map modality id -> name
+        const loadData = async () => {
+            try {
+                const mods = await getModalityProductiveStages();
+                // The service may return an object or array directly
+                let modsArr: ModalityProductiveStage[] = [];
+                if (Array.isArray(mods)) {
+                    modsArr = mods as ModalityProductiveStage[];
+                } else if (mods && typeof mods === 'object') {
+                    const mObj = mods as Record<string, unknown>;
+                    if (Array.isArray(mObj.data)) {
+                        modsArr = mObj.data as ModalityProductiveStage[];
+                    }
+                }
+                setModalities(modsArr);
+
+                if (apprentice.request_id) {
+                    const resp = await getRequestAsignationById(apprentice.request_id);
+                    const payload = (resp && (resp.data || resp)) || {};
+                    const id = payload.id ?? payload.request_asignation ?? payload.request_asignation_id ?? null;
+                    if (id) setRequestAsignationId(id);
+
+                    // Guardar el estado actual de la solicitud si viene desde el backend
+                    const rawState = payload.request_state ?? payload.state ?? null;
+                    if (rawState) setCurrentRequestState(String(rawState));
+
+                    const rawModality = payload.modality_productive_stage ?? payload.modality ?? null;
+                    if (rawModality != null) {
+                        // If backend returns an id (number or numeric string), map to name
+                        const rawId = typeof rawModality === 'number' ? rawModality : (typeof rawModality === 'string' && /^[0-9]+$/.test(rawModality) ? Number(rawModality) : null);
+                        if (rawId != null) {
+                            const found = modsArr.find(m => Number(m.id) === rawId);
+                            if (found) {
+                                // prefer known property name_modality
+                                setModalityStage(found.name_modality ?? String(found.id));
+                            } else {
+                                // fallback to raw numeric string
+                                setModalityStage(String(rawModality));
+                            }
+                        } else {
+                            // rawModality is already a name string
+                            setModalityStage(String(rawModality));
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error al cargar modalidades o solicitud:', err);
+            }
+        };
+
+        loadData();
     }, [apprentice.type_identification, apprentice.request_id]);
 
     return (
         <>
             <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <LoadingOverlay isOpen={assigning} message={assigning ? 'Asignando...' : undefined} zIndex={1000} />
                 {/* Dark overlay: captures clicks and stops propagation so they don't reach the table */}
                 <div
                     className="absolute inset-0 bg-black bg-opacity-40"
@@ -286,6 +434,9 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                         <div className="text-stone-500 text-base font-medium font-['Roboto'] leading-loose mt-1">
                             Programa: <span className="text-neutral-500 font-normal">{apprentice.program}</span>
                         </div>
+                        <div className="text-stone-500 text-base font-medium font-['Roboto'] leading-loose mt-1">
+                            Modalidad etapa práctica: <span className="text-neutral-500 font-normal">{modalityStage || apprentice.modality_productive_stage || 'No especificada'}</span>
+                        </div>
                     </div>
                     {/* Instructor selector */}
                     <div>
@@ -317,6 +468,38 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                             </button>
                         )}
                     </div>
+                    {/* Message input for content to send to backend */}
+                    <div className="mt-4 flex flex-col items-start">
+                        <label className="text-black font-medium font-['Roboto'] mb-2 w-full text-left">Mensaje*</label>
+                        <textarea
+                            value={message}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                if (v.length > MAX_MESSAGE_LENGTH) {
+                                    setMessage(v.slice(0, MAX_MESSAGE_LENGTH));
+                                    setMessageError(`Máximo ${MAX_MESSAGE_LENGTH} caracteres`);
+                                } else {
+                                    setMessage(v);
+                                    // clear length error but keep other errors handled elsewhere
+                                    if (messageError && messageError.startsWith('Máximo')) {
+                                        setMessageError('');
+                                    }
+                                }
+                            }}
+                            placeholder="Escribe un mensaje "
+                            rows={3}
+                            className="w-full mt-2 border rounded-lg p-3 text-sm font-['Roboto']"
+                        />
+                        <div className="w-full flex justify-between items-center">
+                            <div />
+                            <div className="text-sm mt-2">
+                                <span className={message.length >= MAX_MESSAGE_LENGTH ? 'text-red-600' : 'text-neutral-500'}>{message.length}/{MAX_MESSAGE_LENGTH}</span>
+                            </div>
+                        </div>
+                        {messageError && (
+                            <div className="text-sm text-red-600 mt-2">{messageError}</div>
+                        )}
+                    </div>
                     
                     {/* Action buttons */}
                     <div className="flex flex-row gap-4 justify-start mt-4">
@@ -337,7 +520,7 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                         <button
                             className="bg-[#7bcc7f] border border-[#c0fbcd] text-[#ffffff] font-bold px-4 py-2 rounded-[10px] flex items-center gap-2 hover:bg-[#a6e6ad] disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={handleAssignInstructor}
-                            disabled={!selectedInstructor || assigning}
+                            disabled={!selectedInstructor || assigning || !message || !message.trim()}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#fff" className="bi bi-check-circle" viewBox="0 0 16 16">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
@@ -351,7 +534,6 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
             {/* Modal for 'Other instructor' */}
             {showOtherInstructorModal && (
                 <ModalOtroInstructor
-                    instructores={instructores}
                     onClose={() => {
                         setShowOtherInstructorModal(false);
                     }}
@@ -383,6 +565,15 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                                 </p>
                             </div>
                         </div>
+                        <div className="mt-3">
+                            <label className="text-sm text-gray-700 font-medium">Mensaje a enviar:</label>
+                            <div className="mt-2 p-3 border rounded bg-gray-50 text-sm text-gray-800 whitespace-pre-wrap max-h-40 overflow-auto">
+                                {message && message.trim() ? message : <em className="text-neutral-500">(Sin mensaje)</em>}
+                            </div>
+                            {messageError && (
+                                <div className="text-sm text-red-600 mt-2">{messageError}</div>
+                            )}
+                        </div>
                         <div className="flex gap-3 justify-end mt-6">
                             <button
                                 className="px-6 py-2 rounded-[10px] border border-gray-400 text-gray-700 font-bold hover:bg-gray-100"
@@ -393,7 +584,7 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                             <button
                                 className="px-6 py-2 rounded-[10px] bg-green-500 text-white font-bold hover:bg-green-600 flex items-center gap-2"
                                 onClick={handleConfirmAssignment}
-                                disabled={assigning}
+                                disabled={assigning || !message || !message.trim() || message.length > MAX_MESSAGE_LENGTH}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -414,11 +605,28 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                     onConfirm={handleConfirmReject}
                 />
             )}
+
+            
+            {/* Result modal after assignment (success or error): when accepted, close modals and refresh parent */}
+            {showResultModal && (
+                <NotificationModal
+                    isOpen={showResultModal}
+                    onClose={() => {
+                        setShowResultModal(false);
+                        // Notify parent to refresh table and then close this modal
+                        onAssignmentComplete?.();
+                        onClose();
+                    }}
+                    type={resultType}
+                    title={resultType === 'success' ? 'Acción completada' : 'Error'}
+                    message={resultMessage}
+                />
+            )}
             {/* Global notification */}
             <NotificationModal
                 isOpen={notification.isOpen}
                 onClose={hideNotification}
-                type={notification.type as any}
+                type={notification.type}
                 title={notification.title}
                 message={notification.message}
             />

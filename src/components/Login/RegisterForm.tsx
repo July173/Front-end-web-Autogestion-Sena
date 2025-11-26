@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import TermsModal from './TermsModal';
 import NotificationModal from '../NotificationModal';
 import useNotification from '../../hook/useNotification';
+import LoadingOverlay from '../LoadingOverlay';
 import { Mail, User, Phone, FileText, Lock, ArrowLeft } from 'lucide-react';
 import SenaLogo from '../SenaLogo';
 import FooterLinks from './FooterLinks';
@@ -147,6 +148,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onNavigate }) => {
 
   return (
     <div className="sena-form-panel">
+      {/* Loading overlay while registering */}
+      <LoadingOverlay isOpen={loading} message={loading ? 'Registrando...' : 'Cargando...'} />
       <div className="sena-form">
         <button
           onClick={() => onNavigate('login')}

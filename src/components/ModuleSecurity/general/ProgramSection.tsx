@@ -6,6 +6,7 @@ import ConfirmModal from "../../ConfirmModal";
 import NotificationModal from "../../NotificationModal";
 import { useGeneralData } from "../../../hook/useGeneralData";
 import FilterBar from "../../FilterBar";
+import LoadingOverlay from '../../LoadingOverlay';
 import { filterPrograms } from "../../../Api/Services/Program";
 import type { Program } from "../../../Api/types/Modules/general.types";
 
@@ -41,6 +42,7 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [filtering, setFiltering] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   // Modal visibility states for program creation
   const [showProgramModal, setShowProgramModal] = useState(false);
   const [pendingProgramData, setPendingProgramData] = useState<Partial<Program> | null>(null);
@@ -115,6 +117,7 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
    * Confirms and executes program creation via API
    */
   const handleConfirmProgram = async () => {
+    setActionLoading(true);
     try {
       if (!pendingProgramData) throw new Error('No hay datos de programa');
       await createProgram(pendingProgramData as Partial<Program>);
@@ -131,6 +134,8 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
   setNotifTitle('Error');
   setNotifMessage(extractErrorMessage(err, 'Error al crear programa'));
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -156,6 +161,7 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
    * Confirms and executes program update via API
    */
   const handleConfirmEditProgram = async () => {
+    setActionLoading(true);
     try {
       if (!editProgram) throw new Error('No se seleccionó el programa');
       await updateProgram(editProgram.id, pendingEditProgram as Partial<Program>);
@@ -173,6 +179,8 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
   setNotifTitle('Error');
   setNotifMessage(extractErrorMessage(err, 'Error al actualizar programa'));
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -189,6 +197,7 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
    * Confirms and executes program disable/enable toggle via API
    */
   const handleConfirmDisable = async () => {
+    setActionLoading(true);
     try {
       if (!pendingDisable) throw new Error('No se seleccionó el programa');
       await deleteProgram(pendingDisable.id);
@@ -204,6 +213,8 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
   setNotifTitle('Error');
   setNotifMessage(extractErrorMessage(err, 'Error al deshabilitar programa'));
       setNotifOpen(true);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -214,6 +225,7 @@ const ProgramSection = ({ open, onToggle }: ProgramSectionProps) => {
   return (
     // Main container with collapsible section styling
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
+      <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={actionLoading ? 'Procesando...' : (filtering ? 'Filtrando...' : 'Cargando...')} />
       {/* Collapsible header button with title and record count */}
       <button
         onClick={onToggle}

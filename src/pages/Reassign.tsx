@@ -1,123 +1,165 @@
-import React, { useState } from "react";
-import ReassignTableView, { ReassignTableRow } from "../components/ReassignTableView";
-import ModalReasignarInstructor from "../components/ModalReasignarInstructor";
-import CustomSelect from "../components/CustomSelect";
-
-import BuscarInput from "../components/SearchInput";
+import React, { useEffect, useState } from "react";
+import AssignTableView from "../components/assing/AssignTableView";
+import FilterBar from "../components/FilterBar";
+import ReloadButton from "../components/ReloadButton";
+import { filterRequest } from "@/Api/Services/RequestAssignaton";
+import { getPrograms } from "@/Api/Services/Program";
+import { getModalityProductiveStages } from '@/Api/Services/ModalityProductiveStage';
+import { AssignTableRow } from '@/Api/types/Modules/assign.types';
+import ModalReasignarInstructor from '@/components/Reassign/ModalReasignarInstructor';
+import { reassignInstructor } from '@/Api/Services/AssignationInstructor';
 
 const Reassign: React.FC = () => {
-  const rows: ReassignTableRow[] = [
-    {
-      id: 1,
-      nombre: "Daniela Polania Quintero",
-      tipoIdentificacion: "Tarjeta de identidad",
-      numeroIdentificacion: "1016457896",
-      fechaSolicitud: "10/05/2025",
-      telefono: "3145697897",
-      correo: "daniela_polania@soy.sena.edu.co",
-      empresa: "SAS Colombia",
-      nitEmpresa: "10004569878",
-      jefeInmediato: "Lorenzo Suarez",
-      correoJefe: "lsuarez@gmail.com",
-      ubicacionEmpresa: "Neiva, Huila",
-      instructor: "Carlos Bonilla",
-      correoInstructor: "cbonilla@sena.edu.co",
-      ficha: "2078456",
-      programa: "Análisis y desarrollo de software",
-      regional: "Huila",
-      centro: "Centro de la industria y los servicios",
-      telefonoJefe: "3145698965",
-      fechaInicioPractica: "01/05/2025"
-    },
-    {
-      id: 2,
-      nombre: "Juan Pérez",
-      tipoIdentificacion: "Cédula de ciudadanía",
-      numeroIdentificacion: "1234567890",
-      fechaSolicitud: "12/05/2025",
-      telefono: "3123456789",
-      correo: "juan_perez@soy.sena.edu.co",
-      empresa: "Empresa XYZ",
-      nitEmpresa: "900123456",
-      jefeInmediato: "Ana Torres",
-      correoJefe: "atorres@gmail.com",
-      ubicacionEmpresa: "Bogotá, Cundinamarca",
-      instructor: "Luis Martínez",
-      correoInstructor: "lmartinez@sena.edu.co",
-      ficha: "2087654",
-      programa: "Gestión empresarial",
-      regional: "Cundinamarca",
-      centro: "Centro de gestión empresarial",
-      telefonoJefe: "3123456780",
-      fechaInicioPractica: "05/06/2025"
+  const [rows, setRows] = useState<AssignTableRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [programOptions, setProgramOptions] = useState<{ value: string; label: string }[]>([]);
+  const [modalityOptions, setModalityOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedRow, setSelectedRow] = useState<AssignTableRow | null>(null);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+
+  useEffect(() => {
+    // Load programs and modalities
+    getPrograms().then((programs: { id: number; nombre: string }[]) => {
+      setProgramOptions([
+        { value: 'TODOS', label: 'Todos los programas' },
+        ...programs.map(p => ({ value: String(p.id), label: p.nombre }))
+      ]);
+    }).catch(() => {});
+
+    getModalityProductiveStages().then((mods: { id: number; name_modality: string }[]) => {
+      setModalityOptions([
+        { value: 'TODOS', label: 'Todas las Modalidades' },
+        ...mods.map(m => ({ value: String(m.id), label: m.name_modality }))
+      ]);
+    }).catch(() => {});
+
+    // Load initial rows filtered by ASIGNADO
+    const loadInitial = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await filterRequest({ request_state: 'ASIGNADO' });
+        const mapped = (result || []).map((r: any) => ({
+          ...r,
+          nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+        }));
+        setRows(mapped as AssignTableRow[]);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message || 'Error al cargar reasignaciones');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // load after initial render; modalityOptions may still be empty but mapping will update on reload
+    loadInitial();
+  }, []);
+
+  const reloadRows = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await filterRequest({ request_state: 'ASIGNADO' });
+      const mapped = (result || []).map((r: any) => ({
+        ...r,
+        nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+      }));
+      setRows(mapped as AssignTableRow[]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || 'Error al recargar reasignaciones');
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const programaOptions = [
-    { value: "todos", label: "Todos los programas" },
-    { value: "programa1", label: "Programa 1" },
-    { value: "programa2", label: "Programa 2" }
-  ];
-  const estadoOptions = [
-    { value: "todos", label: "Todos los estados" },
-    { value: "pendiente", label: "Pendiente" },
-    { value: "asignado", label: "Asignado" }
-  ];
-
-  const [programa, setPrograma] = useState("todos");
-  const [estado, setEstado] = useState("todos");
-  const [busqueda, setBusqueda] = useState("");
-
-
-  const filteredRows = rows.filter(row =>
-    row.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRow, setSelectedRow] = useState<ReassignTableRow | null>(null);
-
-  const handleReassign = (row: ReassignTableRow) => {
-    setSelectedRow(row);
-    setModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setSelectedRow(null);
+  const handleFilter = async (params: Record<string, string>) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const payload: Record<string, string> = { request_state: 'ASIGNADO' };
+      if (params.search && params.search.trim() !== '') payload.search = params.search;
+      if (params.programa && params.programa !== 'TODOS') payload.program_id = params.programa;
+      if (params.modalidad && params.modalidad !== 'TODOS') payload.modality_id = params.modalidad;
+      if (params.estado && params.estado !== 'TODOS') payload.request_state = params.estado; // allow override but default is ASIGNADO
+
+      const result = await filterRequest(payload);
+      const mapped = (result || []).map((r: any) => ({
+        ...r,
+        nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+      }));
+      setRows(mapped as AssignTableRow[]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || 'Error al filtrar reasignaciones');
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="bg-white relative rounded-[10px] size-full p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">Reasignar Instructor</h2>
-        <BuscarInput value={busqueda} onChange={setBusqueda} />
-      </div>
-      <div className="flex gap-4 mb-6">
-        <CustomSelect
-          label="Programa"
-          options={programaOptions}
-          value={programa}
-          onChange={setPrograma}
-        />
-        <CustomSelect
-          label="Estado"
-          options={estadoOptions}
-          value={estado}
-          onChange={setEstado}
-        />
-      </div>
-      <ReassignTableView rows={filteredRows} onAction={handleReassign} actionLabel="Reasignar" />
-
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-4 relative">
-            <button className="absolute top-2 right-2 text-gray-500" onClick={handleCloseModal}>✕</button>
-            <ModalReasignarInstructor onCancel={handleCloseModal} />
-          </div>
+        <h2 className="text-2xl font-semibold">Reasignar seguimiento</h2>
+        <div>
+          <ReloadButton onClick={reloadRows} title="Recargar" />
         </div>
+      </div>
+
+      <FilterBar
+        onFilter={handleFilter}
+        selects={[
+          {
+            name: 'modalidad',
+            value: '',
+            options: modalityOptions,
+            placeholder: 'Modalidad',
+            minWidth: '320px',
+            maxWidth: '420px'
+          },
+          { name: 'programa', value: '', options: programOptions, placeholder: 'Programa' }
+        ]}
+        inputWidth="calc(100% - 620px)"
+        searchPlaceholder="Buscar por nombre, documento..."
+      />
+
+      <AssignTableView
+        rows={rows}
+        loading={loading}
+        error={error}
+        onAction={(row) => {
+          setSelectedRow(row);
+          setShowReassignModal(true);
+        }}
+        onRefresh={reloadRows}
+        actionLabel="Reasignar"
+        showReassignForAssigned={true}
+      />
+
+      {showReassignModal && selectedRow && (
+        <ModalReasignarInstructor
+          onCancel={() => setShowReassignModal(false)}
+          requestRow={selectedRow}
+          onReassign={async (payload) => {
+            // call service and refresh table on success
+            try {
+              await reassignInstructor(payload);
+              setShowReassignModal(false);
+              setSelectedRow(null);
+              // refresh rows
+              reloadRows();
+            } catch (err) {
+              // bubble up or ignore - modal shows errors
+              console.error('Error reassigning instructor', err);
+            }
+          }}
+        />
       )}
     </div>
   );
-}
+};
 
 export default Reassign;
