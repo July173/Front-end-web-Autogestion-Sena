@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { InstructorCustomList } from "@/Api/types/entities/instructor.types";
-import useFilteredInstructors from '@/hook/useFilteredInstructors';
 import { patchInstructorLimit } from "@/Api/Services/Instructor";
 import { getKnowledgeAreas } from "@/Api/Services/KnowledgeArea";
 import { KnowledgeArea } from "@/Api/types/Modules/general.types";
 import FilterBar from "@/components/FilterBar";
+import useInstructorsQuery from '@/hook/useInstructorsQuery';
 import { ENDPOINTS } from "@/Api/config/ConfigApi";
 import EditLimitModal from "./EditLimitModal";
 import useNotification from "@/hook/useNotification";
@@ -31,7 +31,8 @@ interface ModalOtroInstructorProps {
 export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInstructorProps) {
     // Note: search and area filters are handled by FilterBar -> fetchFilteredInstructors
     const [editLimitInstructor, setEditLimitInstructor] = useState<InstructorCustomList | null>(null);
-    const { instructors: instructores, loading: loadingInstructors, fetchInstructors } = useFilteredInstructors();
+    const [params, setParams] = useState<Record<string, string>>({});
+    const { data: instructores = [], isFetching: loadingInstructors, refetch } = useInstructorsQuery(params);
     const [knowledgeAreas, setKnowledgeAreas] = useState<KnowledgeArea[]>([]);
     const [loading, setLoading] = useState(false);
     const { notification, showNotification, hideNotification } = useNotification();
@@ -99,8 +100,8 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         try {
             await patchInstructorLimit(editLimitInstructor.id, newLimit);
             
-            // Refresh instructors using the same filtered endpoint so we keep only follow-up instructors
-            await fetchInstructors({});
+            // Refresh instructors using the query refetch
+            await refetch();
             
             // Show success notification
             showNotification(
@@ -123,12 +124,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         }
     };
 
-    // Load instructors when modal opens (no filters -> empty search)
-    useEffect(() => {
-        // Fetch once on mount to avoid repeated calls caused by unstable function refs
-        fetchInstructors({});
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    // Query hook auto-fetches based on `params` state; nothing to run on mount.
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
@@ -163,7 +159,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                 {/* Filters with FilterBar */}
                                 <div className="absolute left-[66px] top-[111px] flex gap-4 items-center">
                                     <FilterBar
-                                        onFilter={fetchInstructors}
+                                        onFilter={(p) => setParams(p)}
                                         inputWidth="620px"
                                         searchPlaceholder="Buscar por nombre o número de documento..."
                                         selects={[{

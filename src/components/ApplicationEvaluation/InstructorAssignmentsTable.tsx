@@ -15,7 +15,8 @@ interface Props {
    */
   filterState?: 'VERIFICANDO' | 'ASIGNADO' | 'ALL';
   /**
-   * Optional renderer to show action buttons for each row.
+   * Optional renderer to show acti
+   * on buttons for each row.
    */
   renderAction?: (row: AssignmentRow) => React.ReactNode;
 }

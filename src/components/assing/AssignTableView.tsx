@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { RefreshCw } from 'lucide-react';
 import AssignButton from "./AssignButton";
 import PdfView from "./PdfView";
 import { AssignTableRow, DetailData } from "@/Api/types/Modules/assign.types";
@@ -15,6 +16,8 @@ interface AssignTableViewProps {
   onAction: (row: AssignTableRow) => void;
   actionLabel?: string;
   onRefresh?: () => void;
+  /** If true, show a prominent 'Reasignar' button (orange) when backend state is ASIGNADO */
+  showReassignForAssigned?: boolean;
 }
 
 const AssignTableView: React.FC<AssignTableViewProps> = ({
@@ -23,6 +26,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
   error,
   onAction,
   onRefresh,
+  showReassignForAssigned = false,
 }) => {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [detail, setDetail] = useState<DetailData | null>(null);
@@ -153,25 +157,42 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                         {row.nombre_modalidad || ''}
                       </div>
                       <div className="flex-1 px-2 text-center flex justify-center items-center">
-                        <AssignButton
-                          state={(() => {
-                            const backendState = row.id
-                              ? requestStates[row.id]
-                              : undefined;
-                            if (backendState === "ASIGNADO") return "Asignado";
-                            if (backendState === "RECHAZADO") return "Rechazado";
-                            if (backendState === "VERIFICANDO") return "Verificando";
-                            if (backendState === "PRE-APROBADO" || backendState === "PRE_APROBADO") return "PreAprobado";
-                            return "Asignar";
-                          })()}
-                          requestId={row.id}
-                          onClick={() => onAction(row)}
-                          onAssignmentComplete={() => {
-                            if (row.id) refreshRequestState(row.id);
-                            // Ask parent page to refresh the full rows list (to reflect backend changes)
-                            if (onRefresh) onRefresh();
-                          }}
-                        />
+                                              {
+                                                (() => {
+                                                  const backendState = row.id ? requestStates[row.id] : undefined;
+                                                  const mappedState = backendState === "ASIGNADO" ? "Asignado"
+                                                    : backendState === "RECHAZADO" ? "Rechazado"
+                                                    : backendState === "VERIFICANDO" ? "Verificando"
+                                                    : (backendState === "PRE-APROBADO" || backendState === "PRE_APROBADO") ? "PreAprobado"
+                                                    : "Asignar";
+
+                                                  if (showReassignForAssigned && backendState === 'ASIGNADO') {
+                                                    // Show prominent orange Reasignar button which opens the reassign modal handled by parent
+                                                    return (
+                                                      <button
+                                                        className="bg-[#f07a11] hover:bg-[#de6b09] text-white px-4 py-1 rounded-md font-medium shadow-md flex items-center gap-2"
+                                                        onClick={(e) => { e.stopPropagation(); onAction(row); }}
+                                                        aria-label="Reasignar"
+                                                      >
+                                                        <RefreshCw size={16} strokeWidth={2.5} />
+                                                        <span>Reasignar</span>
+                                                      </button>
+                                                    );
+                                                  }
+
+                                                  return (
+                                                    <AssignButton
+                                                      state={mappedState}
+                                                      requestId={row.id}
+                                                      onClick={() => onAction(row)}
+                                                      onAssignmentComplete={() => {
+                                                        if (row.id) refreshRequestState(row.id);
+                                                        if (onRefresh) onRefresh();
+                                                      }}
+                                                    />
+                                                  );
+                                                })()
+                                              }
                       </div>
                     </div>
 

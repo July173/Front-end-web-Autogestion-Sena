@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 import ProgramAutocomplete from './ProgramAutocomplete';
@@ -100,25 +100,44 @@ const FilterBar: React.FC<FilterBarProps> = ({
   // State for program autocomplete selection
   const [programOption, setProgramOption] = useState<{ value: string; label: string } | null>(null);
 
-  // Handle search input changes and trigger filter callback
+  // Handle search input changes (debounced filter execution)
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearch(value);
-    onFilter({ search: value, ...selectValues });
   };
 
   // Handle select dropdown changes and trigger filter callback
   const handleSelectChange = (name: string, value: string) => {
     const newSelects = { ...selectValues, [name]: value };
     setSelectValues(newSelects);
-    onFilter({ search, ...newSelects, programa: programOption?.value || '' });
   };
 
   // Handle program autocomplete changes and trigger filter callback
   const handleProgramChange = (option: { value: string; label: string } | null) => {
     setProgramOption(option);
-    onFilter({ search, ...selectValues, programa: option?.value || '' });
   };
+
+  // Debounce calling onFilter to avoid firing many requests while user types or changes selects
+  const debounceRef = useRef<number | null>(null);
+  useEffect(() => {
+    // clear existing timer
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+    }
+    // schedule new call
+    debounceRef.current = window.setTimeout(() => {
+      onFilter({ search, ...selectValues, programa: programOption?.value || '' });
+      debounceRef.current = null;
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, selectValues, programOption]);
 
   // Clear all filters and reset to initial state
   const handleClear = () => {

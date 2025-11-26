@@ -1,31 +1,48 @@
 import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ENDPOINTS } from '@/Api/config/ConfigApi';
 import { InstructorCustomList } from '@/Api/types/entities/instructor.types';
 
 type Params = Record<string, string>;
 
 export default function useFilteredInstructors(initialParams: Params = {}) {
+  const queryClient = useQueryClient();
   const [instructors, setInstructors] = useState<InstructorCustomList[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Stabilize initialParams for hook dependencies by using a JSON key
+  const initialKey = JSON.stringify(initialParams || {});
+
   const fetchInstructors = useCallback(async (params: Params = {}) => {
+    const init = initialKey ? JSON.parse(initialKey) as Params : {};
+    const payload = { ...init, ...params };
+    if (!payload.search) payload.search = '';
+    payload.is_followup_instructor = 'true';
+
+    const query = Object.entries(payload)
+      .filter(([_, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const cacheKey = ['filteredInstructors', query];
+
     setLoading(true);
     try {
-      const payload = { ...initialParams, ...params };
-      if (!payload.search) payload.search = '';
-      payload.is_followup_instructor = 'true';
-      const query = Object.entries(payload)
-        .filter(([_, v]) => v !== undefined && v !== null)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-        .join('&');
-      const url = `${ENDPOINTS.instructor.filterInstructores}?${query}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      let items: unknown[] = [];
-      if (Array.isArray(data)) items = data as unknown[];
-  else if (data && Array.isArray((data as { data?: unknown }).data)) items = (data as { data?: unknown }).data as unknown[];
-      // Map to InstructorCustomList conservatively
-      const mapped = items.map((it) => {
+      // Use react-query's fetchQuery for dedupe and caching
+      const data: unknown[] = await queryClient.fetchQuery({
+        queryKey: cacheKey,
+        queryFn: async () => {
+          const url = `${ENDPOINTS.instructor.filterInstructores}?${query}`;
+          const res = await fetch(url);
+          const json = await res.json();
+          if (Array.isArray(json)) return json as unknown[];
+          if (json && Array.isArray((json as { data?: unknown }).data)) return (json as { data?: unknown }).data as unknown[];
+          return [] as unknown[];
+        },
+        staleTime: 1000 * 60 * 5,
+      });
+
+      const mapped = (data || []).map((it) => {
         const obj = it as Record<string, unknown>;
         const assigned = (obj.assigned_learners as number) ?? (obj.assigned_count as number) ?? (obj.assigned as number) ?? 0;
         const max = (obj.max_assigned_learners as number) ?? (obj.max_assignments as number) ?? (obj.max as number) ?? 80;
@@ -43,13 +60,16 @@ export default function useFilteredInstructors(initialParams: Params = {}) {
           program: obj.program as string | number | undefined,
         } as InstructorCustomList;
       });
+
       setInstructors(mapped);
-    } catch {
+      return mapped;
+    } catch (error) {
       setInstructors([]);
+      return [] as InstructorCustomList[];
     } finally {
       setLoading(false);
     }
-  }, [initialParams]);
+  }, [initialKey, queryClient]);
 
   return { instructors, loading, fetchInstructors } as const;
 }

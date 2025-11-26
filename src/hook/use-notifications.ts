@@ -7,16 +7,8 @@ import {
 } from '@/Api/Services/Notification';
 import { NotificationApiItem } from '@/Api/types/entities/Notification.types';
 
-export interface NotificationItem {
-  id: string | number;
-  title: string;
-  message: string;
-  type?: "success" | "error" | "info";
-  read?: boolean;
-  active?: boolean;
-  created_at?: string;
-  link?: string;
-}
+import type { NotificationItem } from '@/Api/types/entities/Notification.shared';
+// NotificationItem is imported from shared types
 
 export default function useNotifications(userId: string | number | undefined, role: 'apprentice' | 'instructor' | 'coordinator' | 'sofia_operator' | 'admin' = 'apprentice') {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -90,7 +82,21 @@ export default function useNotifications(userId: string | number | undefined, ro
 
     // then connect websocket for realtime
     // Note: backend routing uses '/ws/notifications/<user_id>/' (English), not 'notificaciones'
-    const wsUrl = `ws://localhost:8000/ws/notifications/${effectiveUserId}/`;
+    // If an access token is available (SimpleJWT stored in localStorage), send it as query param `token`
+    // Read token but ignore the literal strings 'undefined' or 'null' which
+    // sometimes end up stored by mistake.
+    let accessToken = localStorage.getItem('access_token');
+    if (accessToken === 'undefined' || accessToken === 'null' || !accessToken) {
+      accessToken = null;
+    }
+
+    // Build websocket URL based on current page protocol/host so it works
+    // in different dev environments and uses wss when served over https.
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const host = window.location.hostname || 'localhost';
+    const port = window.location.port || '8000';
+    const wsBase = `${proto}://${host}:${port}/ws/notifications/${effectiveUserId}/`;
+    const wsUrl = accessToken ? `${wsBase}?token=${encodeURIComponent(accessToken)}` : wsBase;
     console.debug('useNotifications: opening websocket', wsUrl);
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;

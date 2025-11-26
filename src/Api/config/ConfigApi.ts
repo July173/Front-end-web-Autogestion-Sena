@@ -33,6 +33,7 @@ import { get } from "http";
 import { permission } from "process";
 import { getFichas } from "../Services/Ficha";
 import { create } from "domain";
+import { reassignInstructor } from "../Services/AssignationInstructor";
 
 
 /**
@@ -245,7 +246,7 @@ export const ENDPOINTS = {
     getAllAssignationInstructor : `${API_BASE_URL}assign/asignation_instructor/`,
     getAssignationInstructorById : `${API_BASE_URL}assign/asignation_instructor/{id}/`,
     filterAssignationInstructor : `${API_BASE_URL}assign/asignation_instructor/filtered/`,
-    reassignInstructor : `${API_BASE_URL}assign/asignation_instructor_history/reassign-instructor/`,
+    reassignInstructor : `${API_BASE_URL}assign/asignation_instructor_history/reasignar-instructor/`,
   },
   Boss :{
     allBoss : `${API_BASE_URL}assign/boss/`,
@@ -267,6 +268,7 @@ Enterprise :{
     deleteNotification : `${API_BASE_URL}general/notifications/delete-by-id/`,
     DeleteAll : `${API_BASE_URL}general/notifications/delete-by-user/`,
   },
+
 };
 
 

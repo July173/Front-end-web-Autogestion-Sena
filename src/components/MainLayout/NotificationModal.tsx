@@ -1,6 +1,6 @@
  import React, { useMemo, useState } from "react";
 import { X, Bell } from "lucide-react";
-import type { NotificationItem } from "../../hook/use-notifications";
+import type { NotificationItem } from '@/Api/types/entities/Notification.shared';
 import ConfirmModal from '../ConfirmModal';
 import LoadingOverlay from '../LoadingOverlay';
 

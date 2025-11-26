@@ -18,3 +18,32 @@ export async function reassignInstructor(payload: ReassignInstructorPayload) {
 }
 
 export default { reassignInstructor };
+
+export async function getAssignationByRequest(requestId: number) {
+  // Prefer the filtered endpoint to avoid downloading the whole list
+  try {
+    const url = `${ENDPOINTS.AssignationInstructor.filterAssignationInstructor}?request_asignation=${encodeURIComponent(String(requestId))}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || 'Error fetching assignations');
+    }
+    const result = await res.json();
+    const data = Array.isArray(result) ? result : (result.data || []);
+    if (!Array.isArray(data)) return null;
+    // The filtered endpoint should return zero or one items matching the request
+    return data.length > 0 ? data[0] : null;
+  } catch (error) {
+    // Fallback: try the non-filtered endpoint (legacy support)
+    const url = ENDPOINTS.AssignationInstructor.getAllAssignationInstructor;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || 'Error fetching assignations');
+    }
+    const list = await res.json();
+    if (!Array.isArray(list)) return null;
+    const found = (list as any[]).find((it) => Number(it.request_asignation) === Number(requestId));
+    return found ?? null;
+  }
+}

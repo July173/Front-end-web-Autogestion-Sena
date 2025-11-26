@@ -136,6 +136,7 @@ const Reassign: React.FC = () => {
         }}
         onRefresh={reloadRows}
         actionLabel="Reasignar"
+        showReassignForAssigned={true}
       />
 
       {showReassignModal && selectedRow && (
