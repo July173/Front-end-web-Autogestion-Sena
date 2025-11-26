@@ -39,31 +39,88 @@ export default function useApprenticeDashboard(initialApprenticeId?: number) {
   const [userData, setUserData] = useState<User | null>(null);
 
   const lastFetchedApprenticeId = useRef<number | null>(null);
+  // Types for raw API payloads
+  interface RawInstructor {
+    instructor_id?: number;
+    instructor_first_name?: string;
+    instructor_second_name?: string;
+    instructor_first_last_name?: string;
+    instructor_second_last_name?: string;
+    instructor_email?: string;
+    instructor_phone_number?: string;
+    instructor_knowledge_area?: string;
+    instructor_assigned_at?: string;
+  }
+
+  interface RawDashboard {
+    id?: number;
+    enterprise_name?: string | null;
+    enterprise?: number | string | null;
+    enterprise_id?: number | string | null;
+    boss_name?: string | null;
+    boss?: string | null;
+    modality_productive_stage?: number | string | null;
+    modality?: number | string | null;
+    start_date?: string | null;
+    date_start_production_stage?: string | null;
+    end_date?: string | null;
+    date_end_production_stage?: string | null;
+    request_date?: string | null;
+    fecha_solicitud?: string | null;
+    request_state?: string | null;
+    state?: string | null;
+    pdf_url?: string | null;
+  }
+
+  interface EnterpriseLookup {
+    id?: number | string;
+    name?: string;
+    empresa_nombre?: string;
+    enterprise_name?: string;
+    name_enterprise?: string;
+    municipio?: string;
+    ubicacion?: string;
+    location?: string;
+    address?: string;
+    direccion?: string;
+    city?: string;
+    locate?: string;
+  }
+
+  interface Modality {
+    id: number;
+    name?: string;
+    name_modality?: string;
+  }
 
   const load = useCallback(async (apprenticeId?: number) => {
     try {
       setLoading(true);
-
       let effectiveApprenticeId: number | null = apprenticeId ?? null;
 
       // try to read user from local state or localStorage
-      let currentUser: any = userData;
+      let currentUser: User | null = userData;
       if (!currentUser) {
         const stored = localStorage.getItem('user_dashboard');
         if (stored) {
           try {
-            currentUser = JSON.parse(stored);
-            setUserData(currentUser);
+            const parsed = JSON.parse(stored) as User;
+            currentUser = parsed;
+            setUserData(parsed);
           } catch (e) {
-            // ignore
+            // ignore parse errors
           }
         }
       }
 
       if (!effectiveApprenticeId && currentUser?.id) {
         try {
-          const fullUser: any = await getUserById(currentUser.id);
-          effectiveApprenticeId = fullUser?.apprentice?.id ?? fullUser?.apprentice ?? null;
+          const fullUser = await getUserById(currentUser.id);
+          // fullUser.apprentice can be an object or an id
+          if (fullUser && (fullUser as any).apprentice) {
+            const ap = (fullUser as any).apprentice;
+            effectiveApprenticeId = typeof ap === 'object' ? ap.id ?? null : (Number(ap) || null);
+          }
         } catch (e) {
           console.warn('Could not fetch full user to determine apprentice id', e);
         }
@@ -77,17 +134,17 @@ export default function useApprenticeDashboard(initialApprenticeId?: number) {
       if (lastFetchedApprenticeId.current === effectiveApprenticeId) return;
       lastFetchedApprenticeId.current = effectiveApprenticeId;
 
-      const response: any = await getApprenticeDashboard(effectiveApprenticeId);
-      const raw = response?.data ?? response ?? null;
+      const response = await getApprenticeDashboard(effectiveApprenticeId);
+      const raw = (response && (response as any).data) ? (response as any).data as RawDashboard : (response as RawDashboard | null);
 
       if (!raw) {
         setDashboardData({ has_request: false, request: null, instructor: null, request_state: null });
         return;
       }
 
-      const mappedRequest: any = {
-        id: raw.id,
-        enterprise_name: raw.enterprise_name ?? raw.enterprise ?? null,
+      const mappedRequest: DashboardData['request'] = {
+        id: raw.id ?? undefined as any,
+        enterprise_name: raw.enterprise_name ?? (raw.enterprise ? String(raw.enterprise) : null) ?? null,
         boss_name: raw.boss_name ?? raw.boss ?? null,
         modality: raw.modality_productive_stage ?? raw.modality ?? null,
         start_date: raw.start_date ?? raw.date_start_production_stage ?? null,
@@ -97,16 +154,18 @@ export default function useApprenticeDashboard(initialApprenticeId?: number) {
         pdf_url: raw.pdf_url ?? null,
       };
 
-      const instructor = raw.instructor_id || raw.instructor_first_name || raw.instructor_email ? {
-        id: raw.instructor_id ?? null,
-        first_name: raw.instructor_first_name ?? null,
-        second_name: raw.instructor_second_name ?? null,
-        first_last_name: raw.instructor_first_last_name ?? null,
-        second_last_name: raw.instructor_second_last_name ?? null,
-        email: raw.instructor_email ?? null,
-        phone: raw.instructor_phone_number ?? '',
-        knowledge_area: raw.instructor_knowledge_area ?? null,
-        assigned_at: raw.instructor_assigned_at ?? null,
+      const instructor: DashboardData['instructor'] | null = (
+        (raw as RawInstructor).instructor_id || (raw as RawInstructor).instructor_first_name || (raw as RawInstructor).instructor_email
+      ) ? {
+        id: (raw as RawInstructor).instructor_id ?? null,
+        first_name: (raw as RawInstructor).instructor_first_name ?? null,
+        second_name: (raw as RawInstructor).instructor_second_name ?? null,
+        first_last_name: (raw as RawInstructor).instructor_first_last_name ?? null,
+        second_last_name: (raw as RawInstructor).instructor_second_last_name ?? null,
+        email: (raw as RawInstructor).instructor_email ?? null,
+        phone: (raw as RawInstructor).instructor_phone_number ?? '',
+        knowledge_area: (raw as RawInstructor).instructor_knowledge_area ?? null,
+        assigned_at: (raw as RawInstructor).instructor_assigned_at ?? null,
       } : null;
 
       let normalizedState = raw.request_state ?? raw.state ?? null;
@@ -126,21 +185,19 @@ export default function useApprenticeDashboard(initialApprenticeId?: number) {
         if (enterpriseId) {
           const ent = await getEnterpriseById(Number(enterpriseId));
           if (ent) {
-              // Prefer common variants returned by different backends.
-              final.request!.enterprise_name =
-                ent.name || ent.empresa_nombre || ent.enterprise_name || ent.name_enterprise || String(ent.id);
-              final.request!.location =
-                ent.municipio || ent.ubicacion || ent.location || ent.address || ent.direccion || ent.city || ent.locate || null;
-            }
+            const e = ent as EnterpriseLookup;
+            final.request!.enterprise_name = e.name || e.empresa_nombre || e.enterprise_name || e.name_enterprise || String(e.id);
+            final.request!.location = e.municipio || e.ubicacion || e.location || e.address || e.direccion || e.city || e.locate || null;
+          }
         }
 
         const modalityCandidate = raw.modality_productive_stage ?? raw.modality ?? mappedRequest.modality ?? null;
         if (modalityCandidate) {
           if (typeof modalityCandidate === 'number' || /^[0-9]+$/.test(String(modalityCandidate))) {
             try {
-              const modalities = await getModalityProductiveStages();
+              const modalities: Modality[] = await getModalityProductiveStages();
               const found = modalities.find(m => m.id === Number(modalityCandidate));
-              if (found) final.request!.modality = (found as any).name_modality || (found as any).name || String(found.id);
+              if (found) final.request!.modality = found.name_modality || found.name || String(found.id);
               else final.request!.modality = String(modalityCandidate);
             } catch (e) {
               final.request!.modality = String(modalityCandidate);

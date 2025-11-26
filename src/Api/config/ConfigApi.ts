@@ -261,6 +261,12 @@ Enterprise :{
     idHumanTalent : `${API_BASE_URL}assign/human_talent/{id}/`,
     filterHumanTalent : `${API_BASE_URL}assign/human_talent/by-enterprise/`,
 },
+ Notification :{
+    getNotifications : `${API_BASE_URL}general/notifications/`,
+    markAsRead : `${API_BASE_URL}general/notifications/{id}/`,
+    deleteNotification : `${API_BASE_URL}general/notifications/delete-by-id/`,
+    DeleteAll : `${API_BASE_URL}general/notifications/delete-by-user/`,
+  },
 };
 
 
