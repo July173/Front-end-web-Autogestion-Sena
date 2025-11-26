@@ -22,7 +22,7 @@ interface Props {
 }
 
 const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState = 'ALL', renderAction }) => {
-  const { data, loading, error, refresh } = useInstructorAssignments(instructorId);
+  const { data, loading, error, refresh } = useInstructorAssignments(instructorId, filterState);
   const [rows, setRows] = useState<AssignmentRow[]>([]);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
@@ -54,10 +54,26 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
       raw: it,
     }));
 
-    // Apply optional filterState
+    // Apply filtering rules requested:
+    // - Always hide requests with state `SIN_ASIGNAR`.
+    // - For states `ASIGNADO`, `RECHAZADO`, `PRE-APROBADO` show them only if
+    //   there is a message whose `whose_message` equals `INSTRUCTOR`.
+    // - Then apply the optional `filterState` prop (if provided and not 'ALL').
     const filtered = mapped.filter((r: any) => {
-      if (!filterState || filterState === 'ALL') return true;
       const s = (r.estado_solicitud || r.request_state || '').toString().toUpperCase();
+
+      // Hide explicitly unassigned
+      if (s === 'SIN_ASIGNAR') return false;
+
+      // If the state is one of these, require an instructor message to show
+      if (['ASIGNADO', 'RECHAZADO', 'PRE-APROBADO'].includes(s)) {
+        const messages = Array.isArray(r.messages) ? r.messages : (r.raw?.messages || []);
+        const hasInstructorMsg = messages.some((m: any) => String((m.whose_message || m.whose_message || m.who || '').toString()).toUpperCase() === 'INSTRUCTOR');
+        if (!hasInstructorMsg) return false;
+      }
+
+      // Apply optional explicit filterState (keeps existing behavior)
+      if (!filterState || filterState === 'ALL') return true;
       return s === filterState.toString().toUpperCase();
     });
 

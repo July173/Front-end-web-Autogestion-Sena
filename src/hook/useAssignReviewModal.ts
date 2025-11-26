@@ -79,11 +79,14 @@ export default function useAssignReviewModal(
     if (!requestId) return { success: false, error: 'No request id' };
     setLoading(true);
     try {
+      // Build payload: include message fields but do NOT include `request_state`.
+      // The backend tends to create an automatic "Estado actualizado a..." message
+      // when `request_state` is present; that system message may have `whose_message: null`.
+      // To avoid duplicate/system messages we send only the instructor message here.
       const payload: any = {
         content: opts.content,
         type_message: opts.type,
         whose_message: 'INSTRUCTOR',
-        request_state: 'PRE-APROBADO',
       };
       if (opts.fecha_inicio_contrato) payload.fecha_inicio_contrato = opts.fecha_inicio_contrato;
       if (opts.fecha_fin_contrato) payload.fecha_fin_contrato = opts.fecha_fin_contrato;
@@ -93,6 +96,7 @@ export default function useAssignReviewModal(
         content: opts.content,
         type_message: opts.type,
         whose_message: 'INSTRUCTOR',
+        // As requested, always send PRE-APROBADO for request_state
         request_state: 'PRE-APROBADO',
       };
       if (opts.fecha_inicio_contrato) fullPayload.fecha_inicio_contrato = opts.fecha_inicio_contrato;

@@ -228,6 +228,7 @@ export async function getInstructoresSeguimiento() {
 export async function getInstructorAssignments(instructorId: number) {
   try {
     const url = ENDPOINTS.instructor.getInstructorAssignments.replace('{id}', String(instructorId));
+    console.debug('[API] getInstructorAssignments ->', url);
     const response = await fetch(url);
     if (!response.ok) {
       try {
@@ -239,6 +240,7 @@ export async function getInstructorAssignments(instructorId: number) {
     }
 
     const result = await response.json();
+    console.debug('[API] getInstructorAssignments - result length:', Array.isArray(result) ? result.length : (result.data ? result.data.length : 'n/a'));
     // Support both { data: [...] } and [...] shapes
     return Array.isArray(result) ? result : (result.data || []);
   } catch (error) {

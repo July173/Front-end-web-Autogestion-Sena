@@ -91,13 +91,11 @@ export const ApplicationEvaluation = () => {
       setTableError(null);
       try {
         if (instructorId) {
-          // Try to filter by instructor and state VERIFICANDO
-          const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
-          const result = await filterRequest(payload);
-          setRows(result.map(r => ({
-            ...r,
-            nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-          })));
+          // When an instructor is present, the InstructorAssignmentsTable
+          // is responsible for fetching assignments via the instructor-specific
+          // endpoint (`getInstructorAssignments`). Avoid calling the filtered
+          // endpoint here to prevent duplicate or filtered requests.
+          setRows([]);
         } else {
           // Fallback: load all
           const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
@@ -127,12 +125,9 @@ export const ApplicationEvaluation = () => {
             setTableError(null);
             try {
               if (instructorId) {
-                const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
-                const result = await filterRequest(payload);
-                setRows(result.map(r => ({
-                  ...r,
-                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-                })));
+                // InstructorAssignmentsTable fetches its own data; avoid
+                // calling the filtered endpoint here to prevent duplicate requests.
+                setRows([]);
               } else {
                 const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
                 const result = await getAllRequests();
@@ -156,27 +151,38 @@ export const ApplicationEvaluation = () => {
           setTableLoading(true);
           setTableError(null);
           try {
+            // If instructorId is not yet resolved, avoid fetching global lists.
+            // The InstructorAssignmentsTable will fetch instructor-specific data
+            // once the instructorId is available.
+            if (instructorId === undefined) {
+              setRows([]);
+              return;
+            }
             const payload: Record<string, string> = {};
             if (params.search && params.search.trim() !== '') payload.search = params.search;
             if (params.programa && params.programa !== 'TODOS') payload.program_id = params.programa;
             if (params.modalidad && params.modalidad !== 'TODOS') payload.modality_id = params.modalidad;
-            // always filter by VERIFICANDO for this page
-            payload.request_state = 'VERIFICANDO';
-            if (instructorId) payload.instructor_id = String(instructorId);
 
-            if (Object.keys(payload).length === 0) {
-              const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
-              const result = await getAllRequests();
-              setRows((result as AssignTableRow[]).map(r => ({
-                ...r,
-                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-              })));
+            // If an instructor is selected, let the InstructorAssignmentsTable
+            // perform the instructor-specific fetch and apply client-side
+            // filtering rules. Avoid calling the filterRequest endpoint here.
+            if (instructorId) {
+              setRows([]);
             } else {
-              const result = await filterRequest(payload);
-              setRows(result.map(r => ({
-                ...r,
-                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-              })) as AssignTableRow[]);
+              if (Object.keys(payload).length === 0) {
+                const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
+                const result = await getAllRequests();
+                setRows((result as AssignTableRow[]).map(r => ({
+                  ...r,
+                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+                })));
+              } else {
+                const result = await filterRequest(payload);
+                setRows(result.map(r => ({
+                  ...r,
+                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
+                })) as AssignTableRow[]);
+              }
             }
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
