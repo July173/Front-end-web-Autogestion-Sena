@@ -79,30 +79,41 @@ export default function useAssignReviewModal(
     if (!requestId) return { success: false, error: 'No request id' };
     setLoading(true);
     try {
-      // Build payload: include message fields but do NOT include `request_state`.
-      // The backend tends to create an automatic "Estado actualizado a..." message
-      // when `request_state` is present; that system message may have `whose_message: null`.
-      // To avoid duplicate/system messages we send only the instructor message here.
+      // Map internal action type to backend-expected type_message values
+      let mappedType = opts.type;
+      if (opts.type === 'RECHAZADO') mappedType = 'RECHAZA';
+      if (opts.type === 'APROBADO') mappedType = 'APROBADA';
+
       const payload: any = {
         content: opts.content,
-        type_message: opts.type,
+        type_message: mappedType,
         whose_message: 'INSTRUCTOR',
       };
       if (opts.fecha_inicio_contrato) payload.fecha_inicio_contrato = opts.fecha_inicio_contrato;
       if (opts.fecha_fin_contrato) payload.fecha_fin_contrato = opts.fecha_fin_contrato;
 
-      // Build payload for both approval and rejection according to backend contract
-      const fullPayload: any = {
-        content: opts.content,
-        type_message: opts.type,
-        whose_message: 'INSTRUCTOR',
-        // As requested, always send PRE-APROBADO for request_state
-        request_state: 'PRE-APROBADO',
-      };
-      if (opts.fecha_inicio_contrato) fullPayload.fecha_inicio_contrato = opts.fecha_inicio_contrato;
-      if (opts.fecha_fin_contrato) fullPayload.fecha_fin_contrato = opts.fecha_fin_contrato;
+      // Only include request_state when approving
+      if (opts.type === 'APROBADO') {
+        payload.request_state = 'PRE-APROBADO';
+      }
 
-      const resp = await patchMessageRequest(Number(requestId), fullPayload);
+      console.log('[useAssignReviewModal] sending patch payload', { requestId, payload });
+      const resp = await patchMessageRequest(Number(requestId), payload);
+      console.log('[useAssignReviewModal] patch response', { resp });
+      try {
+        console.log('[useAssignReviewModal] patch response (string)', JSON.stringify(resp));
+      } catch (e) {
+        /* ignore stringify errors */
+      }
+
+      // Refresh details after the update so UI can pick up any new messages.
+      try {
+        await fetchDetails();
+        console.log('[useAssignReviewModal] fetchDetails called after patch');
+      } catch (fetchErr) {
+        console.warn('[useAssignReviewModal] fetchDetails failed after patch', fetchErr);
+      }
+
       return { success: true, data: resp };
     } catch (e: any) {
       console.error('Error performing action in hook:', e);

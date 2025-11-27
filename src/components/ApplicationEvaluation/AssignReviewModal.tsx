@@ -97,7 +97,9 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
     setConfirmOpen(false);
     try {
       const type = confirmAction === 'approve' ? 'APROBADO' : 'RECHAZADO';
+      console.log('[AssignReviewModal] calling performAction for confirm', { requestId: apprentice.request_id, type, valuationMessage, startDate, endDate });
       const result = await performAction({ type, content: valuationMessage, fecha_inicio_contrato: startDate || undefined, fecha_fin_contrato: endDate || undefined });
+      console.log('[AssignReviewModal] performAction result for confirm', { result });
       if (result.success) {
         setNotifType('success');
         setNotifTitle(confirmAction === 'approve' ? 'Aprobación enviada' : 'Rechazo enviado');
@@ -120,10 +122,22 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
 
   // Handler passed to ModalReject: receives rejectionMessage and performs API call
   const handleRejectConfirm = async (rejectionMessage: string) => {
-    setShowRejectModal(false);
-    if (!apprentice.request_id) return;
+    // Log start of rejection flow
+    console.log('[AssignReviewModal] handleRejectConfirm called', { requestId: apprentice.request_id, rejectionMessage });
+    if (!apprentice.request_id) {
+      setNotifType('warning');
+      setNotifTitle('Error');
+      setNotifMessage('No se encontró el id de la solicitud. Intenta nuevamente.');
+      setNotifOpen(true);
+      return;
+    }
+
     try {
+      console.log('[AssignReviewModal] calling performAction for reject', { requestId: apprentice.request_id, rejectionMessage });
       const result = await performAction({ type: 'RECHAZADO', content: rejectionMessage });
+      console.log('[AssignReviewModal] performAction result for reject', { result });
+      // Close the reject modal only after the network call finished
+      setShowRejectModal(false);
       if (result.success) {
         setNotifType('success');
         setNotifTitle('Rechazo enviado');
