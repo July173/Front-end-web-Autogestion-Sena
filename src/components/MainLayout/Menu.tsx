@@ -26,6 +26,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
+import { List } from 'lucide-react';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { 
   House, 
@@ -69,6 +70,8 @@ const Menu: React.FC<SidebarMenuProps> = ({
   className = '',
   onNavigate
 }) => {
+  // Estado para menú móvil
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [userInfo, setUserInfo] = useState<MenuUserInfo>({ name: 'Cargando...', role: '' });
   const [loading, setLoading] = useState(true);
@@ -185,8 +188,213 @@ const Menu: React.FC<SidebarMenuProps> = ({
     };
   }, [showModal]);
 
+  // Cierra menú móvil al navegar
+  const handleNavigate = (path: string) => {
+    setMobileMenuOpen(false);
+    if (onNavigate) {
+      onNavigate(path);
+    } else {
+      navigate(path);
+    }
+  };
+
+  // Bloquea scroll del body cuando el menú está abierto en móvil
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  // Detecta cambio de tamaño para cerrar menú móvil si es desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) setMobileMenuOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-  <div className={`w-64 rounded-xl bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] text-white flex flex-col m-2 relative ${className} md:h-screen h-auto`}> 
+    <>
+      {/* Botón hamburguesa solo en móvil */}
+      <button
+        className="fixed top-4 left-4 z-[100] md:hidden bg-green-700 hover:bg-green-800 text-white p-2 rounded-lg shadow-lg focus:outline-none"
+        aria-label="Abrir menú"
+        onClick={() => setMobileMenuOpen(true)}
+        style={{ display: mobileMenuOpen ? 'none' : 'block' }}
+      >
+        <List className="w-7 h-7" />
+      </button>
+
+      {/* Overlay y menú como modal en móvil */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-[90] md:hidden animate-fade-in"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div
+            className={`fixed top-0 left-0 w-64 h-full rounded-r-xl bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] text-white flex flex-col m-0 z-[101] shadow-2xl transition-transform duration-300 md:hidden animate-slide-in overflow-y-auto`}
+            style={{ maxWidth: '16rem', height: '100vh', minHeight: '100vh' }}
+          >
+            {/* Header */}
+            <div className="p-6 flex items-center gap-3 flex-shrink-0">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center">
+                <img src={logo} alt="Logo" className="w-10 h-10" />
+              </div>
+              <h1 className="text-white font-semibold">Autogestión CIES</h1>
+            </div>
+            {/* Scrollable menu area (igual que en desktop) */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+              <nav className="flex-1 px-4 overflow-y-auto min-h-0 max-h-[calc(100vh-180px)] md:max-h-none">
+                <ul className="space-y-2">
+                  {Object.entries(menuItems.reduce((acc, item) => {
+                    if (!acc[item.module]) acc[item.module] = [];
+                    acc[item.module].push(item);
+                    return acc;
+                  }, {} as Record<string, MenuItem[]>)).sort(([a], [b]) => {
+                    if (a.toLowerCase() === 'inicio') return -1;
+                    if (b.toLowerCase() === 'inicio') return 1;
+                    return a.localeCompare(b);
+                  }).map(([moduleName, forms]) => {
+                    const IconComponent = iconMap[moduleName.toLowerCase()] || House;
+                    const isOpen = openModule === moduleName;
+                    const isInicio = moduleName.toLowerCase() === 'inicio';
+                    const isActiveModule = activeModule === moduleName;
+                    if (isInicio) {
+                      return (
+                        <li key={moduleName}>
+                          <button
+                            onClick={() => {
+                              setActiveModule(moduleName);
+                              setActiveItem(null);
+                              if (onMenuItemClick) onMenuItemClick({ moduleName, name: '' });
+                              handleNavigate('/home');
+                            }}
+                            className={`w-full flex items-start gap-2 px-4 py-3 rounded-lg text-left transition-colors ${isActiveModule ? "bg-white/20 text-white" : "hover:bg-white/10"}`}
+                          >
+                            <IconComponent className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                            <span className="font-medium leading-tight">{moduleName}</span>
+                          </button>
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={moduleName}>
+                        <button
+                          onClick={() => {
+                            setOpenModule(isOpen ? null : moduleName);
+                            setActiveModule(moduleName);
+                          }}
+                          className={`w-full flex items-start justify-between px-4 py-3 rounded-lg text-left transition-colors ${isActiveModule ? "bg-white/20 text-white" : "hover:bg-white/10"}`}
+                        >
+                          <span className="flex items-start gap-2 flex-1">
+                            <IconComponent className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                            <span className="font-medium leading-tight">{moduleName}</span>
+                          </span>
+                          <ChevronDown className={`w-4 h-4 mt-0.5 flex-shrink-0 transform transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                        </button>
+                        <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-96 opacity-100 scale-100' : 'max-h-0 opacity-0 scale-95'}`}>
+                          {isOpen && (
+                            <ul className="ml-8 mt-2 space-y-1">
+                              {forms.map(form => {
+                                const isActive = activeItem === form.id;
+                                return (
+                                  <li key={form.id}>
+                                    <button
+                                      onClick={() => {
+                                        setActiveItem(form.id);
+                                        setActiveModule(moduleName);
+                                        if (onMenuItemClick) onMenuItemClick({ ...form, moduleName });
+                                        handleNavigate(form.path);
+                                      }}
+                                      className={`w-full flex items-center gap-2 px-2 py-1 rounded-lg text-xs md:text-sm whitespace-nowrap ${isActive ? "bg-white/20 text-white" : "text-white/80 hover:bg-white/10"}`}
+                                    >
+                                      <span className="w-4 h-4 flex items-center justify-center text-white/80">•</span>
+                                      {form.name}
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            </div>
+            {/* Información de usuario fija abajo con borde superior */}
+            <div
+              ref={userBtnRef}
+              onClick={handleOpenModal}
+              className="p-4 border-t border-white/20 cursor-pointer hover:bg-white/10 flex-shrink-0"
+              style={{
+                background: '',
+                zIndex: 10,
+                borderBottomLeftRadius: '12px',
+                borderBottomRightRadius: '12px',
+                position: 'sticky',
+                bottom: 0,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#D9D9D9] rounded-full flex items-center justify-center overflow-hidden">
+                  {userImage ? (
+                    <img 
+                      src={userImage.startsWith('http') ? userImage : `http://localhost:8000${userImage}`} 
+                      alt="Foto de perfil" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-gray-600 text-sm font-medium">
+                      {userInfo.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">
+                    {localUserData?.person?.first_name 
+                      ? `${localUserData.person.first_name} ${localUserData.person.first_last_name || ''}`.trim()
+                      : userInfo.name}
+                  </p>
+                  <div className="inline-block bg-[#0F172A] text-[#61F659] text-xs px-2 py-1 rounded-full mt-1">
+                    {localUserData?.role?.type_role || userInfo.role}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Botón cerrar menú móvil */}
+            <button
+              className="absolute top-4 right-4 md:hidden bg-white/20 hover:bg-white/30 text-white p-2 rounded-full z-[102]"
+              aria-label="Cerrar menú"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Sidebar menú en desktop */}
+      <div
+        className={`w-64 rounded-xl bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] text-white flex flex-col m-2 relative md:h-screen h-auto
+        transition-transform duration-300 z-[101] hidden md:flex
+        ${className}`}
+        style={{
+          maxWidth: '16rem',
+          minHeight: '100vh',
+          zIndex: 101,
+        }}
+      >
       {/* Header */}
       <div className="p-6 flex items-center gap-3 flex-shrink-0">
         <div className="w-12 h-12 rounded-lg flex items-center justify-center">
@@ -214,11 +422,7 @@ const Menu: React.FC<SidebarMenuProps> = ({
                         setActiveModule(moduleName);
                         setActiveItem(null);
                         if (onMenuItemClick) onMenuItemClick({ moduleName, name: '' }); // <-- Only module, no form
-                        if (onNavigate) {
-                          onNavigate('/home');
-                        } else {
-                          navigate('/home');
-                        }
+                        handleNavigate('/home');
                       }}
                       className={`w-full flex items-start gap-2 px-4 py-3 rounded-lg text-left transition-colors ${
                         isActiveModule 
@@ -271,11 +475,7 @@ const Menu: React.FC<SidebarMenuProps> = ({
                                   setActiveItem(form.id);
                                     setActiveModule(moduleName); // Keep the module active
                                     if (onMenuItemClick) onMenuItemClick({ ...form, moduleName }); // <-- SENDS MODULE AND FORM
-                                  if (onNavigate) {
-                                    onNavigate(form.path);
-                                  } else {
-                                    navigate(form.path);
-                                  }
+                                    handleNavigate(form.path);
                                 }}
                                 className={`w-full flex items-center gap-2 px-2 py-1 rounded-lg text-xs md:text-sm whitespace-nowrap ${
                                   isActive
@@ -389,7 +589,19 @@ const Menu: React.FC<SidebarMenuProps> = ({
           </button>
         </div>
       )}
-    </div>
+        {/* Botón cerrar menú móvil */}
+        <button
+          className="absolute top-4 right-4 md:hidden bg-white/20 hover:bg-white/30 text-white p-2 rounded-full z-[102]"
+          aria-label="Cerrar menú"
+          onClick={() => setMobileMenuOpen(false)}
+          style={{ display: mobileMenuOpen ? 'block' : 'none' }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </>
   );
 };
 
