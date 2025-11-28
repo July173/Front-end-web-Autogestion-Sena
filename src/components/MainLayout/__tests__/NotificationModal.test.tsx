@@ -3,7 +3,16 @@ import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import NotificationModal from '@/components/MainLayout/NotificationModal';
 
 describe('NotificationModal', () => {
-  const baseNotifications = [
+  type NotificationTestItem = {
+    id: number;
+    title: string;
+    message: string;
+    read: boolean;
+    active: boolean;
+    created_at: string;
+  };
+
+  const baseNotifications: NotificationTestItem[] = [
     { id: 1, title: 'Active One', message: 'msg1', read: false, active: true, created_at: new Date().toISOString() },
     { id: 2, title: 'Inactive', message: 'msg2', read: false, active: false, created_at: new Date().toISOString() },
     { id: 3, title: 'Active Read', message: 'msg3', read: true, active: true, created_at: new Date().toISOString() },
@@ -19,7 +28,7 @@ describe('NotificationModal', () => {
       <NotificationModal
         open={true}
         onClose={() => {}}
-        notifications={baseNotifications as any}
+        notifications={baseNotifications}
         markAsRead={markAsRead}
         markAllAsRead={markAllAsRead}
         deleteById={deleteById}
@@ -47,7 +56,7 @@ describe('NotificationModal', () => {
       <NotificationModal
         open={true}
         onClose={() => {}}
-        notifications={baseNotifications as any}
+        notifications={baseNotifications}
         markAsRead={markAsRead}
         markAllAsRead={markAllAsRead}
         deleteById={deleteById}
@@ -74,7 +83,7 @@ describe('NotificationModal', () => {
     const markAsRead = jest.fn();
     const markAllAsRead = jest.fn();
     // deleteByUser resolves after a tick so we can assert loading shows
-    let resolveDelete: () => void;
+    let resolveDelete: ((value?: unknown) => void) | undefined;
     const deleteByUser = jest.fn().mockImplementation(() => new Promise((res) => { resolveDelete = res; }));
     const deleteById = jest.fn().mockResolvedValue(true);
 
@@ -82,7 +91,7 @@ describe('NotificationModal', () => {
       <NotificationModal
         open={true}
         onClose={() => {}}
-        notifications={baseNotifications as any}
+        notifications={baseNotifications}
         markAsRead={markAsRead}
         markAllAsRead={markAllAsRead}
         deleteById={deleteById}
@@ -105,10 +114,12 @@ describe('NotificationModal', () => {
 
     // Resolve the promise to finish deletion (wrap in act)
     await act(async () => {
-      resolveDelete && resolveDelete();
+      if (resolveDelete) resolveDelete();
     });
 
     // Wait for overlay to disappear
     await waitFor(() => expect(screen.queryByText(/Eliminando notificaciones/)).toBeNull());
   });
 });
+
+//npm test -- -t "NotificationModal" --runInBand      
