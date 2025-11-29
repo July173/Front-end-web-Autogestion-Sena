@@ -27,25 +27,40 @@ export default function useForms(): UseFormsResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Sin dependencias - la función es estable
 
+  // Solo ejecutar fetchAll una vez al montar
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+  }, []); // Sin dependencia de fetchAll para evitar loops
 
   const refresh = useCallback(async () => {
-    await fetchAll();
-  }, [fetchAll]);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getForms();
+      setForms(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const createForm = useCallback(async (data: Partial<FormType>) => {
     setLoading(true);
     try {
       await postForm(data);
-      await fetchAll();
+      // Refrescar después de crear
+      const freshData = await getForms();
+      setForms(freshData);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      throw e; // Re-lanzar para que el componente pueda manejarlo
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, []);
 
   const applyFilter = useCallback(async (params: { search?: string; active?: string }) => {
     setLoading(true);

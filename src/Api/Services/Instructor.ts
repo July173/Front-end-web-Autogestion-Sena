@@ -225,9 +225,35 @@ export async function getInstructoresSeguimiento() {
  * @param instructorId - Instructor ID
  * @returns Promise with the array of assignments
  */
-export async function getInstructorAssignments(instructorId: number) {
+export async function getInstructorAssignments(
+  instructorId: number,
+  filters?: {
+    apprentice_name?: string;
+    apprentice_id_number?: string;
+    modality_name?: string;
+    program_name?: string;
+    request_state?: string;
+  }
+) {
   try {
-    const url = ENDPOINTS.instructor.getInstructorAssignments.replace('{id}', String(instructorId));
+    let url = ENDPOINTS.instructor.getInstructorAssignments.replace('{id}', String(instructorId));
+    
+    // Build query params from filters
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.apprentice_name) params.append('apprentice_name', filters.apprentice_name);
+      if (filters.apprentice_id_number) params.append('apprentice_id_number', filters.apprentice_id_number);
+      if (filters.modality_name) params.append('modality_name', filters.modality_name);
+      if (filters.program_name) params.append('program_name', filters.program_name);
+      if (filters.request_state) params.append('request_state', filters.request_state);
+      
+      const queryString = params.toString();
+      if (queryString) {
+        url = `${url}?${queryString}`;
+      }
+    }
+    
+    console.debug('[API] getInstructorAssignments ->', url);
     const response = await fetch(url);
     if (!response.ok) {
       try {
@@ -239,6 +265,7 @@ export async function getInstructorAssignments(instructorId: number) {
     }
 
     const result = await response.json();
+    console.debug('[API] getInstructorAssignments - result length:', Array.isArray(result) ? result.length : (result.data ? result.data.length : 'n/a'));
     // Support both { data: [...] } and [...] shapes
     return Array.isArray(result) ? result : (result.data || []);
   } catch (error) {

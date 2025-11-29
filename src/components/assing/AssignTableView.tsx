@@ -189,6 +189,8 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                                                         if (row.id) refreshRequestState(row.id);
                                                         if (onRefresh) onRefresh();
                                                       }}
+                                                      instructorName={row.instructor}
+                                                      instructorId={row.instructor_id}
                                                     />
                                                   );
                                                 })()

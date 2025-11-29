@@ -119,7 +119,14 @@ const FilterBar: React.FC<FilterBarProps> = ({
 
   // Debounce calling onFilter to avoid firing many requests while user types or changes selects
   const debounceRef = useRef<number | null>(null);
+  const firstRender = useRef(true);
   useEffect(() => {
+    // skip calling on first render to avoid emitting filters automatically on mount
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+
     // clear existing timer
     if (debounceRef.current) {
       window.clearTimeout(debounceRef.current);

@@ -3,21 +3,33 @@ import InstructorAssignmentsTable from '@/components/ApplicationEvaluation/Instr
 import { getUserById } from '@/Api/Services/User';
 import FilterBar from '@/components/FilterBar';
 import ReloadButton from '@/components/ReloadButton';
-// replaced AssignTableView with InstructorAssignmentsTable below
 import { getPrograms } from '@/Api/Services/Program';
 import { getModalityProductiveStages } from '@/Api/Services/ModalityProductiveStage';
-import { filterRequest } from '@/Api/Services/RequestAssignaton';
-import { AssignTableRow } from '@/Api/types/Modules/assign.types';
+
+const estadoOptions = [
+  { value: 'ASIGNADO', label: 'Asignado' },
+  { value: 'RECHAZADO', label: 'Rechazado' },
+  { value: 'SIN_ASIGNAR', label: 'Sin asignar' },
+  { value: 'VERIFICANDO', label: 'Verificando' },
+  { value: 'PRE-APROBADO', label: 'Pre-aprobado' },
+];
+
+interface InstructorAssignmentFilters {
+  apprentice_name?: string;
+  apprentice_id_number?: string;
+  modality_name?: string;
+  program_name?: string;
+  request_state?: string;
+}
 
 export const ApplicationEvaluation = () => {
   const [instructorId, setInstructorId] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<AssignTableRow[]>([]);
-  const [tableLoading, setTableLoading] = useState(false);
-  const [tableError, setTableError] = useState<string | null>(null);
   const [programOptions, setProgramOptions] = useState<{ value: string; label: string }[]>([]);
   const [modalityOptions, setModalityOptions] = useState<{ value: string; label: string }[]>([]);
+  const [tableRefresh, setTableRefresh] = useState<(() => void) | null>(null);
+  const [filters, setFilters] = useState<InstructorAssignmentFilters>({});
 
   useEffect(() => {
     const loadInstructorFromStorage = async () => {
@@ -84,110 +96,73 @@ export const ApplicationEvaluation = () => {
     loadAssets();
   }, []);
 
-  // Load initial table rows, optionally filtered by instructorId and default state VERIFICANDO
-  useEffect(() => {
-    const loadInitial = async () => {
-      setTableLoading(true);
-      setTableError(null);
-      try {
-        if (instructorId) {
-          // Try to filter by instructor and state VERIFICANDO
-          const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
-          const result = await filterRequest(payload);
-          setRows(result.map(r => ({
-            ...r,
-            nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-          })));
-        } else {
-          // Fallback: load all
-          const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
-          const result = await getAllRequests();
-          setRows(result as AssignTableRow[]);
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        setTableError(message || 'Error al cargar asignaciones');
-      } finally {
-        setTableLoading(false);
+  // Handle filter changes
+  const handleFilter = (params: Record<string, string>) => {
+    const newFilters: InstructorAssignmentFilters = {};
+    
+    // Search by name or document number
+    if (params.search && params.search.trim() !== '') {
+      const searchValue = params.search.trim();
+      // Detect if the search is a number (document ID) or text (name)
+      // If it's all digits, treat it as ID number; otherwise as name
+      if (/^\d+$/.test(searchValue)) {
+        newFilters.apprentice_id_number = searchValue;
+      } else {
+        newFilters.apprentice_name = searchValue;
       }
-    };
-
-    // Only load after instructorId resolved (or immediately if undefined)
-    if (instructorId !== undefined) loadInitial();
-  }, [instructorId]);
+    }
+    
+    // Program filter
+    if (params.programa && params.programa !== 'TODOS') {
+      // Find program name from options
+      const programOption = programOptions.find(p => p.value === params.programa);
+      if (programOption && programOption.label) {
+        newFilters.program_name = programOption.label;
+      }
+    }
+    
+    // Modality filter
+    if (params.modalidad && params.modalidad !== 'TODOS') {
+      // Find modality name from options
+      const modalityOption = modalityOptions.find(m => m.value === params.modalidad);
+      if (modalityOption && modalityOption.label) {
+        newFilters.modality_name = modalityOption.label;
+      }
+    }
+    
+    // State filter
+    if (params.estado && params.estado !== 'TODOS') {
+      newFilters.request_state = params.estado;
+    }
+    
+    setFilters(newFilters);
+  };
 
   return (
     <div className="bg-white relative rounded-[10px] size-full p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Asignaciones para valoración previa</h1>
         <div>
-          <ReloadButton onClick={async () => {
-            // reload table rows
-            setTableLoading(true);
-            setTableError(null);
-            try {
-              if (instructorId) {
-                const payload: Record<string, string> = { request_state: 'VERIFICANDO', instructor_id: String(instructorId) };
-                const result = await filterRequest(payload);
-                setRows(result.map(r => ({
-                  ...r,
-                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-                })));
-              } else {
-                const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
-                const result = await getAllRequests();
-                setRows((result as AssignTableRow[]).map(r => ({
-                  ...r,
-                  nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-                })));
+          <ReloadButton
+            onClick={() => {
+              if (tableRefresh) {
+                tableRefresh();
               }
-            } catch (err) {
-              const message = err instanceof Error ? err.message : String(err);
-              setTableError(message || 'Error al recargar asignaciones');
-            } finally {
-              setTableLoading(false);
-            }
-          }} title="Recargar" />
+            }}
+            title="Recargar"
+          />
         </div>
       </div>
 
       <FilterBar
-        onFilter={async (params: Record<string, string>) => {
-          setTableLoading(true);
-          setTableError(null);
-          try {
-            const payload: Record<string, string> = {};
-            if (params.search && params.search.trim() !== '') payload.search = params.search;
-            if (params.programa && params.programa !== 'TODOS') payload.program_id = params.programa;
-            if (params.modalidad && params.modalidad !== 'TODOS') payload.modality_id = params.modalidad;
-            // always filter by VERIFICANDO for this page
-            payload.request_state = 'VERIFICANDO';
-            if (instructorId) payload.instructor_id = String(instructorId);
-
-            if (Object.keys(payload).length === 0) {
-              const { getAllRequests } = await import('@/Api/Services/RequestAssignaton');
-              const result = await getAllRequests();
-              setRows((result as AssignTableRow[]).map(r => ({
-                ...r,
-                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-              })));
-            } else {
-              const result = await filterRequest(payload);
-              setRows(result.map(r => ({
-                ...r,
-                nombre_modalidad: (r.nombre_modalidad && modalityOptions.find(m => String(m.value) === String(r.nombre_modalidad))?.label) || r.nombre_modalidad
-              })) as AssignTableRow[]);
-            }
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            setTableError(message || 'Error al filtrar');
-            setRows([]);
-          } finally {
-            setTableLoading(false);
-          }
-        }}
+        onFilter={handleFilter}
         selects={[
-          { name: 'estado', value: 'VERIFICANDO', options: [{ value: 'VERIFICANDO', label: 'Verificando' }], placeholder: 'Estado' },
+          {
+            name: 'estado',
+            value: '',
+            options: estadoOptions,
+            placeholder: 'Todos los Estados',
+          },
           {
             name: 'modalidad',
             value: '',
@@ -204,7 +179,9 @@ export const ApplicationEvaluation = () => {
 
       <InstructorAssignmentsTable
         instructorId={instructorId ?? 0}
-        filterState="VERIFICANDO"
+        filterState="ALL"
+        filters={filters}
+        onRefreshReady={(refreshFn) => setTableRefresh(() => refreshFn)}
       />
     </div>
   );

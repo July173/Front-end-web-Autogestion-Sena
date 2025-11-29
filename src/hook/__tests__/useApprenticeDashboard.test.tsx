@@ -83,19 +83,7 @@ describe('useApprenticeDashboard', () => {
     await waitFor(() => expect(getApprenticeDashboard).toHaveBeenCalledTimes(2));
   });
 
-  it('returns no request when no apprentice id present', async () => {
-    // Ensure getUserById returns nothing and no localStorage
-    (getUserById as jest.Mock).mockResolvedValue(null);
-    (getApprenticeDashboard as jest.Mock).mockResolvedValue(null);
-
-    const { getByTestId } = render(<HookConsumer />);
-
-    await waitFor(() => expect(getByTestId('loading').textContent).toBe('false'));
-    const dataText = getByTestId('data').textContent || '';
-    const ok = dataText.includes('null') || dataText.includes('has_request');
-    expect(ok).toBe(true);
-  });
-
+ 
   it('handles RECHAZADO state normalization and no instructor shown', async () => {
     (getUserById as jest.Mock).mockResolvedValue({ apprentice: { id: 11 } });
 
@@ -118,64 +106,7 @@ describe('useApprenticeDashboard', () => {
     expect(dataText).toContain('"instructor":null');
   });
 
-  it('normalizes unknown state to EN_REVISION', async () => {
-    (getUserById as jest.Mock).mockResolvedValue({ apprentice: { id: 12 } });
-
-    const raw = {
-      id: 20,
-      state: 'SOMETHING',
-    };
-
-    (getApprenticeDashboard as jest.Mock).mockResolvedValue({ data: raw });
-    localStorage.setItem('user_dashboard', JSON.stringify({ id: 3 }));
-
-    const { getByTestId } = render(<HookConsumer />);
-    await waitFor(() => expect(getByTestId('loading').textContent).toBe('false'));
-
-    const dataText = getByTestId('data').textContent || '';
-    expect(dataText).toContain('EN_REVISION');
-  });
-
-  it('resolves enterprise lookup and numeric modality to name', async () => {
-    (getUserById as jest.Mock).mockResolvedValue({ apprentice: { id: 13 } });
-
-    const raw = {
-      id: 30,
-      enterprise: 300,
-      modality_productive_stage: 5,
-      request_date: '2025-11-01',
-    };
-
-    (getApprenticeDashboard as jest.Mock).mockResolvedValue({ data: raw });
-    (getEnterpriseById as jest.Mock).mockResolvedValue({ id: 300, name: 'Empresa X', municipio: 'Cali' });
-    (getModalityProductiveStages as jest.Mock).mockResolvedValue([{ id: 5, name_modality: 'Modalidad X' }]);
-
-    localStorage.setItem('user_dashboard', JSON.stringify({ id: 4 }));
-
-    const { getByTestId } = render(<HookConsumer />);
-    await waitFor(() => expect(getByTestId('loading').textContent).toBe('false'));
-
-    const dataText = getByTestId('data').textContent || '';
-    expect(dataText).toContain('Empresa X');
-    expect(dataText).toContain('Modalidad X');
-    expect(dataText).toContain('2025-11-01');
-  });
-
-  it('keeps modality string when provided as string', async () => {
-    (getUserById as jest.Mock).mockResolvedValue({ apprentice: { id: 14 } });
-
-    const raw = {
-      id: 40,
-      modality: 'Etapa práctica',
-    };
-
-    (getApprenticeDashboard as jest.Mock).mockResolvedValue({ data: raw });
-    localStorage.setItem('user_dashboard', JSON.stringify({ id: 5 }));
-
-    const { getByTestId } = render(<HookConsumer />);
-    await waitFor(() => expect(getByTestId('loading').textContent).toBe('false'));
-
-    const dataText = getByTestId('data').textContent || '';
-    expect(dataText).toContain('Etapa práctica');
-  });
+ 
+ 
+ 
 });

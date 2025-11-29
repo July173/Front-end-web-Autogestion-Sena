@@ -75,30 +75,48 @@ export default function useAssignReviewModal(
     fetchDetails();
   }, [isOpen, fetchDetails]);
 
-  const performAction = useCallback(async (opts: { type: 'APROBADO' | 'RECHAZADO'; content: string; fecha_inicio_contrato?: string; fecha_fin_contrato?: string; }) : Promise<PerformActionResult> => {
+  const performAction = useCallback(async (opts: { type: 'APROBADO' | 'RECHAZADO'; content: string; fecha_inicio_contrato?: string; fecha_fin_contrato?: string; request_state?: string; }) : Promise<PerformActionResult> => {
     if (!requestId) return { success: false, error: 'No request id' };
     setLoading(true);
     try {
+      // Map internal action type to backend-expected type_message values
+      // RECHAZADO se mantiene como RECHAZADO, APROBADO como APROBADA
+      let mappedType = opts.type;
+      if (opts.type === 'APROBADO') mappedType = 'APROBADA';
+      // opts.type === 'RECHAZADO' se mantiene como 'RECHAZADO'
+
       const payload: any = {
         content: opts.content,
-        type_message: opts.type,
+        type_message: mappedType,
         whose_message: 'INSTRUCTOR',
-        request_state: 'PRE-APROBADO',
       };
       if (opts.fecha_inicio_contrato) payload.fecha_inicio_contrato = opts.fecha_inicio_contrato;
       if (opts.fecha_fin_contrato) payload.fecha_fin_contrato = opts.fecha_fin_contrato;
 
-      // Build payload for both approval and rejection according to backend contract
-      const fullPayload: any = {
-        content: opts.content,
-        type_message: opts.type,
-        whose_message: 'INSTRUCTOR',
-        request_state: 'PRE-APROBADO',
-      };
-      if (opts.fecha_inicio_contrato) fullPayload.fecha_inicio_contrato = opts.fecha_inicio_contrato;
-      if (opts.fecha_fin_contrato) fullPayload.fecha_fin_contrato = opts.fecha_fin_contrato;
+      // Include request_state if provided, otherwise default to PRE-APROBADO for approval
+      if (opts.request_state) {
+        payload.request_state = opts.request_state;
+      } else if (opts.type === 'APROBADO') {
+        payload.request_state = 'PRE-APROBADO';
+      }
 
-      const resp = await patchMessageRequest(Number(requestId), fullPayload);
+      console.log('[useAssignReviewModal] sending patch payload', { requestId, payload });
+      const resp = await patchMessageRequest(Number(requestId), payload);
+      console.log('[useAssignReviewModal] patch response', { resp });
+      try {
+        console.log('[useAssignReviewModal] patch response (string)', JSON.stringify(resp));
+      } catch (e) {
+        /* ignore stringify errors */
+      }
+
+      // Refresh details after the update so UI can pick up any new messages.
+      try {
+        await fetchDetails();
+        console.log('[useAssignReviewModal] fetchDetails called after patch');
+      } catch (fetchErr) {
+        console.warn('[useAssignReviewModal] fetchDetails failed after patch', fetchErr);
+      }
+
       return { success: true, data: resp };
     } catch (e: any) {
       console.error('Error performing action in hook:', e);

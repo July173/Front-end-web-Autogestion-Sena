@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import FilterBar from '../FilterBar';
 import Paginator from '../Paginator';
 import ModalFormGeneric from './ModalFormGeneric';
@@ -100,20 +100,53 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
     }
   };
 
-  const handleFilter = async (params?: { search?: string; active?: string }) => {
+  // debounce timer ref to avoid issuing many requests while inputs change
+  const filterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // cleanup on unmount
+      if (filterTimer.current) {
+        clearTimeout(filterTimer.current);
+        filterTimer.current = null;
+      }
+    };
+  }, []);
+
+  const handleFilter = (params?: { search?: string; active?: string }) => {
     setPage(1);
     const s = params && params.search !== undefined ? params.search : (search || undefined);
     const a = params && params.active !== undefined ? params.active : activeFilter;
+
     // update local inputs and show smooth filtering state
     setSearch(s ?? '');
     setActiveFilter(a ?? '');
-    setFiltering(true);
-    try {
-      await applyFilter({ search: s, active: a });
-    } finally {
-      // small delay so UI transition isn't abrupt
-      setTimeout(() => setFiltering(false), 180);
+
+    // clear any pending filter call
+    if (filterTimer.current) {
+      clearTimeout(filterTimer.current);
+      filterTimer.current = null;
     }
+
+    // show filtering state immediately
+    setFiltering(true);
+
+    // debounce the actual applyFilter call (250ms) to avoid rapid duplicate requests
+    filterTimer.current = setTimeout(async () => {
+      try {
+        await applyFilter({ search: s, active: a });
+      } catch (err) {
+        // keep behavior consistent with previous implementation: don't block UI
+        console.error('Error applying filter', err);
+      } finally {
+        // small delay so UI transition isn't abrupt
+        setTimeout(() => setFiltering(false), 180);
+        if (filterTimer.current) {
+          clearTimeout(filterTimer.current);
+          filterTimer.current = null;
+        }
+      }
+    }, 250);
   };
 
   const openCreate = () => {

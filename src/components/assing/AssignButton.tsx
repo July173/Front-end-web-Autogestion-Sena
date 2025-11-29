@@ -26,9 +26,11 @@ interface AssignButtonProps {
   onClick?: () => void;
   requestId?: number;
   onAssignmentComplete?: () => void;
+  instructorName?: string;
+  instructorId?: number;
 }
 
-const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick, requestId, onAssignmentComplete }) => {
+const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick, requestId, onAssignmentComplete, instructorName, instructorId }) => {
   const [showModal, setShowModal] = useState(false);
   const [apprenticeData, setApprenticeData] = useState<ApprenticeData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,14 +92,9 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
     if (state === "PreAprobado") {
       setLoading(true);
       try {
-        // Fetch both the form detail and the raw request (which should include assigned instructor and messages)
-        const [formResp, rawResp] = await Promise.all([
-          getFormRequestById(requestId),
-          // dynamic import to avoid circular deps
-          (await import("@/Api/Services/RequestAssignaton")).getRequestAsignationById(requestId),
-        ]);
+        // Fetch only the form detail
+        const formResp = await getFormRequestById(requestId);
         const d = formResp.data;
-        const raw = rawResp.data || rawResp || {};
         setApprenticeData({
           name: d.name_apprentice,
           type_identification: d.type_identification,
@@ -109,8 +106,6 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
           request_id: requestId,
           modality_productive_stage: d.modality_productive_stage ?? d.modality ?? undefined,
         });
-        // Attach raw data (messages, assigned instructor) onto apprenticeData via a temp property
-        (setApprenticeData as any)((prev) => ({ ...(prev as any), raw }));
         setShowModal(true);
       } catch (e) {
         setApprenticeData(null);
@@ -153,8 +148,7 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
                 apprentice={apprenticeData}
                 onClose={() => setShowModal(false)}
                 onAssignmentComplete={onAssignmentComplete}
-                assignedInstructor={(apprenticeData as any)?.raw?.assigned_instructor ?? (apprenticeData as any)?.raw?.instructor ?? null}
-                initialMessages={(apprenticeData as any)?.raw?.messages ?? (apprenticeData as any)?.raw?.messages_list ?? []}
+                assignedInstructor={instructorName ? { name: instructorName, id: instructorId } : null}
               />
             ) : (
               <ModalAsignar

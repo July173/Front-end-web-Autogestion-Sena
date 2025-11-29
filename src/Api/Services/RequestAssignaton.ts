@@ -54,7 +54,9 @@ export const filterRequest = async (params: Record<string, string>): Promise<Ass
       number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
       request_date: it.fecha_solicitud || it.request_date || '',
       nombre_modalidad: resolveModalityName(it),
-      request_state: it.request_state || it.requestState || ''
+      request_state: it.request_state || it.requestState || '',
+      instructor: it.instructor || undefined,
+      instructor_id: it.instructor_id ?? undefined
     }));
   } catch (error) {
     console.error('Error en filterRequest:', error);
@@ -85,7 +87,9 @@ export const getAllRequests = async (): Promise<AssignTableRow[]> => {
       number_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
       request_date: it.fecha_solicitud || it.request_date || '',
       nombre_modalidad: resolveModalityName(it),
-      request_state: it.request_state || it.requestState || ''
+      request_state: it.request_state || it.requestState || '',
+      instructor: it.instructor || undefined,
+      instructor_id: it.instructor_id ?? undefined
     }));
   } catch (error) {
     console.error('Error en getAllRequests:', error);
@@ -205,7 +209,9 @@ export const getFormRequestById = async (requestId: number): Promise<{ data: any
         name: raw.talento_humano.nombre || raw.talento_humano.name || undefined,
         email: raw.talento_humano.correo || raw.talento_humano.email || undefined,
         phone: raw.talento_humano.telefono ?? raw.talento_humano.phone ?? undefined,
-      } : (raw.human_talent || undefined)
+      } : (raw.human_talent || undefined),
+      instructor: raw.instructor || undefined,
+      instructor_id: raw.instructor_id ?? undefined
     };
 
     return { data: mapped };
@@ -454,3 +460,31 @@ export const postMessageRequest = async (
       throw error;
     }
   };
+
+/**
+ * Gets all messages for a specific request.
+ * Endpoint: GET /assign/request_asignation/{id}/messages/
+ * @param requestId - Request ID
+ * @returns Promise with the messages data
+ */
+export const getRequestMessages = async (requestId: number): Promise<{ success: boolean; count: number; data: any[] }> => {
+  try {
+    const url = ENDPOINTS.requestAsignation.getIdMessageRequest.replace('{id}', String(requestId));
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al obtener los mensajes de la solicitud');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en getRequestMessages:', error);
+    throw error;
+  }
+};
