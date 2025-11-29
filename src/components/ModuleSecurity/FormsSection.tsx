@@ -190,26 +190,31 @@ const FormsSection = ({ open, onToggle }: FormsSectionProps) => {
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
       <LoadingOverlay isOpen={Boolean(loading || filtering || actionLoading)} message={overlayMessage} />
-      <button
-        onClick={onToggle}
-        className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between"
-      >
-        <div>
+      <div className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between">
+        <button
+          onClick={onToggle}
+          className="flex-1 text-left"
+        >
           <h3 className="font-semibold text-lg">Formularios</h3>
           <p className="text-sm text-gray-500">Administración de formularios del sistema ({forms.length})</p>
-        </div>
+        </button>
         <div>
           {/* show create button only when expanded */}
           {open && (
             <button
-              onClick={(e) => { e.stopPropagation(); openCreate(); }}
+              type="button"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                e.preventDefault();
+                openCreate(); 
+              }}
               className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700"
             >
               <span className="text-xl font-bold">+</span>  Formulario
             </button>
           )}
         </div>
-      </button>
+      </div>
 
       {open && (
         <div className="p-6">

@@ -137,22 +137,25 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
     if (Array.isArray(values.form_ids)) selectedForms = values.form_ids.map(Number);
     const data: ModuleFormValues = { name: values.name, description: values.description, form_ids: selectedForms };
     setPendingModuleData(data);
-    setShowModuleModal(true);
+    setShowModuleConfirm(true);
   };
 
   const handleConfirmCreateModule = async () => {
     if (!pendingModuleData) return;
     setLoading(true);
+    setShowModuleConfirm(false);
     try {
       await postModule(pendingModuleData);
       setShowModuleModal(false);
       setPendingModuleData(null);
+      setCreateConfirmError(null);
       setNotificationType('success');
       setNotificationTitle('Módulo creado');
       setNotificationMessage('El módulo se ha creado exitosamente.');
       setShowNotification(true);
       const updated = await getModules();
       setModules(updated);
+      setModulesFiltered(updated);
     } catch (e) {
       const msg = parseErrorMessage(e) || 'Error al crear el módulo';
       setCreateConfirmError(msg);
@@ -224,25 +227,30 @@ const ModuleSection = ({ open, onToggle }: ModuleSectionProps) => {
   return (
     <div className="mb-8 border border-gray-200 rounded-lg overflow-hidden">
       <LoadingOverlay isOpen={Boolean(loading || modulesLoading || loadingForms || editLoading)} message={overlayMessage} />
-      <button
-        onClick={onToggle}
-        className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between"
-      >
-        <div>
+      <div className="w-full px-6 py-4 bg-gray-50 hover:bg-gray-100 flex items-center justify-between">
+        <button
+          onClick={onToggle}
+          className="flex-1 text-left"
+        >
           <h3 className="font-semibold text-lg">Módulos</h3>
           <p className="text-sm text-gray-500">Administración de módulos del sistema ({modules.length})</p>
-        </div>
+        </button>
         <div>
           {open && (
             <button
-              onClick={(e) => { e.stopPropagation(); setShowModuleModal(true); }}
+              type="button"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                e.preventDefault();
+                setShowModuleModal(true); 
+              }}
               className="flex items-center gap-2 text-white px-4 py-2 rounded font-semibold shadow transition-all duration-300 bg-[linear-gradient(to_bottom_right,_#43A047,_#2E7D32)] hover:bg-green-700"
             >
               <span className="text-xl font-bold">+</span>  Modulo
             </button>
           )}
         </div>
-      </button>
+      </div>
 
       {open && (
         <div className="p-6">
