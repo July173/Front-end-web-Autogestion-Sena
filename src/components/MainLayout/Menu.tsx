@@ -26,6 +26,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { List } from 'lucide-react';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { 
@@ -204,6 +205,8 @@ const Menu: React.FC<SidebarMenuProps> = ({
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      // cerrar cualquier modal si el menú se cierra (evitar modal suelto en pantalla)
+      setShowModal(false);
     }
     return () => {
       document.body.style.overflow = '';
@@ -273,7 +276,6 @@ const Menu: React.FC<SidebarMenuProps> = ({
                             onClick={() => {
                               setActiveModule(moduleName);
                               setActiveItem(null);
-                              if (onMenuItemClick) onMenuItemClick({ moduleName, name: '' });
                               handleNavigate('/home');
                             }}
                             className={`w-full flex items-start gap-2 px-4 py-3 rounded-lg text-left transition-colors ${isActiveModule ? "bg-white/20 text-white" : "hover:bg-white/10"}`}
@@ -334,6 +336,8 @@ const Menu: React.FC<SidebarMenuProps> = ({
             <div
               ref={userBtnRef}
               onClick={handleOpenModal}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpenModal(); } }}
+              tabIndex={0}
               className="p-4 border-t border-white/20 cursor-pointer hover:bg-white/10 flex-shrink-0"
               style={{
                 background: '',
@@ -541,12 +545,12 @@ const Menu: React.FC<SidebarMenuProps> = ({
       </div>
 
       {/* Modal style popover */}
-      {showModal && (
+      {showModal && mobileMenuOpen && createPortal(
         <div
           ref={modalRef}
-          className="absolute bottom-20 left-4 right-4 z-50 bg-white rounded-xl shadow-lg p-4"
+          className="fixed bottom-[84px] left-4 w-56 z-[103] bg-white rounded-xl shadow-lg p-4 mx-2 md:mx-0"
+          style={{ left: 16 }}
         >
-          {/* User information: name and email */}
           <div className="flex flex-col items-start mb-4">
             <span className="text-gray-800 font-semibold text-base leading-tight">
               {localUserData?.person?.first_name 
@@ -557,8 +561,6 @@ const Menu: React.FC<SidebarMenuProps> = ({
               {localUserData?.email || userData?.email || ''}
             </span>
           </div>
-
-            {/* View profile button */}
           <button
             onClick={() => {
               navigate("/perfil");
@@ -569,8 +571,6 @@ const Menu: React.FC<SidebarMenuProps> = ({
             <Person className="w-4 h-4" />
             Ver perfil
           </button>
-
-          {/* Rol */}
           <div className="flex items-center gap-2 text-gray-700 text-sm font-medium mb-4 pl-1">
             <PersonCheck className="w-4 h-4" />
             {localUserData?.role?.type_role || userInfo.role}
@@ -578,8 +578,6 @@ const Menu: React.FC<SidebarMenuProps> = ({
               <span className="ml-1 w-2 h-2 bg-green-500 rounded-full inline-block"></span>
             )}
           </div>
-
-            {/* Logout button */}
           <button
             onClick={handleLogout}
             className="w-full py-2 px-3 rounded-lg bg-[#EE7878] hover:bg-red-600 flex items-center gap-2 text-black"
@@ -587,6 +585,56 @@ const Menu: React.FC<SidebarMenuProps> = ({
             <LogOut className="w-4 h-4" />
             Cerrar sesión
           </button>
+        </div>,
+        document.body
+      )}
+      {showModal && !mobileMenuOpen && (
+        <div
+          ref={modalRef}
+          className="absolute bottom-20 left-4 right-4 z-50 bg-white rounded-xl shadow-lg p-4"
+        >
+          {/* Desktop popover content stays unchanged */}
+            {/* User information: name and email */}
+            <div className="flex flex-col items-start mb-4">
+              <span className="text-gray-800 font-semibold text-base leading-tight">
+                {localUserData?.person?.first_name 
+                  ? `${localUserData.person.first_name} ${localUserData.person.first_last_name || ''}`.trim()
+                  : userInfo.name}
+              </span>
+              <span className="text-gray-500 text-sm leading-tight break-all">
+                {localUserData?.email || userData?.email || ''}
+              </span>
+            </div>
+
+            {/* View profile button */}
+            <button
+              onClick={() => {
+                navigate("/perfil");
+                setShowModal(false);
+              }}
+              className="w-full flex items-center gap-2 py-2 px-3 rounded-lg text-gray-700 hover:bg-green-50 mb-2"
+            >
+              <Person className="w-4 h-4" />
+              Ver perfil
+            </button>
+
+            {/* Rol */}
+            <div className="flex items-center gap-2 text-gray-700 text-sm font-medium mb-4 pl-1">
+              <PersonCheck className="w-4 h-4" />
+              {localUserData?.role?.type_role || userInfo.role}
+              {(localUserData?.role?.type_role || userInfo.role) && (
+                <span className="ml-1 w-2 h-2 bg-green-500 rounded-full inline-block"></span>
+              )}
+            </div>
+
+              {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="w-full py-2 px-3 rounded-lg bg-[#EE7878] hover:bg-red-600 flex items-center gap-2 text-black"
+            >
+              <LogOut className="w-4 h-4" />
+              Cerrar sesión
+            </button>
         </div>
       )}
         {/* Botón cerrar menú móvil */}
