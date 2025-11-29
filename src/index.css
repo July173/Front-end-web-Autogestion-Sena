@@ -45,6 +45,9 @@
       --sena-text-gray: 0 0% 45%;
       --sena-text-light: 0 0% 65%;
       --sena-border: 0 0% 85%;
+      /* Header & footer heights used by layout for mobile fixed header/footer */
+      --header-height: 4rem; /* 64px */
+      --footer-height: 4rem; /* 64px */
     }
 
     .dark {
@@ -165,5 +168,10 @@
     
     .sena-form-panel {
       @apply p-4;
+    }
+    /* If we want different header/footer on mobile we can override variables here */
+    :root {
+      --header-height: 4rem;
+      --footer-height: 4rem;
     }
   }
