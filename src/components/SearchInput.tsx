@@ -43,7 +43,7 @@ interface BuscarInputProps {
  */
 const BuscarInput: React.FC<BuscarInputProps> = ({ value, onChange, placeholder = "Buscar..." }) => {
   return (
-    <div className="bg-white relative rounded-[4px] w-[229px] h-[30px]">
+    <div className="bg-white relative rounded-[4px] w-full max-w-[229px] h-[30px]">
       {/* Search input field with left padding for icon */}
       <input
         type="text"

@@ -39,7 +39,7 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ role }) => {
   // You can conditionally render the view based on the role
   if (role === "aprendiz") {
     return (
-      <div className="w-[1000px] mx-auto my-12 bg-white rounded-[10px] overflow-hidden shadow-lg p-8 text-center">
+      <div className="w-full max-w-[1000px] mx-auto my-12 bg-white rounded-[10px] overflow-hidden shadow-lg p-8 text-center">
         <div className="text-green-700/80 text-4xl font-bold mb-8">Bienvenido Aprendiz</div>
         <div className="text-lg text-gray-700">Aquí verás tu progreso, asignaciones y notificaciones personalizadas.</div>
         {/* Puedes agregar aquí componentes específicos para el aprendiz */}
@@ -48,7 +48,7 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ role }) => {
   }
   // View for admin, coordinator, and instructor
   return (
-    <div className="w-[1000px] mx-auto my-12 bg-white rounded-[10px] overflow-hidden shadow-lg p-8">
+    <div className="w-full max-w-[1000px] mx-auto my-12 bg-white rounded-[10px] overflow-hidden shadow-lg p-8">
       <div className="text-green-700/80 text-4xl font-bold text-center mb-8">BIENVENIDO A AUTOGESTIÓN SENA</div>
       <div className="flex flex-wrap justify-center gap-6">
   {/* Apprentices card */}

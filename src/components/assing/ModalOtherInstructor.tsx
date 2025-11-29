@@ -130,7 +130,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
             <div
-                className="w-[996px] h-[612px] relative bg-white rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] overflow-hidden z-[71]"
+                className="w-full max-w-[996px] relative bg-white rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] overflow-hidden z-[71] mx-4 sm:mx-auto"
                 style={{ maxHeight: '90vh', overflowY: 'auto' }}
             >
                 {/* Close button */}
@@ -145,10 +145,21 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                 </button>
 
                 {/* Header */}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#22c55e" className="bi bi-person-fill-check w-8 h-8 left-[22px] top-[33px] absolute" viewBox="0 0 16 16">
+                <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center gap-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#22c55e" className="bi bi-person-fill-check w-8 h-8" viewBox="0 0 16 16">
+                            <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
+                            <path d="M2 13c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4" />
+                        </svg>
+                        <div>
+                            <div className="text-black text-2xl font-extrabold leading-tight">Seleccionar instructor</div>
+                            <div className="text-black text-base font-normal">Busca y selecciona un instructor disponible para el seguimiento</div>
+                        </div>
+                    </div>
+                </div>
                     <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
                     <path d="M2 13c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4" />
-                </svg>
+                
                 <div className="left-[66px] top-[34px] absolute text-black text-2xl font-extrabold font-['Roboto'] leading-loose">
                     Seleccionar instructor
                 </div>
@@ -157,7 +168,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                 </div>
 
                                 {/* Filters with FilterBar */}
-                                <div className="absolute left-[66px] top-[111px] flex gap-4 items-center">
+                                <div className="p-6">
                                     <FilterBar
                                         onFilter={(p) => setParams(p)}
                                         inputWidth="620px"
@@ -175,7 +186,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                 </div>
 
                 {/* Instructor list */}
-                <div className="w-[927px] h-96 px-4 py-11 left-[39px] top-[160px] absolute flex flex-col gap-2.5 overflow-y-auto">
+                <div className="w-full px-4 py-6 max-h-[60vh] sm:max-h-[58vh] overflow-y-auto">
                     {instructores.length === 0 ? (
                         <div className="text-center text-gray-500 py-8">
                             No se encontraron instructores

@@ -33,7 +33,7 @@
  * If secondary action props are not provided, only the primary button is shown.
  */
 
-import React from 'react';
+import React, { useId } from 'react';
 import { User } from 'lucide-react';
 import type { InfoCardProps } from '../../Api/types/entities/misc.types';
 
@@ -55,6 +55,7 @@ const InfoCard: React.FC<InfoCardProps> = ({
   actionType,
   onActionClick,
 }) => {
+  const id = useId();
   // Determine if secondary action button should be shown
   const showAction = actionLabel && actionType && onActionClick;
   // Button color styles
@@ -65,24 +66,27 @@ const InfoCard: React.FC<InfoCardProps> = ({
   };
   return (
     <div
-      className="bg-white p-4 rounded-lg shadow min-h-[180px] flex flex-col justify-between border-2 border-gray-300 w-full max-w-xs md:max-w-sm lg:max-w-md mx-auto"
-      style={{ minWidth: '320px', maxWidth: '320px', minHeight: '240px', maxHeight: '240px', height: '240px', display: 'flex' }}
+      className="bg-white p-4 rounded-lg shadow min-h-[180px] flex flex-col justify-between border-2 border-gray-300 w-full h-full min-w-0"
+      role="article"
+      aria-labelledby={`${id}-title`}
+      aria-describedby={`${id}-desc`}
     >
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <span className={`rounded-full px-4 py-1 text-xs font-bold ${statusBg[statusColor]}`}>{statusColor === 'green' ? 'Activo' : 'Inhabilitado'}</span>
+        <div className="flex items-start justify-between mb-1 gap-3">
+          <h3 id={`${id}-title`} className="text-lg font-semibold truncate mr-2 flex-1 min-w-0">{title}</h3>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold shrink-0 ${statusBg[statusColor]}`}>{statusColor === 'green' ? 'Activo' : 'Inhabilitado'}</span>
         </div>
-        <p className="text-gray-700 text-sm mb-2">{description}</p>
-        <div className="flex items-center mb-2">
+        <p id={`${id}-desc`} className="text-gray-700 text-sm mb-2 line-clamp-3 break-words">{description}</p>
+        <div className="flex flex-col sm:flex-row items-center mb-2 gap-3">
           {typeof count === 'number' && (
             <div className="text-sm text-gray-600 mt-2">{count} usuarios asignados</div>
           )}
           <div className="flex-1" />
           {showAction && (
             <button
-              className={`flex items-center justify-center gap-2 px-4 py-2 font-semibold border transition-all duration-300 ml-auto ${buttonStyles.edit}`}
+              className={`flex items-center justify-center gap-2 px-3 py-2 font-semibold border transition-all duration-300 w-full sm:w-auto ${buttonStyles.edit} whitespace-nowrap`}
               onClick={onButtonClick}
+              type="button"
             >
               Editar
             </button>
@@ -104,7 +108,7 @@ const InfoCard: React.FC<InfoCardProps> = ({
         </button>
       ) : (
         <button
-          className={`flex items-center justify-center gap-2 w-full py-2 font-semibold border transition-all duration-300 mt-2 ${buttonStyles.edit}`}
+          className={`flex items-center justify-center gap-2 w-full sm:w-auto py-2 font-semibold border transition-all duration-300 mt-2 ${buttonStyles.edit}`}
           onClick={onButtonClick}
         >
           Editar

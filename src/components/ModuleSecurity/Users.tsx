@@ -241,7 +241,7 @@ const Users = () => {
     const isSelf = Number(user.id) === Number(currentUserId) || (currentUserEmail && String(user.email) === String(currentUserEmail)) || (user.person && currentUserPersonId && Number(user.person.id) === Number(currentUserPersonId));
 
     return (
-      <div className={`border${color} rounded-lg p-6 m-3 w-[390px] min-h-[120px] flex flex-col justify-between shadow-md hover:shadow-lg transition-shadow duration-200`}>
+      <div className={`border${color} rounded-lg p-6 m-3 w-full sm:w-[390px] max-w-md min-w-0 min-h-[120px] flex flex-col justify-between shadow-md hover:shadow-lg transition-shadow duration-200`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <User className="text-600" />
@@ -255,11 +255,11 @@ const Users = () => {
           <div>Documento: <span className="font-bold text-gray-800">{user.person?.number_identification || 'Sin documento'}</span></div>
           <div>Rol : <span className="font-bold text-green-700">{rol}</span></div>
         </div>
-        <div className="flex gap-2 mt-2">
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
           {/* Prevent self-disable: only show toggle button for other users */}
           {!isSelf && (
             <button
-              className={`flex-1 flex items-center justify-center gap-2 py-1 rounded-3xl text-base font-semibold border transition-all duration-300
+              className={`w-full sm:flex-1 flex items-center justify-center gap-2 py-2 rounded-3xl text-base font-semibold border transition-all duration-300
                 ${estado === 'activo'
                   ? 'bg-red-100 text-red-900 border-red-700 hover:bg-red-200'
                   : 'bg-green-100 text-green-900 border-green-700 hover:bg-green-200'}
@@ -273,7 +273,7 @@ const Users = () => {
           {/* Edit user button: opens edit modal with user data (hidden for current user) */}
           {!isSelf && (
             <button
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 rounded-3xl text-base font-semibold border border-gray-400"
+              className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-3xl text-base font-semibold border border-gray-400"
               onClick={() => {
                 setModalEditUserProps({ userId: Number(user.id), userRole: rol ? String(rol).toLowerCase() : '' });
                 setShowEditModal(true);
