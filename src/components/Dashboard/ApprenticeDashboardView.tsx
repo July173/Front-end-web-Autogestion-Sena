@@ -193,7 +193,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
   return (
     <div className="flex flex-col items-center gap-4 p-6 w-full">
   {/* Welcome banner */}
-      <div className="w-[1000px] mb-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+      <div className="w-full max-w-[1000px] mb-4 bg-white rounded-lg border border-gray-200 shadow-sm">
         <div className="h-3 bg-green-600 rounded-t-lg" />
         <div className="flex items-center px-6 py-6">
           <div className="bg-gray-200/50 rounded-full flex items-center justify-center w-[70px] h-[70px] mr-6">
@@ -209,9 +209,9 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
         </div>
       </div>
 
-      <div className="flex gap-5 w-full justify-center">
+      <div className="flex flex-col sm:flex-row gap-5 w-full justify-center">
   {/* Request status */}
-        <div className="bg-white rounded-lg w-[495px] p-6 flex flex-col" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.06)' }}>
+        <div className="bg-white rounded-lg w-full sm:w-[495px] p-6 flex flex-col" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.06)' }}>
           <div className="bg-green-600 rounded-t-md w-full py-4 mb-6 flex items-center justify-center text-white">
             <p className="text-xl font-bold">Estado de tu solicitud</p>
           </div>
@@ -241,7 +241,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
         </div>
 
           {/* Right column */}
-        <div className="flex flex-col gap-5 w-[486px]">
+        <div className="flex flex-col gap-5 w-full sm:w-[486px]">
           {/* Your assigned instructor */}
           <div className="bg-white rounded-lg w-full p-6 flex flex-col items-center" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.04)' }}>
             {/** Header title: cambiar a 'Instructor de revisión' cuando el estado sea VERIFICANDO o PRE-APROBADO */}
