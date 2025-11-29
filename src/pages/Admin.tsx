@@ -130,10 +130,12 @@ export const Admin = () => {
       {error && <div className="text-red-500 text-center mt-6">{error}</div>}
 
       {/* Navigation bar */}
-  <div className="mt-10 bg-[#E9EBF5] rounded-xl flex items-center justify-between px-2 py-2 gap-10 w-full max-w-5xl mx-auto">
+  <div className="mt-10 bg-[#E9EBF5] rounded-xl flex flex-wrap items-center justify-center sm:justify-between px-2 py-2 gap-2 sm:gap-6 w-full max-w-5xl mx-auto">
         <button
-          className={`flex flex-col items-center justify-center w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'resumen' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center w-1/2 sm:w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'resumen' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
           onClick={() => handleTabChange('resumen')}
+          aria-pressed={activeTab === 'resumen'}
+          type="button"
         >
           <span className="flex items-center justify-center gap-2">
             <FileText className="w-5 h-5" />
@@ -141,8 +143,10 @@ export const Admin = () => {
           </span>
         </button>
         <button
-          className={`flex flex-col items-center justify-center w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'usuarios' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center w-1/2 sm:w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'usuarios' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
           onClick={() => handleTabChange('usuarios')}
+          aria-pressed={activeTab === 'usuarios'}
+          type="button"
         >
           <span className="flex items-center justify-center gap-2">
             <User className="w-5 h-5" />
@@ -150,8 +154,10 @@ export const Admin = () => {
           </span>
         </button>
         <button
-          className={`flex flex-col items-center justify-center w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'roles' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center w-1/2 sm:w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'roles' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
           onClick={() => handleTabChange('roles')}
+          aria-pressed={activeTab === 'roles'}
+          type="button"
         >
           <span className="flex items-center justify-center gap-2">
             <Shield className="w-5 h-5" />
@@ -159,8 +165,10 @@ export const Admin = () => {
           </span>
         </button>
         <button
-          className={`flex flex-col items-center justify-center w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'modulos' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center w-1/2 sm:w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'modulos' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
           onClick={() => handleTabChange('modulos')}
+          aria-pressed={activeTab === 'modulos'}
+          type="button"
         >
           <span className="flex items-center justify-center gap-2">
             <Layout className="w-5 h-5" />
@@ -168,8 +176,10 @@ export const Admin = () => {
           </span>
         </button>
         <button
-          className={`flex flex-col items-center justify-center w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'general' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
+          className={`flex flex-col items-center justify-center w-1/2 sm:w-1/5 py-2 rounded-lg font-medium text-sm transition-all ${activeTab === 'general' ? 'bg-white shadow text-black' : 'text-gray-500'}`}
           onClick={() => handleTabChange('general')}
+          aria-pressed={activeTab === 'general'}
+          type="button"
         >
           <span className="flex items-center justify-center gap-2">
             <BookOpen className="w-5 h-5" />

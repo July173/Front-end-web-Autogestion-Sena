@@ -36,7 +36,7 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
 
   if (variant === "Variant3") {
     return (
-      <div className="relative rounded-[10px] w-full h-[252px] bg-[#c0fbcd]">
+      <div className="relative rounded-[10px] w-full h-auto min-h-[252px] bg-[#c0fbcd]">
         <input
           ref={fileInputRef}
           type="file"
@@ -45,10 +45,10 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
           style={{ display: 'none' }}
         />
         <div className="flex flex-col gap-4 px-[15px] py-[9px] h-full">
-          <div className="h-[185px] relative rounded-[10px] w-full">
-            <div className="flex flex-col gap-5 h-[185px] items-center justify-center w-full">
-              <div className="relative w-[50px] h-[50px]">
-                <img alt="excel" className="absolute inset-0 w-full h-full" src={img} />
+            <div className="h-auto min-h-[185px] relative rounded-[10px] w-full">
+            <div className="flex flex-col gap-5 h-auto min-h-[185px] items-center justify-center w-full">
+              <div className="relative w-12 h-12 sm:w-[50px] sm:h-[50px]">
+                <img alt="excel" className="absolute inset-0 w-full h-full object-contain" src={img} />
               </div>
               <div className="flex flex-col font-semibold text-[#055e09] text-[16px] text-center">
                 <p className="mb-0">
@@ -60,7 +60,7 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
             <div aria-hidden="true" className="absolute border border-dashed border-green-600 inset-0 pointer-events-none rounded-[10.5px]" />
           </div>
           <div
-            className={`${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 cursor-pointer'} flex gap-3 items-center justify-center py-1.5 rounded-[10px] w-full transition-colors duration-200`}
+            className={`${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 cursor-pointer'} flex gap-3 items-center justify-center py-2 rounded-[10px] w-full transition-colors duration-200`}
             onClick={!isUploading ? handleUploadClick : undefined}
           >
             {isUploading ? (
@@ -79,7 +79,7 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
   }
   if (variant === "Variant4") {
     return (
-      <div className="relative rounded-[10px] w-full h-[252px] bg-[#eaf5ff]">
+      <div className="relative rounded-[10px] w-full h-auto min-h-[252px] bg-[#eaf5ff]">
         <input
           ref={fileInputRef}
           type="file"
@@ -88,10 +88,10 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
           style={{ display: 'none' }}
         />
         <div className="flex flex-col gap-4 px-[15px] py-[9px] h-full">
-          <div className="h-[185px] relative rounded-[10px] w-full">
-            <div className="flex flex-col gap-5 h-[185px] items-center justify-center w-full">
-              <div className="relative w-[50px] h-[50px]">
-                <img alt="excel" className="absolute inset-0 w-full h-full" src={img2} />
+            <div className="h-auto min-h-[185px] relative rounded-[10px] w-full">
+            <div className="flex flex-col gap-5 h-auto min-h-[185px] items-center justify-center w-full">
+              <div className="relative w-12 h-12 sm:w-[50px] sm:h-[50px]">
+                <img alt="excel" className="absolute inset-0 w-full h-full object-contain" src={img2} />
               </div>
               <div className="flex flex-col font-semibold text-[#055e09] text-[16px] text-center">
                 <p className="mb-0 text-[#154fef]">
@@ -103,7 +103,7 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
             <div aria-hidden="true" className="absolute border border-[#154fef] border-dashed inset-0 pointer-events-none rounded-[10.5px]" />
           </div>
           <div
-            className={`${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#154fef] hover:bg-[#1145d4] cursor-pointer'} flex gap-3 items-center justify-center py-1.5 rounded-[10px] w-full transition-colors duration-200`}
+            className={`${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#154fef] hover:bg-[#1145d4] cursor-pointer'} flex gap-3 items-center justify-center py-2 rounded-[10px] w-full transition-colors duration-200`}
             onClick={!isUploading ? handleUploadClick : undefined}
           >
             {isUploading ? (
@@ -122,10 +122,10 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
   }
   if (variant === "aprendices") {
     return (
-      <div className="relative rounded-[10px] w-full h-[252px] bg-[#eaf5ff]">
+      <div className="relative rounded-[10px] w-full h-auto min-h-[252px] bg-[#eaf5ff]">
         <div className="flex flex-col gap-4 px-[15px] py-[9px] h-full">
-          <div className="flex gap-5 items-center">
-            <img alt="person" className="w-[50px] h-[50px]" src={img3} />
+          <div className="flex gap-4 items-center">
+            <img alt="person" className="w-12 h-12 sm:w-[50px] sm:h-[50px] object-contain" src={img3} />
             <div className="flex flex-col font-semibold text-[#154fef] text-[16px]">
               <p className="mb-0">Plantilla Aprendices</p>
               <p className="text-[12px] text-[rgba(21,79,239,0.7)]">Campos básicos para registro de aprendices</p>
@@ -141,7 +141,7 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
               <li>Estado del aprendiz</li>
             </ul>
           </div>
-          <div className="bg-[#154fef] hover:bg-[#1145d4] flex gap-3 items-center justify-center py-1.5 rounded-[10px] w-full cursor-pointer transition-colors duration-200" onClick={onDownload}>
+          <div className="bg-[#154fef] hover:bg-[#1145d4] flex gap-3 items-center justify-center py-2 rounded-[10px] w-full cursor-pointer transition-colors duration-200" onClick={onDownload}>
             <img alt="download" className="w-4 h-4" src={img4} />
             <span className="font-semibold text-[14px] text-white">Descargar plantilla para aprendices</span>
           </div>
@@ -152,10 +152,10 @@ export function TarjetaExcel({ variant, onDownload, onFileSelect, isUploading = 
   }
   // Default: instructores
   return (
-    <div className="relative rounded-[10px] w-full h-[252px] bg-[#c0fbcd]">
+    <div className="relative rounded-[10px] w-full h-auto min-h-[252px] bg-[#c0fbcd]">
       <div className="flex flex-col gap-4 px-[15px] py-[9px] h-full">
-        <div className="flex gap-5 items-center">
-          <img alt="people" className="w-[50px] h-[50px]" src={img5} />
+        <div className="flex gap-4 items-center">
+          <img alt="people" className="w-12 h-12 sm:w-[50px] sm:h-[50px] object-contain" src={img5} />
           <div className="flex flex-col font-semibold text-[#055e09] text-[16px]">
             <p className="mb-0">Plantilla Instructores</p>
             <p className="text-[12px] text-[rgba(5,94,9,0.7)]">Campos para registro de instructores del SENA</p>
