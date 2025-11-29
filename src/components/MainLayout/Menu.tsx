@@ -425,7 +425,6 @@ const Menu: React.FC<SidebarMenuProps> = ({
                       onClick={() => {
                         setActiveModule(moduleName);
                         setActiveItem(null);
-                        if (onMenuItemClick) onMenuItemClick({ moduleName, name: '' }); // <-- Only module, no form
                         handleNavigate('/home');
                       }}
                       className={`w-full flex items-start gap-2 px-4 py-3 rounded-lg text-left transition-colors ${
