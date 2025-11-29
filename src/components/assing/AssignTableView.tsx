@@ -90,7 +90,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
     <div className="w-full rounded-[10px] border border-stone-300/70 bg-white">
       <div className="overflow-x-auto">
         <div className="min-w-full">
-        <div className="bg-gray-100 flex items-center h-12 border-b border-gray-200">
+        <div className="hidden md:flex bg-gray-100 items-center h-12 border-b border-gray-200">
           <div className="flex-1 px-2 text-center text-stone-500 text-sm max-w-[40px]">#</div>
           <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Nombre</div>
           <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Tipo de identificación</div>
@@ -118,26 +118,27 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
               <>
                 {paginatedRows.map((row, idx) => (
                   <React.Fragment key={row.id ?? start + idx}>
-                    <div
-                      className={`flex items-center border-b border-gray-200 h-12 hover:bg-gray-50 cursor-pointer transition-all ${expandedIdx === idx ? "bg-gray-50" : ""
-                        }`}
-                      onClick={async () => {
-                        if (expandedIdx === idx) {
-                          setExpandedIdx(null);
-                        } else {
-                          setExpandedIdx(idx);
-                          setLoadingDetail(true);
-                          try {
-                            const data = await getFormRequestById(row.id!);
-                            setDetail(data.data || null);
-                          } catch {
-                            setDetail(null);
-                          } finally {
-                            setLoadingDetail(false);
+                    <div className={`border-b border-gray-200 hover:bg-gray-50 transition-all ${expandedIdx === idx ? "bg-gray-50" : ""}`}>
+                      {/* Desktop row */}
+                      <div
+                        className={`hidden md:flex items-center h-12 cursor-pointer`}
+                        onClick={async () => {
+                          if (expandedIdx === idx) {
+                            setExpandedIdx(null);
+                          } else {
+                            setExpandedIdx(idx);
+                            setLoadingDetail(true);
+                            try {
+                              const data = await getFormRequestById(row.id!);
+                              setDetail(data.data || null);
+                            } catch {
+                              setDetail(null);
+                            } finally {
+                              setLoadingDetail(false);
+                            }
                           }
-                        }
-                      }}
-                    >
+                        }}
+                      >
                       <div className="flex-1 px-2 text-center text-sm text-black max-w-[40px]">
                         {start + idx + 1}
                       </div>
@@ -193,6 +194,79 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                                                   );
                                                 })()
                                               }
+                      </div>
+                      </div>
+
+                      {/* Mobile card */}
+                      <div
+                        className="md:hidden p-3 cursor-pointer"
+                        onClick={async () => {
+                          if (expandedIdx === idx) {
+                            setExpandedIdx(null);
+                          } else {
+                            setExpandedIdx(idx);
+                            setLoadingDetail(true);
+                            try {
+                              const data = await getFormRequestById(row.id!);
+                              setDetail(data.data || null);
+                            } catch {
+                              setDetail(null);
+                            } finally {
+                              setLoadingDetail(false);
+                            }
+                          }
+                        }}
+                      >
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="text-sm font-semibold truncate">{row.name}</div>
+                              <div className="text-xs text-gray-500 truncate">{getDocTypeName(row.type_identification)} • {row.number_identificacion}</div>
+                            </div>
+                            <div className="flex-shrink-0 text-xs text-gray-500">{row.request_date}</div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs text-gray-500 truncate">{row.nombre_modalidad}</div>
+                            <div className="flex-shrink-0">
+                              {/* action button in mobile: full width */}
+                              {
+                                (() => {
+                                  const backendState = row.id ? requestStates[row.id] : undefined;
+                                  const mappedState = backendState === "ASIGNADO" ? "Asignado"
+                                    : backendState === "RECHAZADO" ? "Rechazado"
+                                    : backendState === "VERIFICANDO" ? "Verificando"
+                                    : (backendState === "PRE-APROBADO" || backendState === "PRE_APROBADO") ? "PreAprobado"
+                                    : "Asignar";
+
+                                  if (showReassignForAssigned && backendState === 'ASIGNADO') {
+                                    return (
+                                      <button
+                                        className="bg-[#f07a11] hover:bg-[#de6b09] text-white px-4 py-1 rounded-md font-medium shadow-md flex items-center gap-2"
+                                        onClick={(e) => { e.stopPropagation(); onAction(row); }}
+                                        aria-label="Reasignar"
+                                      >
+                                        <RefreshCw size={16} strokeWidth={2.5} />
+                                        <span>Reasignar</span>
+                                      </button>
+                                    );
+                                  }
+
+                                  return (
+                                    <AssignButton
+                                      state={mappedState}
+                                      requestId={row.id}
+                                      onClick={() => onAction(row)}
+                                      onAssignmentComplete={() => {
+                                        if (row.id) refreshRequestState(row.id);
+                                        if (onRefresh) onRefresh();
+                                      }}
+                                    />
+                                  );
+                                })()
+                              }
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 

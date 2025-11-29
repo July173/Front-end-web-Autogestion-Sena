@@ -101,10 +101,10 @@ const Reassign: React.FC = () => {
   };
 
   return (
-    <div className="bg-white relative rounded-[10px] size-full p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white relative rounded-[10px] w-full p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
         <h2 className="text-2xl font-semibold">Reasignar seguimiento</h2>
-        <div>
+        <div className="flex items-center gap-2">
           <ReloadButton onClick={reloadRows} title="Recargar" />
         </div>
       </div>

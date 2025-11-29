@@ -171,7 +171,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                 <div className="p-6">
                                     <FilterBar
                                         onFilter={(p) => setParams(p)}
-                                        inputWidth="620px"
+                                        inputWidth="100%"
                                         searchPlaceholder="Buscar por nombre o número de documento..."
                                         selects={[{
                                             name: 'knowledge_area_id',
@@ -201,16 +201,16 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
 
 
                             return (
-                                <div key={inst.id} className="h-32 relative rounded-[10px] border border-neutral-500 flex items-center px-4">
+                                <div key={inst.id} className="relative rounded-[10px] border border-neutral-500 flex flex-col sm:flex-row items-center px-4 py-4 gap-4">
                                     {/* Avatar */}
-                                    <div className="w-20 h-20 bg-green-200/90 rounded-full flex items-center justify-center overflow-hidden">
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-200/90 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="#22c55e" className="bi bi-person" viewBox="0 0 16 16">
                                             <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
                                         </svg>
                                     </div>
 
                                     {/* Instructor information */}
-                                    <div className="ml-6 flex-1">
+                                    <div className="flex-1 min-w-0">
                                         <div className="text-black text-2xl font-semibold font-['Roboto'] leading-loose">
                                             {nameFull || "Sin nombre"}
                                         </div>
@@ -229,7 +229,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                     </div>
 
                                     {/* Assigned badge */}
-                                    <div className={`w-40 h-7 ${colors.bg} rounded-[20px] flex items-center justify-center mr-6`}>
+                                    <div className={`w-full sm:w-40 h-7 ${colors.bg} rounded-[20px] flex items-center justify-center sm:mr-6`}> 
                                         <div className={`${colors.text} text-base font-normal font-['Roboto']`}>
                                             {assigned}/{max} Asignados
                                         </div>
@@ -237,7 +237,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
 
                                     {/* Select button */}
                                     <button
-                                        className="w-40 h-11 rounded-[10px] border-2 border-stone-300 hover:bg-gray-100"
+                                        className="w-full sm:w-40 h-11 rounded-[10px] border-2 border-stone-300 hover:bg-gray-100"
                                         onClick={() => onAssign(inst)}
                                     >
                                         <div className="text-black text-xl font-medium font-['Roboto']">
@@ -246,7 +246,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                     </button>
                                     {/* Edit limit button */}
                                     <button
-                                        className="ml-4 px-3 py-2 rounded bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 font-semibold"
+                                        className="ml-0 sm:ml-4 mt-2 sm:mt-0 px-3 py-2 rounded bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 font-semibold"
                                         onClick={() => setEditLimitInstructor(inst)}
                                     >
                                         Editar límite

@@ -133,7 +133,7 @@ export default function ModalPreApprove({ apprentice, onClose, onAssignmentCompl
             </div>
 
             <div className="flex justify-end">
-              <div className="grid grid-cols-2 gap-x-20 gap-y-2 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-x-20 gap-y-2 text-sm">
                 <div className="flex items-center gap-2"><span className="text-neutral-500">Identificación:</span> <span className="text-black font-medium">{apprentice.number_identification}</span></div>
                 <div className="flex items-center gap-2"><span className="text-neutral-500">Ficha:</span> <span className="text-black font-medium">{apprentice.file_number}</span></div>
                 <div className="flex items-center gap-2 col-span-2"><span className="text-neutral-500">Fecha inicio etapa práctica:</span> <span className="text-black font-medium">{apprentice.date_start_production_stage}</span></div>
