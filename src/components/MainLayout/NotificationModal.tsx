@@ -1,4 +1,5 @@
- import React, { useMemo, useState } from "react";
+ import React, { useMemo, useState, useEffect, useRef } from "react";
+import { createPortal } from 'react-dom';
 import { X, Bell } from "lucide-react";
 import type { NotificationItem } from '@/Api/types/entities/Notification.shared';
 import ConfirmModal from '../ConfirmModal';
@@ -45,20 +46,50 @@ const NotificationModal: React.FC<Props> = ({ open, onClose, notifications, mark
     return tab === "all" ? activeNotifications : activeNotifications.filter((n) => !n.read);
   }, [tab, notifications]);
 
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+  // Always declare hooks in the same order regardless of `open`
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
-      <div className="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+  // Close on ESC and manage focus (effect runs only when 'open' changes to true)
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevFocused = document.activeElement as HTMLElement | null;
+    // focus the content when opened
+    if (contentRef.current) contentRef.current.focus();
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      // restore focus
+      if (prevFocused) prevFocused.focus();
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const modal = (
+    <div ref={overlayRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-[99999]">
+      <div className="absolute inset-0" onClick={onClose} />
+
+      <div
+        ref={contentRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notification-title"
+        aria-describedby="notification-desc"
+        tabIndex={-1}
+        className="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden"
+      >
         <div className="px-6 py-6 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-50 text-green-600">
               <Bell className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Notificaciones</h3>
-              <p className="text-sm text-gray-600">Tienes {notifications.filter((n) => n.active !== false && !n.read).length} notificaciones sin leer</p>
+              <h3 id="notification-title" className="text-lg font-semibold">Notificaciones</h3>
+              <p id="notification-desc" className="text-sm text-gray-600">Tienes {notifications.filter((n) => n.active !== false && !n.read).length} notificaciones sin leer</p>
             </div>
           </div>
 
@@ -130,6 +161,8 @@ const NotificationModal: React.FC<Props> = ({ open, onClose, notifications, mark
       />
     </div>
   );
+
+  return createPortal(modal, document.body);
 };
 
 export default NotificationModal;

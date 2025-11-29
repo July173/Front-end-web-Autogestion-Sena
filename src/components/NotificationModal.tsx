@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle2, Mail, AlertCircle, Lock, X } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -37,6 +38,29 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
   title,
   message
 }) => {
+  // Always declare hooks in consistent order
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  // Close on ESC and manage focus (effect is guarded by isOpen)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    const prevFocused = document.activeElement as HTMLElement | null;
+    // focus the content when opened
+    if (contentRef.current) contentRef.current.focus();
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      // restore focus
+      if (prevFocused) prevFocused.focus();
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const getIcon = () => {
@@ -89,12 +113,18 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className={`
-        relative max-w-md w-full mx-4 p-8 rounded-lg shadow-lg border-2 
-        ${getBorderColor()} ${getBackgroundColor()}
-      `}>
+
+  const modal = (
+    <div ref={overlayRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
+      <div
+        ref={contentRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notification-title"
+        aria-describedby="notification-desc"
+        tabIndex={-1}
+        className={`relative max-w-md w-full mx-4 p-8 rounded-lg shadow-lg border-2 ${getBorderColor()} ${getBackgroundColor()}`}
+      >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -111,12 +141,12 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
           </div>
 
           {/* Title */}
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 id="notification-title" className="text-xl font-semibold text-gray-800">
             {title}
           </h2>
 
           {/* Message */}
-          <p className="text-gray-600 leading-relaxed">
+          <p id="notification-desc" className="text-gray-600 leading-relaxed">
             {message}
           </p>
 
@@ -131,6 +161,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
       </div>
     </div>
   );
-};
 
+  return createPortal(modal, document.body);
+};
 export default NotificationModal;

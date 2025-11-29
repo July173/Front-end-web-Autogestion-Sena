@@ -193,7 +193,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
   return (
     <div className="flex flex-col items-center gap-4 p-6 w-full">
   {/* Welcome banner */}
-      <div className="w-[1000px] mb-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+      <div className="w-full max-w-[1000px] mb-4 bg-white rounded-lg border border-gray-200 shadow-sm">
         <div className="h-3 bg-green-600 rounded-t-lg" />
         <div className="flex items-center px-6 py-6">
           <div className="bg-gray-200/50 rounded-full flex items-center justify-center w-[70px] h-[70px] mr-6">
@@ -209,16 +209,16 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
         </div>
       </div>
 
-      <div className="flex gap-5 w-full justify-center">
+      <div className="flex flex-col sm:flex-row gap-5 w-full justify-center">
   {/* Request status */}
-        <div className="bg-white rounded-lg w-[495px] p-6 flex flex-col" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.06)' }}>
+        <div className="bg-white rounded-lg w-full sm:w-[495px] p-6 flex flex-col" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.06)' }}>
           <div className="bg-green-600 rounded-t-md w-full py-4 mb-6 flex items-center justify-center text-white">
             <p className="text-xl font-bold">Estado de tu solicitud</p>
           </div>
           
           {!dashboardData?.has_request ? (
             <div className="flex flex-col items-center gap-4">
-              <div className="bg-gray-300/70 rounded-full w-[100px] h-[100px] flex items-center justify-center mb-2">
+              <div className="bg-gray-300/70 rounded-full w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] flex items-center justify-center mb-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" fill="gray" viewBox="0 0 16 16">
                   <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                   <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
@@ -241,7 +241,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
         </div>
 
           {/* Right column */}
-        <div className="flex flex-col gap-5 w-[486px]">
+        <div className="flex flex-col gap-5 w-full sm:w-[486px]">
           {/* Your assigned instructor */}
           <div className="bg-white rounded-lg w-full p-6 flex flex-col items-center" style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.04)' }}>
             {/** Header title: cambiar a 'Instructor de revisión' cuando el estado sea VERIFICANDO o PRE-APROBADO */}
@@ -260,7 +260,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
             
             {!showInstructor ? (
               <div className="flex flex-col items-center gap-2">
-                <div className="bg-gray-400/70 rounded-full w-[100px] h-[100px] flex items-center justify-center mb-2">
+                <div className="bg-gray-400/70 rounded-full w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] flex items-center justify-center mb-2">
                   <p className="text-2xl font-semibold text-white">CW</p>
                 </div>
                 <p className="text-xl font-semibold text-black">No asignado</p>
@@ -270,7 +270,7 @@ const AprendizDashboardView: React.FC<AprendizDashboardProps> = ({ name, apprent
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 w-full">
-                <div className="bg-purple-400/70 rounded-full w-[100px] h-[100px] flex items-center justify-center mb-2">
+                <div className="bg-purple-400/70 rounded-full w-[70px] h-[70px] sm:w-[100px] sm:h-[100px] flex items-center justify-center mb-2">
                   <p className="text-3xl font-bold text-white">{getInstructorInitials(dashboardData.instructor)}</p>
                 </div>
                 <p className="text-xl font-semibold text-black text-center">{getInstructorFullName(dashboardData.instructor)}</p>

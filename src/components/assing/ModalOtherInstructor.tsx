@@ -130,7 +130,10 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
             <div
-                className="w-[996px] h-[612px] relative bg-white rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] overflow-hidden z-[71]"
+                className="w-full max-w-[996px] relative bg-white rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] overflow-hidden z-[71] mx-4 sm:mx-auto"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="select-instructor-dialog"
                 style={{ maxHeight: '90vh', overflowY: 'auto' }}
             >
                 {/* Close button */}
@@ -145,22 +148,25 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                 </button>
 
                 {/* Header */}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#22c55e" className="bi bi-person-fill-check w-8 h-8 left-[22px] top-[33px] absolute" viewBox="0 0 16 16">
-                    <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
-                    <path d="M2 13c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4" />
-                </svg>
-                <div className="left-[66px] top-[34px] absolute text-black text-2xl font-extrabold font-['Roboto'] leading-loose">
-                    Seleccionar instructor
+                <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center gap-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#22c55e" className="bi bi-person-fill-check w-8 h-8" viewBox="0 0 16 16">
+                            <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
+                            <path d="M2 13c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4" />
+                        </svg>
+                        <div>
+                            <div id="select-instructor-dialog" className="text-black text-2xl font-extrabold leading-tight">Seleccionar instructor</div>
+                            <div className="text-black text-base font-normal">Busca y selecciona un instructor disponible para el seguimiento</div>
+                        </div>
+                    </div>
                 </div>
-                <div className="left-[66px] top-[66px] absolute text-black text-base font-normal font-['Roboto'] leading-loose">
-                    Busca y selecciona un instructor disponible para el seguimiento
-                </div>
+                
 
                                 {/* Filters with FilterBar */}
-                                <div className="absolute left-[66px] top-[111px] flex gap-4 items-center">
+                                <div className="p-6">
                                     <FilterBar
                                         onFilter={(p) => setParams(p)}
-                                        inputWidth="620px"
+                                        inputWidth="100%"
                                         searchPlaceholder="Buscar por nombre o número de documento..."
                                         selects={[{
                                             name: 'knowledge_area_id',
@@ -175,7 +181,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                 </div>
 
                 {/* Instructor list */}
-                <div className="w-[927px] h-96 px-4 py-11 left-[39px] top-[160px] absolute flex flex-col gap-2.5 overflow-y-auto">
+                <div className="w-full px-4 py-6 max-h-[60vh] sm:max-h-[58vh] overflow-y-auto">
                     {instructores.length === 0 ? (
                         <div className="text-center text-gray-500 py-8">
                             No se encontraron instructores
@@ -190,16 +196,16 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
 
 
                             return (
-                                <div key={inst.id} className="h-32 relative rounded-[10px] border border-neutral-500 flex items-center px-4">
+                                <div key={inst.id} className="relative rounded-[10px] border border-neutral-500 flex flex-col sm:flex-row items-center px-4 py-4 gap-4">
                                     {/* Avatar */}
-                                    <div className="w-20 h-20 bg-green-200/90 rounded-full flex items-center justify-center overflow-hidden">
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-200/90 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="#22c55e" className="bi bi-person" viewBox="0 0 16 16">
                                             <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
                                         </svg>
                                     </div>
 
                                     {/* Instructor information */}
-                                    <div className="ml-6 flex-1">
+                                    <div className="flex-1 min-w-0">
                                         <div className="text-black text-2xl font-semibold font-['Roboto'] leading-loose">
                                             {nameFull || "Sin nombre"}
                                         </div>
@@ -218,7 +224,7 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                     </div>
 
                                     {/* Assigned badge */}
-                                    <div className={`w-40 h-7 ${colors.bg} rounded-[20px] flex items-center justify-center mr-6`}>
+                                    <div className={`w-full sm:w-40 h-7 ${colors.bg} rounded-[20px] flex items-center justify-center sm:mr-6`}> 
                                         <div className={`${colors.text} text-base font-normal font-['Roboto']`}>
                                             {assigned}/{max} Asignados
                                         </div>
@@ -226,8 +232,10 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
 
                                     {/* Select button */}
                                     <button
-                                        className="w-40 h-11 rounded-[10px] border-2 border-stone-300 hover:bg-gray-100"
+                                        className="w-full sm:w-40 h-11 rounded-[10px] border-2 border-stone-300 hover:bg-gray-100"
                                         onClick={() => onAssign(inst)}
+                                        type="button"
+                                        aria-label={`Seleccionar instructor ${nameFull}`}
                                     >
                                         <div className="text-black text-xl font-medium font-['Roboto']">
                                             Seleccionar
@@ -235,8 +243,10 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                     </button>
                                     {/* Edit limit button */}
                                     <button
-                                        className="ml-4 px-3 py-2 rounded bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 font-semibold"
+                                        className="ml-0 sm:ml-4 mt-2 sm:mt-0 px-3 py-2 rounded bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 font-semibold"
                                         onClick={() => setEditLimitInstructor(inst)}
+                                        type="button"
+                                        aria-label={`Editar límite de ${nameFull}`}
                                     >
                                         Editar límite
                                     </button>

@@ -139,7 +139,7 @@ export const ApplicationEvaluation = () => {
   };
 
   return (
-    <div className="bg-white relative rounded-[10px] size-full p-6">
+    <div className="bg-white relative rounded-[10px] w-full p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Asignaciones para valoración previa</h1>
         <div>
@@ -168,12 +168,12 @@ export const ApplicationEvaluation = () => {
             value: '',
             options: modalityOptions,
             placeholder: 'Modalidad',
-            minWidth: '320px',
+            minWidth: '220px',
             maxWidth: '420px'
           },
           { name: 'programa', value: '', options: programOptions, placeholder: 'Programa' }
         ]}
-        inputWidth="calc(100% - 620px)"
+        inputWidth="100%"
         searchPlaceholder="Buscar por nombre, documento..."
       />
 

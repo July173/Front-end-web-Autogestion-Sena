@@ -58,9 +58,9 @@ const Header: React.FC<HeaderProps> = ({ moduleName, formName, userId: propUserI
 
   return (
     <>
-      <div className="bg-white shadow-sm border border-gray-200 rounded-xl m-2">
-        <div className="max-w-7xl mx-auto px-4 sm:px-4 lg:px-4">
-          <div className="flex items-center justify-between h-16">
+      <div className="bg-white shadow-sm border border-gray-200 rounded-xl h-full px-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-4 lg:px-4 h-full">
+          <div className="flex items-center justify-between h-full">
             {/* Breadcrumb navigation */}
             <nav className="flex items-center space-x-2 text-sm font-medium text-gray-700">
               {moduleName && (

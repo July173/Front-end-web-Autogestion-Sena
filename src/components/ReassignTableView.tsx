@@ -112,57 +112,75 @@ const ReassignTableView: React.FC<ReassignTableViewProps> = ({ rows, onAction, a
   };
 
   return (
-    <div className="w-full rounded-[5px] outline outline-1 outline-offset-[-1px] outline-stone-300/70 flex flex-col justify-start items-start overflow-hidden">
-      {/* Fixed table header with column labels */}
-      <div className="self-stretch h-12 relative bg-gray-100 border-b border-gray-200 overflow-hidden">
-        <div className="w-7 left-[32px] top-[9px] absolute justify-center text-stone-500 text-sm font-normal font-['Roboto'] leading-loose">#</div>
-        <div className="w-40 left-[62px] top-[9px] absolute justify-center text-stone-500 text-sm font-normal font-['Roboto'] leading-loose">Nombre</div>
-        <div className="w-40 left-[240px] top-[15px] absolute justify-center text-stone-500 text-sm font-normal font-['Roboto'] leading-tight">Tipo de identificación</div>
-        <div className="w-40 left-[421px] top-[9px] absolute justify-center text-stone-500 text-sm font-normal font-['Roboto'] leading-loose">Número de identificación</div>
-        <div className="w-32 left-[605px] top-[9px] absolute justify-center text-stone-500 text-sm font-normal font-['Roboto'] leading-loose">Fecha Solicitud</div>
-        <div className="w-24 left-[789px] top-[9px] absolute justify-center text-stone-500 text-sm font-normal font-['Roboto'] leading-loose">Acciones</div>
+    <div className="w-full rounded-[5px] outline outline-1 outline-offset-[-1px] outline-stone-300/70 flex flex-col justify-start items-start overflow-hidden min-w-0">
+      {/* Desktop header */}
+      <div className="hidden md:flex bg-gray-100 items-center h-12 border-b border-gray-200">
+        <div className="flex-1 px-2 text-center text-stone-500 text-sm">#</div>
+        <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Nombre</div>
+        <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Tipo de identificación</div>
+        <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Número de identificación</div>
+        <div className="flex-[2] px-2 text-center text-stone-500 text-sm">Fecha Solicitud</div>
+        <div className="flex-1 px-2 text-center text-stone-500 text-sm">Acciones</div>
       </div>
 
       {/* Table body with expandable rows */}
       <div className="w-full px-2.5 flex flex-col justify-start items-start gap-4">
         {rows.map((row) => (
           <div key={row.id} className="self-stretch border-b border-gray-200">
-            {/* Expandable row header with basic information */}
+            {/* Desktop row */}
+            <div
+              className="hidden md:flex items-center h-12 cursor-pointer"
+              onClick={() => handleExpand(row.id)}
+            >
+              <div className="flex-1 px-2 text-center text-sm text-black">{row.id}</div>
+              <div className="flex-[2] px-2 text-center text-sm text-black truncate">{row.nombre}</div>
+              <div className="flex-[2] px-2 text-center text-sm text-black truncate">{row.tipoIdentificacion}</div>
+              <div className="flex-[2] px-2 text-center text-sm text-black truncate">{row.numeroIdentificacion}</div>
+              <div className="flex-[2] px-2 text-center text-sm text-black truncate">{row.fechaSolicitud}</div>
+              <div className="flex-1 px-2 text-center flex justify-center items-center">
+                <div
+                  className="bg-orange-600 text-white px-3 py-1 rounded-md text-xs font-medium cursor-pointer w-full sm:w-auto flex items-center justify-center"
+                  onClick={e => { e.stopPropagation(); if (onAction) onAction(row); }}
+                  aria-label={actionLabel}
+                >
+                  {actionLabel}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile row */}
             <button
-              className="w-full py-3 inline-flex justify-start items-center gap-5 overflow-hidden focus:outline-none"
+              className="md:hidden w-full py-3 inline-flex justify-start items-center gap-3 overflow-hidden focus:outline-none"
               onClick={() => handleExpand(row.id)}
               aria-expanded={expandedId === row.id}
               data-node-id="row-expandable"
             >
-              {/* Basic information columns */}
-              <div className="w-7 flex justify-between items-center">
-                <div className="justify-center text-black text-sm font-normal font-['Roboto'] leading-loose">{row.id}</div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold truncate">{row.nombre}</div>
+                    <div className="text-xs text-gray-500 truncate">{row.tipoIdentificacion} • {row.numeroIdentificacion}</div>
+                  </div>
+                  <div className="text-xs text-gray-500">{row.fechaSolicitud}</div>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <div className="text-xs text-gray-500 truncate">{row.programa ?? ''}</div>
+                  <div className="flex-shrink-0 w-28">
+                    <div
+                      className="bg-orange-600 text-white px-3 py-2 rounded-md text-xs font-medium cursor-pointer w-full flex items-center justify-center"
+                      onClick={e => { e.stopPropagation(); if (onAction) onAction(row); }}
+                      aria-label={actionLabel}
+                    >
+                      {actionLabel}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="w-40 justify-center text-black text-sm font-normal font-['Roboto'] leading-loose">{row.nombre}</div>
-              <div className="w-40 justify-center text-black text-sm font-normal font-['Roboto'] leading-loose">{row.tipoIdentificacion}</div>
-              <div className="w-40 justify-center text-black text-sm font-normal font-['Roboto'] leading-loose">{row.numeroIdentificacion}</div>
-              <div className="w-40 justify-center text-black text-sm font-normal font-['Roboto'] leading-loose">{row.fechaSolicitud}</div>
-
-              {/* Action button for reassignment */}
-              <div
-                className="w-24 h-8 relative bg-orange-600 rounded-[3px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] overflow-hidden flex items-center justify-center cursor-pointer"
-                onClick={e => {
-                  e.stopPropagation();
-                  if (onAction) {
-                    onAction(row);
-                  }
-                }}
-              >
-                <span className="text-white text-xs font-medium font-['Roboto']">{actionLabel}</span>
-              </div>
-
-              {/* Expand/collapse indicator arrow */}
-              <span className={`ml-2 transition-transform ${expandedId === row.id ? 'rotate-180' : ''}`}>▼</span>
             </button>
 
             {/* Expanded details section - shows when row is expanded */}
             {expandedId === row.id && (
-              <div className="bg-gray-50 px-8 py-4 rounded-b-[5px] animate-fade-in" data-node-id="row-details">
+              <div className="bg-gray-50 px-4 sm:px-8 py-4 rounded-b-[5px] animate-fade-in" data-node-id="row-details">
                 {/* Detailed information grid */}
                 <div className="grid grid-cols-2 gap-y-2 gap-x-8">
                   <div>
