@@ -76,7 +76,12 @@ export default function MainLayout() {
   // Layout: desktop (md+) = grid: header arriba, menú izq, contenido der, footer abajo
   // mobile (sm) = header fijo arriba, menú modal, contenido debajo, footer fijo
   return (
-    <div className="min-h-screen w-full bg-[#D9D9D9] md:grid md:grid-cols-[auto_1fr] md:grid-rows-[auto_1fr_auto] md:h-screen flex flex-col">
+    // Use full viewport height and lock overflow on root so mobile header/footer positioning works correctly
+    <div
+      className="h-screen w-full bg-[#D9D9D9] md:grid md:grid-cols-[auto_1fr] md:grid-rows-[auto_1fr_auto] md:h-screen flex flex-col overflow-hidden"
+      // Header/footer variables used by main to set max height; keeps scroll inside main
+      style={{ ['--header-height' as any]: '4rem', ['--footer-height' as any]: '4rem' }}
+    >
       {/* Menú lateral: col 1, row 1-3 en desktop, modal en móvil */}
       <aside className="hidden md:block col-start-1 col-end-2 row-start-1 row-end-4 h-full">
         <Menu
@@ -88,15 +93,20 @@ export default function MainLayout() {
         />
       </aside>
       {/* Header: sólo en columna de contenido en desktop, fijo arriba en móvil */}
-      <header className="z-30 md:col-start-2 md:col-end-3 md:row-start-1 md:row-end-2 w-full md:static fixed top-0 left-0">
+      <header className="z-30 md:col-start-2 md:col-end-3 md:row-start-1 md:row-end-2 w-full md:static fixed top-0 left-0 h-16">
         <Header moduleName={activeModule} formName={activeFormName} />
       </header>
       {/* Contenido principal: col 2, row 2 en desktop; debajo del header en móvil */}
-      <main className="md:col-start-2 md:col-end-3 md:row-start-2 md:row-end-3 flex flex-col w-full min-h-0 p-2 md:p-4">
+      {/* Main content: on mobile, add top/bottom spacing to avoid being overlapped by fixed header/footer
+          and allow internal scrolling. On desktop (md+), the header/footer are part of the grid so unset margins. */}
+      <main
+        className="md:col-start-2 md:col-end-3 md:row-start-2 md:row-end-3 flex flex-col w-full min-h-0 p-2 md:p-4 mt-16 mb-16 md:mt-0 md:mb-0 overflow-y-auto"
+        style={{ maxHeight: 'calc(100vh - var(--header-height) - var(--footer-height))' }}
+      >
         <Outlet />
       </main>
       {/* Footer: sólo en columna de contenido en desktop, fijo abajo en móvil */}
-      <footer className="md:col-start-2 md:col-end-3 md:row-start-3 md:row-end-4 w-full md:static fixed bottom-0 left-0 z-20">
+      <footer className="md:col-start-2 md:col-end-3 md:row-start-3 md:row-end-4 w-full md:static fixed bottom-0 left-0 z-20 h-16">
         <Footer />
       </footer>
       {/* Menú hamburguesa modal en móvil (Menu ya lo gestiona como modal) */}
