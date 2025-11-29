@@ -488,3 +488,48 @@ export const getRequestMessages = async (requestId: number): Promise<{ success: 
     throw error;
   }
 };
+
+/**
+ * Gets dashboard statistics for SOFÍA Plus operator.
+ * Endpoint: GET /assign/request_asignation/operator-sofia-dashboard/
+ * @returns Promise with dashboard data (monthly evolution)
+ */
+export const getOperatorSofiaDashboard = async (): Promise<{ 
+  success: boolean; 
+  message: string;
+  data: {
+    year: number;
+    monthly_data: Array<{
+      month: string;
+      month_number: number;
+      registered: number;
+      pending: number;
+      total: number;
+    }>;
+    totals: {
+      registered: number;
+      pending: number;
+      total: number;
+    };
+  };
+}> => {
+  try {
+    const url = ENDPOINTS.requestAsignation.getOperatorSofiaDashboard;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al obtener el dashboard del operador');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en getOperatorSofiaDashboard:', error);
+    throw error;
+  }
+};

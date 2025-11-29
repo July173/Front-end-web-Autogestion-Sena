@@ -185,6 +185,7 @@ export const ENDPOINTS = {
     filterRequest : `${API_BASE_URL}assign/request_asignation/form-request-filtered/`,
     postMessageRequest : `${API_BASE_URL}assign/request_asignation/{id}/form-request-update/`,
     getIdMessageRequest : `${API_BASE_URL}assign/request_asignation/{id}/messages/`,
+    getOperatorSofiaDashboard : `${API_BASE_URL}assign/request_asignation/operator-sofia-dashboard/`,
   },
   modalityProductiveStage :{
     getModalityProductiveStage : `${API_BASE_URL}assign/modality_productive_stage/`,
