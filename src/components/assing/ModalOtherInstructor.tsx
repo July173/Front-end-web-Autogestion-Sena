@@ -131,6 +131,9 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
             <div
                 className="w-full max-w-[996px] relative bg-white rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] overflow-hidden z-[71] mx-4 sm:mx-auto"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="select-instructor-dialog"
                 style={{ maxHeight: '90vh', overflowY: 'auto' }}
             >
                 {/* Close button */}
@@ -152,20 +155,12 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                             <path d="M2 13c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4" />
                         </svg>
                         <div>
-                            <div className="text-black text-2xl font-extrabold leading-tight">Seleccionar instructor</div>
+                            <div id="select-instructor-dialog" className="text-black text-2xl font-extrabold leading-tight">Seleccionar instructor</div>
                             <div className="text-black text-base font-normal">Busca y selecciona un instructor disponible para el seguimiento</div>
                         </div>
                     </div>
                 </div>
-                    <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
-                    <path d="M2 13c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4" />
                 
-                <div className="left-[66px] top-[34px] absolute text-black text-2xl font-extrabold font-['Roboto'] leading-loose">
-                    Seleccionar instructor
-                </div>
-                <div className="left-[66px] top-[66px] absolute text-black text-base font-normal font-['Roboto'] leading-loose">
-                    Busca y selecciona un instructor disponible para el seguimiento
-                </div>
 
                                 {/* Filters with FilterBar */}
                                 <div className="p-6">
@@ -239,6 +234,8 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                     <button
                                         className="w-full sm:w-40 h-11 rounded-[10px] border-2 border-stone-300 hover:bg-gray-100"
                                         onClick={() => onAssign(inst)}
+                                        type="button"
+                                        aria-label={`Seleccionar instructor ${nameFull}`}
                                     >
                                         <div className="text-black text-xl font-medium font-['Roboto']">
                                             Seleccionar
@@ -248,6 +245,8 @@ export default function ModalOtroInstructor({ onClose, onAssign }: ModalOtroInst
                                     <button
                                         className="ml-0 sm:ml-4 mt-2 sm:mt-0 px-3 py-2 rounded bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 font-semibold"
                                         onClick={() => setEditLimitInstructor(inst)}
+                                        type="button"
+                                        aria-label={`Editar límite de ${nameFull}`}
                                     >
                                         Editar límite
                                     </button>

@@ -192,11 +192,11 @@ export default function ModalPreApprove({ apprentice, onClose, onAssignmentCompl
           </div>
 
           {/* Actions */}
-          <div className="flex gap-4 justify-start mt-4">
-            <button className="bg-[#fb8383] border border-[#773939] text-[#ffffff] font-bold px-4 py-2 rounded-[10px] hover:bg-[#fbbcbc]" onClick={() => setShowRejectModal(true)}>Rechazar solicitud</button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-between mt-4">
+            <button className="w-full sm:w-auto bg-[#fb8383] border border-[#773939] text-[#ffffff] font-bold px-4 py-2 rounded-[10px] hover:bg-[#fbbcbc]" onClick={() => setShowRejectModal(true)} type="button" aria-label="Rechazar solicitud">Rechazar solicitud</button>
             <div className="flex-1" />
-            <button className="bg-white border border-[#a39f9f] text-black font-bold px-6 py-2 rounded-[10px] hover:bg-gray-100" onClick={onClose}>Cancelar</button>
-            <button className="bg-blue-500 border border-blue-600 text-white font-bold px-4 py-2 rounded-[10px] hover:bg-blue-600" onClick={handleApprove} disabled={assigning || !message || !message.trim()}>Aprobar</button>
+            <button className="w-full sm:w-auto bg-white border border-[#a39f9f] text-black font-bold px-6 py-2 rounded-[10px] hover:bg-gray-100" onClick={onClose} type="button" aria-label="Cancelar">Cancelar</button>
+            <button className="w-full sm:w-auto bg-blue-500 border border-blue-600 text-white font-bold px-4 py-2 rounded-[10px] hover:bg-blue-600" onClick={handleApprove} disabled={assigning || !message || !message.trim()} type="button" aria-label="Aprobar">Aprobar</button>
           </div>
         </div>
       </div>

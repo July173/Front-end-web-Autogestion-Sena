@@ -361,6 +361,9 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                 {/* Main modal */}
                 <div
                     className="bg-white rounded-[10px] shadow-lg max-w-2xl w-full mx-4 p-6 relative flex flex-col gap-6 z-10"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="assign-dialog-title"
                     style={{ pointerEvents: 'auto', maxHeight: '90vh', overflowY: 'auto' }}
                     onClick={(e) => e.stopPropagation()} // prevent bubbling from inside modal
                 >
@@ -371,7 +374,7 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                             <path d="M2 13c0 1 1 1 1 1h5.256A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1 1.544-3.393Q8.844 9.002 8 9c-5 0-6 3-6 4" />
                         </svg>
                         <div>
-                            <div className="text-black text-2xl font-extrabold font-['Roboto'] leading-loose text-left">Asignar Instructor de seguimiento</div>
+                            <div id="assign-dialog-title" className="text-black text-2xl font-extrabold font-['Roboto'] leading-loose text-left">Asignar Instructor de seguimiento</div>
                             <div className="text-black text-base font-normal font-['Roboto'] leading-loose">Selecciona un instructor para realizar el seguimiento del aprendiz</div>
                         </div>
                     </div>
@@ -384,58 +387,58 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                                     <path d="M4.176 9.032a.5.5 0 0 0-.656.327l-.5 1.7a.5.5 0 0 0 .294.605l4.5 1.8a.5.5 0 0 0 .372 0l4.5-1.8a.5.5 0 0 0 .294-.605l-.5-1.7a.5.5 0 0 0-.656-.327L8 10.466zm-.068 1.873.22-.748 3.496 1.311a.5.5 0 0 0 .352 0l3.496-1.311.22.748L8 12.46z" />
                                 </svg>
                             </div>
-                            <div>
-                                <div className="text-black text-2xl font-semibold font-['Roboto'] leading-loose">{apprentice.name}</div>
+                            <div className="min-w-0">
+                                <div className="text-black text-2xl font-semibold font-['Roboto'] leading-loose truncate">{apprentice.name}</div>
                                 <div className="text-neutral-500 text-base font-normal font-['Roboto'] leading-loose text-left">Información del aprendiz</div>
                             </div>
                         </div>
                         <div className="flex justify-end">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-x-20 gap-y-2 text-sm">
-                                <div className="flex items-center gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-x-6 gap-y-2 text-sm w-full">
+                                <div className="flex items-center gap-2 min-w-0">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-person" viewBox="0 0 16 16">
                                         <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
                                     </svg>
                                     <span className="text-neutral-500">Identificación:</span>
-                                    <span className="text-black font-medium">{apprentice.number_identification}</span>
+                                    <span className="text-black font-medium truncate">{apprentice.number_identification}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-file-earmark-text" viewBox="0 0 16 16">
                                         <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5" />
                                         <path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" />
                                     </svg>
                                     <span className="text-neutral-500">Tipo:</span>
-                                    <span className="text-black font-medium">{docTypeName}</span>
+                                    <span className="text-black font-medium truncate">{docTypeName}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-mortarboard" viewBox="0 0 16 16">
                                         <path d="M8.211 2.047a.5.5 0 0 0-.422 0l-7.5 3.5a.5.5 0 0 0 .025.917l7.5 3a.5.5 0 0 0 .372 0L14 7.14V13a1 1 0 0 0-1 1v2h3v-2a1 1 0 0 0-1-1V6.739l.686-.275a.5.5 0 0 0 .025-.917zM8 8.46 1.758 5.965 8 3.052l6.242 2.913z" />
                                         <path d="M4.176 9.032a.5.5 0 0 0-.656.327l-.5 1.7a.5.5 0 0 0 .294.605l4.5 1.8a.5.5 0 0 0 .372 0l4.5-1.8a.5.5 0 0 0 .294-.605l-.5-1.7a.5.5 0 0 0-.656-.327L8 10.466zm-.068 1.873.22-.748 3.496 1.311a.5.5 0 0 0 .352 0l3.496-1.311.22.748L8 12.46z" />
                                     </svg>
                                     <span className="text-neutral-500">Ficha:</span>
-                                    <span className="text-black font-medium">{apprentice.file_number}</span>
+                                    <span className="text-black font-medium truncate">{apprentice.file_number}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-calendar4" viewBox="0 0 16 16">
                                         <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M2 2a1 1 0 0 0-1 1v1h14V3a1 1 0 0 0-1-1zm13 3H1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1z" />
                                     </svg>
                                     <span className="text-neutral-500">Fecha de solicitud:</span>
-                                    <span className="text-black font-medium">{apprentice.request_date}</span>
+                                    <span className="text-black font-medium truncate">{apprentice.request_date}</span>
                                 </div>
-                                <div className="flex items-center gap-2 col-span-2">
+                                <div className="flex items-center gap-2 col-span-2 min-w-0">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-calendar4" viewBox="0 0 16 16">
                                         <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M2 2a1 1 0 0 0-1 1v1h14V3a1 1 0 0 0-1-1zm13 3H1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1z" />
                                     </svg>
                                     <span className="text-neutral-500">Fecha inicio etapa práctica:</span>
-                                    <span className="text-black font-medium">{apprentice.date_start_production_stage}</span>
+                                    <span className="text-black font-medium truncate">{apprentice.date_start_production_stage}</span>
                                 </div>
                             </div>
                         </div>
                         <hr className="my-2 border-t border-gray-200" />
                         <div className="text-stone-500 text-base font-medium font-['Roboto'] leading-loose mt-1">
-                            Programa: <span className="text-neutral-500 font-normal">{apprentice.program}</span>
+                            Programa: <span className="text-neutral-500 font-normal truncate">{apprentice.program}</span>
                         </div>
                         <div className="text-stone-500 text-base font-medium font-['Roboto'] leading-loose mt-1">
-                            Modalidad etapa práctica: <span className="text-neutral-500 font-normal">{modalityStage || apprentice.modality_productive_stage || 'No especificada'}</span>
+                            Modalidad etapa práctica: <span className="text-neutral-500 font-normal truncate">{modalityStage || apprentice.modality_productive_stage || 'No especificada'}</span>
                         </div>
                     </div>
                     {/* Instructor selector */}
@@ -502,10 +505,12 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                     </div>
                     
                     {/* Action buttons */}
-                    <div className="flex flex-row gap-4 justify-start mt-4">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-between mt-4">
                         <button
                             className="bg-[#fb8383] border border-[#773939] text-[#ffffff] font-bold px-4 py-2 rounded-[10px] flex items-center gap-2 hover:bg-[#fbbcbc]"
                             onClick={handleReject}
+                            type="button"
+                            aria-label="Rechazar solicitud"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#ffff" className="bi bi-x-circle" viewBox="0 0 16 16">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
@@ -514,13 +519,15 @@ export default function ModalAsignar({ apprentice, onClose, onReject, onAssignme
                             Rechazar solicitud
                         </button>
                         <div className="flex-1" />
-                        <button className="bg-white border border-[#a39f9f] text-black font-bold px-6 py-2 rounded-[10px] flex items-center gap-2 hover:bg-gray-100" onClick={onClose}>
+                        <button className="w-full sm:w-auto bg-white border border-[#a39f9f] text-black font-bold px-6 py-2 rounded-[10px] flex items-center gap-2 hover:bg-gray-100" onClick={onClose} type="button" aria-label="Cancelar">
                             Cancelar
                         </button>
                         <button
                             className="bg-[#7bcc7f] border border-[#c0fbcd] text-[#ffffff] font-bold px-4 py-2 rounded-[10px] flex items-center gap-2 hover:bg-[#a6e6ad] disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={handleAssignInstructor}
                             disabled={!selectedInstructor || assigning || !message || !message.trim()}
+                            type="button"
+                            aria-label="Asignar Instructor"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#fff" className="bi bi-check-circle" viewBox="0 0 16 16">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
