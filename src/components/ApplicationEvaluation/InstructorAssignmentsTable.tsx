@@ -6,7 +6,20 @@ import PdfView from '@/components/assing/PdfView';
 import AssignReviewModal from './AssignReviewModal';
 import { InstructorAssignment } from '@/Api/types/Modules/assign.types';
 
-type AssignmentRow = InstructorAssignment;
+type AssignmentRow = InstructorAssignment & {
+  messages?: any[];
+  raw?: any;
+  ficha?: string;
+  modalidad?: string;
+};
+
+interface InstructorAssignmentFilters {
+  apprentice_name?: string;
+  apprentice_id_number?: string;
+  modality_name?: string;
+  program_name?: string;
+  request_state?: string;
+}
 
 interface Props {
   instructorId: number;
@@ -19,10 +32,19 @@ interface Props {
    * on buttons for each row.
    */
   renderAction?: (row: AssignmentRow) => React.ReactNode;
+  /**
+   * Optional callback invoked with the refresh function when component mounts.
+   * Allows parent component to trigger a table refresh.
+   */
+  onRefreshReady?: (refreshFn: () => void) => void;
+  /**
+   * Optional filters to apply to the instructor assignments endpoint.
+   */
+  filters?: InstructorAssignmentFilters;
 }
 
-const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState = 'ALL', renderAction }) => {
-  const { data, loading, error, refresh } = useInstructorAssignments(instructorId, filterState);
+const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState = 'ALL', renderAction, onRefreshReady, filters }) => {
+  const { data, loading, error, refresh } = useInstructorAssignments(instructorId, filterState, filters);
   const [rows, setRows] = useState<AssignmentRow[]>([]);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
@@ -35,24 +57,36 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
 
   const rowsPerPage = 10;
 
+  // Expose refresh function to parent component
+  useEffect(() => {
+    if (onRefreshReady) {
+      onRefreshReady(refresh);
+    }
+  }, [onRefreshReady, refresh]);
+
   useEffect(() => {
     // Map hook data to table rows
-    const mapped = (data || []).map((it: any) => ({
-      id: it.id,
-      instructor: it.instructor,
-      request_asignation: it.request_asignation,
-      content: it.content,
-      type_message: it.type_message,
-      aprendiz_id: it.aprendiz_id,
-      name: it.nombre || it.name || it.nombre_aprendiz || '',
-      tipo_identificacion: it.tipo_identificacion ?? it.type_identification ?? '',
-      numero_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
-      fecha_solicitud: it.fecha_solicitud || it.request_date || '',
-      estado_solicitud: it.estado_solicitud || it.request_state || it.estado_solicitud || '',
-      // messages array returned by the instructor assignments endpoint
-      messages: Array.isArray(it.messages) ? it.messages : (it.messages || it.raw?.messages || []),
-      raw: it,
-    }));
+    const mapped = (data || []).map((it: any) => {
+      const messages = Array.isArray(it.messages) ? it.messages : [];
+      return {
+        id: it.id,
+        instructor: it.instructor,
+        request_asignation: it.request_asignation,
+        content: it.content,
+        type_message: it.type_message,
+        aprendiz_id: it.aprendiz_id,
+        name: it.nombre || it.name || it.nombre_aprendiz || '',
+        tipo_identificacion: it.tipo_identificacion ?? it.type_identification ?? '',
+        numero_identificacion: it.numero_identificacion != null ? String(it.numero_identificacion) : (it.number_identificacion ? String(it.number_identificacion) : ''),
+        fecha_solicitud: it.fecha_solicitud || it.request_date || '',
+        estado_solicitud: it.estado_solicitud || it.request_state || '',
+        modalidad: it.modalidad || it.modality || '',
+        ficha: it.ficha || it.file_number || '',
+        // messages array returned by the instructor assignments endpoint
+        messages: messages,
+        raw: it,
+      };
+    });
 
     // Apply filtering rules requested:
     // - Always hide requests with state `SIN_ASIGNAR`.
@@ -60,15 +94,19 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
     //   there is a message whose `whose_message` equals `INSTRUCTOR`.
     // - Then apply the optional `filterState` prop (if provided and not 'ALL').
     const filtered = mapped.filter((r: any) => {
-      const s = (r.estado_solicitud || r.request_state || '').toString().toUpperCase();
+      const s = (r.estado_solicitud || '').toString().toUpperCase();
 
       // Hide explicitly unassigned
       if (s === 'SIN_ASIGNAR') return false;
 
       // If the state is one of these, require an instructor message to show
       if (['ASIGNADO', 'RECHAZADO', 'PRE-APROBADO'].includes(s)) {
-        const messages = Array.isArray(r.messages) ? r.messages : (r.raw?.messages || []);
-        const hasInstructorMsg = messages.some((m: any) => String((m.whose_message || m.whose_message || m.who || '').toString()).toUpperCase() === 'INSTRUCTOR');
+        const messages = r.messages || [];
+        const hasInstructorMsg = messages.some((m: any) => {
+          const whoseMsg = String(m.whose_message || '').toUpperCase();
+          return whoseMsg === 'INSTRUCTOR';
+        });
+        
         if (!hasInstructorMsg) return false;
       }
 
@@ -149,8 +187,14 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
                       <div className="flex-1 px-2 text-center text-sm text-black">{row.estado_solicitud === 'ASIGNADO' ? 'Asignado' : (row.estado_solicitud === 'VERIFICANDO' ? 'Verificando' : row.estado_solicitud)}</div>
                       <div className="flex-1 px-2 text-center flex justify-center items-center" onClick={(e) => e.stopPropagation()}>
                         {renderAction ? renderAction(row) : (() => {
-                          const messages = row.messages || row.raw?.messages || [];
-                          const instrMsg = messages.find((m: any) => String(m.whose_message || '').toUpperCase() === 'INSTRUCTOR');
+                          // Buscar el mensaje del instructor
+                          const messages = row.messages || [];
+                          const instrMsg = messages.find((m: any) => {
+                            const whoseMsg = String(m.whose_message || '').toUpperCase();
+                            return whoseMsg === 'INSTRUCTOR';
+                          });
+                          
+                          // Si NO hay mensaje del instructor, mostrar botón "Sin Valorar" que abre el modal
                           if (!instrMsg) {
                             return (
                               <button
@@ -161,17 +205,17 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
                                     name: row.name || '',
                                     type_identification: row.tipo_identificacion || '',
                                     number_identification: row.numero_identificacion || '',
-                                    file_number: row.ficha || row.raw?.ficha || '',
+                                    file_number: row.ficha || '',
                                     date_start_production_stage: row.raw?.date_start_production_stage || null,
                                     program: row.raw?.program || null,
                                     request_date: row.fecha_solicitud || null,
                                     request_id: row.request_asignation || row.id,
-                                    modality_productive_stage: row.modalidad || row.raw?.modalidad || row.raw?.nombre_modalidad || null,
+                                    modality_productive_stage: row.modalidad || '',
                                   };
                                   setModalApprentice(apprentice);
                                   // pass any already-fetched detail/messages to the modal hook to avoid duplicate calls
                                   setModalInitialDetail(detail ?? null);
-                                  setModalInitialMessages(Array.isArray(row.messages) ? row.messages : (row.raw?.messages || []));
+                                  setModalInitialMessages(row.messages || []);
                                   setIsModalOpen(true);
                                 }}
                               >
@@ -179,11 +223,25 @@ const InstructorAssignmentsTable: React.FC<Props> = ({ instructorId, filterState
                               </button>
                             );
                           }
-                          const type = String(instrMsg.type_message || '').toUpperCase();
-                          const colorClass = type.includes('APROBADO') ? 'bg-green-100 border border-green-300 text-green-800' : (type.includes('RECHAZADO') ? 'bg-red-100 border border-red-300 text-red-800' : 'bg-gray-100 border border-gray-200 text-gray-800');
+                          
+                          // Si HAY mensaje del instructor, mostrar el estado como badge (no clickeable)
+                          const typeMsg = String(instrMsg.type_message || '').toUpperCase();
+                          let colorClass = 'bg-gray-100 border border-gray-200 text-gray-800';
+                          let displayText = instrMsg.type_message || typeMsg;
+                          
+                          // Determinar color según el tipo de mensaje
+                          if (typeMsg.includes('APROBAD')) {
+                            colorClass = 'bg-green-100 border border-green-300 text-green-800';
+                            displayText = 'APROBADO';
+                          } else if (typeMsg.includes('RECHAZAD')) {
+                            colorClass = 'bg-red-100 border border-red-300 text-red-800';
+                            displayText = 'RECHAZADO';
+                          }
+                          
+                          // Retornar badge no clickeable (span en lugar de button)
                           return (
-                            <span className={`${colorClass} px-3 py-1 rounded-full font-medium hover:shadow-sm transition-all whitespace-nowrap text-xs sm:text-sm inline-flex items-center justify-center`}>
-                              {instrMsg.type_message || type}
+                            <span className={`${colorClass} px-3 py-1 rounded-full font-medium whitespace-nowrap text-xs sm:text-sm inline-flex items-center justify-center`}>
+                              {displayText}
                             </span>
                           );
                         })()}

@@ -96,18 +96,32 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
     if (!confirmAction || !apprentice.request_id) return;
     setConfirmOpen(false);
     try {
-      const type = confirmAction === 'approve' ? 'APROBADO' : 'RECHAZADO';
-      console.log('[AssignReviewModal] calling performAction for confirm', { requestId: apprentice.request_id, type, valuationMessage, startDate, endDate });
-      const result = await performAction({ type, content: valuationMessage, fecha_inicio_contrato: startDate || undefined, fecha_fin_contrato: endDate || undefined });
+      let payload: any = {};
+      if (confirmAction === 'approve') {
+        payload = {
+          type: 'APROBADO',
+          content: valuationMessage,
+          fecha_inicio_contrato: startDate || undefined,
+          fecha_fin_contrato: endDate || undefined,
+          request_state: 'PRE-APROBADO',
+        };
+      } else if (confirmAction === 'reject') {
+        payload = {
+          type: 'RECHAZADO',
+          content: valuationMessage,
+          request_state: 'PRE-APROBADO',
+        };
+      }
+      console.log('[AssignReviewModal] calling performAction for confirm', { requestId: apprentice.request_id, ...payload });
+      const result = await performAction(payload);
       console.log('[AssignReviewModal] performAction result for confirm', { result });
       if (result.success) {
         setNotifType('success');
         setNotifTitle(confirmAction === 'approve' ? 'Aprobación enviada' : 'Rechazo enviado');
         setNotifMessage('La acción se envió correctamente.');
         setNotifOpen(true);
-        if (confirmAction === 'approve' && onApprove) onApprove();
-        if (confirmAction === 'reject' && onReject) onReject();
-        onClose();
+        // Esperar a que el usuario cierre la notificación antes de cerrar el modal
+        // onClose y callbacks se llaman en el onClose del NotificationModal
       } else {
         setNotifType('warning');
         setNotifTitle('Error');
@@ -123,6 +137,7 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
   // Handler passed to ModalReject: receives rejectionMessage and performs API call
   const handleRejectConfirm = async (rejectionMessage: string) => {
     // Log start of rejection flow
+    console.log('[AssignReviewModal] handleRejectConfirm');
     console.log('[AssignReviewModal] handleRejectConfirm called', { requestId: apprentice.request_id, rejectionMessage });
     if (!apprentice.request_id) {
       setNotifType('warning');
@@ -133,18 +148,26 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
     }
 
     try {
-      console.log('[AssignReviewModal] calling performAction for reject', { requestId: apprentice.request_id, rejectionMessage });
-      const result = await performAction({ type: 'RECHAZADO', content: rejectionMessage });
+      // Usar la estructura correcta que espera performAction del hook
+      // Incluir request_state para mantener el estado en PRE-APROBADO durante la valoración
+      const payload = {
+        type: 'RECHAZADO' as const,
+        content: rejectionMessage,
+        request_state: 'PRE-APROBADO', // Mantener en PRE-APROBADO para que el coordinador pueda revisar
+      };
+      console.log('[AssignReviewModal] calling performAction for reject', { requestId: apprentice.request_id, ...payload });
+      const result = await performAction(payload);
       console.log('[AssignReviewModal] performAction result for reject', { result });
       // Close the reject modal only after the network call finished
       setShowRejectModal(false);
       if (result.success) {
+        // Set confirmAction to 'reject' so the notification close handler can call onReject
+        setConfirmAction('reject');
         setNotifType('success');
         setNotifTitle('Rechazo enviado');
         setNotifMessage('La solicitud fue rechazada correctamente.');
         setNotifOpen(true);
-        if (onReject) onReject();
-        onClose();
+        // Don't call onReject/onClose here - let the NotificationModal onClose handler do it
       } else {
         setNotifType('warning');
         setNotifTitle('Error');
@@ -175,7 +198,15 @@ export default function AssignReviewModal({ apprentice, isOpen, onClose, onAppro
       <LoadingOverlay isOpen={loading} message="Enviando..." />
       <NotificationModal
         isOpen={notifOpen}
-        onClose={() => setNotifOpen(false)}
+        onClose={() => {
+          setNotifOpen(false);
+          // Solo cerrar el modal principal y llamar callbacks si fue éxito
+          if (notifType === 'success') {
+            if (confirmAction === 'approve' && onApprove) onApprove();
+            if (confirmAction === 'reject' && onReject) onReject();
+            onClose();
+          }
+        }}
         type={notifType === 'success' ? 'success' : 'warning'}
         title={notifTitle}
         message={notifMessage}

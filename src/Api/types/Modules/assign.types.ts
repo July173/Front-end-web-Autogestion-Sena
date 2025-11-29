@@ -28,6 +28,10 @@ export interface AssignTableRow {
   request_state?: string;
   /** Optional: modalidad asociada (nombre) retornada por el backend */
   nombre_modalidad?: string;
+  /** Optional: instructor name returned by backend */
+  instructor?: string;
+  /** Optional: instructor ID returned by backend */
+  instructor_id?: number;
 }
 
 export interface DetailData {
@@ -111,4 +115,13 @@ export type AssignmentRow = InstructorAssignment;
     name: string;
     email: string;
     phone_number: number;
+  }
+
+  /** Message associated with a request */
+  export interface RequestMessage {
+    id: number;
+    request_asignation: number;
+    content: string;
+    type_message: string;
+    whose_message: string;
   }

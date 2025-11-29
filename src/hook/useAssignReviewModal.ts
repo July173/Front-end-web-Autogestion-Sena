@@ -75,14 +75,15 @@ export default function useAssignReviewModal(
     fetchDetails();
   }, [isOpen, fetchDetails]);
 
-  const performAction = useCallback(async (opts: { type: 'APROBADO' | 'RECHAZADO'; content: string; fecha_inicio_contrato?: string; fecha_fin_contrato?: string; }) : Promise<PerformActionResult> => {
+  const performAction = useCallback(async (opts: { type: 'APROBADO' | 'RECHAZADO'; content: string; fecha_inicio_contrato?: string; fecha_fin_contrato?: string; request_state?: string; }) : Promise<PerformActionResult> => {
     if (!requestId) return { success: false, error: 'No request id' };
     setLoading(true);
     try {
       // Map internal action type to backend-expected type_message values
+      // RECHAZADO se mantiene como RECHAZADO, APROBADO como APROBADA
       let mappedType = opts.type;
-      if (opts.type === 'RECHAZADO') mappedType = 'RECHAZA';
       if (opts.type === 'APROBADO') mappedType = 'APROBADA';
+      // opts.type === 'RECHAZADO' se mantiene como 'RECHAZADO'
 
       const payload: any = {
         content: opts.content,
@@ -92,8 +93,10 @@ export default function useAssignReviewModal(
       if (opts.fecha_inicio_contrato) payload.fecha_inicio_contrato = opts.fecha_inicio_contrato;
       if (opts.fecha_fin_contrato) payload.fecha_fin_contrato = opts.fecha_fin_contrato;
 
-      // Only include request_state when approving
-      if (opts.type === 'APROBADO') {
+      // Include request_state if provided, otherwise default to PRE-APROBADO for approval
+      if (opts.request_state) {
+        payload.request_state = opts.request_state;
+      } else if (opts.type === 'APROBADO') {
         payload.request_state = 'PRE-APROBADO';
       }
 
