@@ -89,11 +89,11 @@ const AdminDashboardView: React.FC = () => {
   // Render dashboard even if user data is not available
 
   return (
-    <div className="bg-white rounded-lg p-8 w-full min-h-[80vh] py-12">
-      <h1 className="text-3xl font-bold text-green-700 mb-6 text-center w-full">BIENVENIDO A AUTOGESTIÓN SENA</h1>
-      <div className="flex flex-wrap gap-6 justify-center mb-8">
+    <div className="bg-white rounded-lg p-2 sm:p-4 md:p-8 w-full min-h-[80vh] py-6 md:py-12">
+      <h1 className="text-2xl sm:text-3xl font-bold text-green-700 mb-6 text-center w-full">BIENVENIDO A AUTOGESTIÓN SENA</h1>
+      <div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6 justify-center mb-8 w-full">
         {/* Card 1: Aprendices */}
-        <div className="w-64 border border-gray-200 rounded-xl bg-white p-4 shadow-sm h-48 flex flex-col justify-between">
+        <div className="w-full sm:w-64 border border-gray-200 rounded-xl bg-white p-4 shadow-sm h-48 flex flex-col justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-green-600 text-white rounded-lg flex items-center justify-center flex-shrink-0 mt-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" className="text-white">
@@ -118,7 +118,7 @@ const AdminDashboardView: React.FC = () => {
         </div>
 
         {/* Card 2: Solicitudes sin asignar */}
-        <div className="w-64 border border-gray-200 rounded-xl bg-white p-4 shadow-sm h-48 flex flex-col justify-between">
+        <div className="w-full sm:w-64 border border-gray-200 rounded-xl bg-white p-4 shadow-sm h-48 flex flex-col justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-green-600 text-white rounded-lg flex items-center justify-center flex-shrink-0 mt-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" className="text-white">
@@ -140,7 +140,7 @@ const AdminDashboardView: React.FC = () => {
         </div>
 
         {/* Card 3: Solicitudes asignadas */}
-        <div className="w-64 border border-gray-200 rounded-xl bg-white p-4 shadow-sm h-48 flex flex-col justify-between">
+        <div className="w-full sm:w-64 border border-gray-200 rounded-xl bg-white p-4 shadow-sm h-48 flex flex-col justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-green-600 text-white rounded-lg flex items-center justify-center flex-shrink-0 mt-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" className="text-white">
@@ -161,9 +161,11 @@ const AdminDashboardView: React.FC = () => {
           </div>
          </div>
        </div>
-       <DashboardCharts requestsData={requestsData} />
-     </div>
-   );
- }
- 
- export default AdminDashboardView;
+      <div className="w-full overflow-x-auto">
+        <DashboardCharts requestsData={requestsData} />
+      </div>
+    </div>
+  );
+}
+
+export default AdminDashboardView;

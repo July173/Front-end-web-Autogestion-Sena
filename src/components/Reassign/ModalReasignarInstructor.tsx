@@ -28,7 +28,7 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
   const [currentInstructorName, setCurrentInstructorName] = useState<string | null>(null);
   const [currentAssignationId, setCurrentAssignationId] = useState<number | null>(null);
   const [detail, setDetail] = useState<DetailData | null>(null);
-  const [documentTypes, setDocumentTypes] = useState<{ id: number | ""; name: string }[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<{ id: number | string | ""; name: string }[]>([]);
   // Query hook auto-fetches; use params state to update filters from FilterBar
 
   const handleConfirm = async () => {
@@ -139,31 +139,37 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
   }, [requestRow?.id]);
 
   return (
-    <div className="bg-white overflow-y-auto fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-[10px] shadow-lg p-0 w-full max-w-5xl max-h-[90vh] z-50 border border-[#ffa577]">
-      <div className="border-b border-dashed border-[#ffa577] px-8 pt-6 pb-2">
-        <h2 className="text-2xl font-bold text-black mb-1">Reasignar Instructor de seguimiento</h2>
-        <p className="text-base text-gray-600">Selecciona un nuevo instructor para el seguimiento del aprendiz</p>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reassign-title"
+      aria-describedby="reassign-desc"
+      className="bg-white overflow-y-auto fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-[10px] shadow-lg p-0 w-full max-w-5xl max-h-[90vh] z-50 border border-[#ffa577]"
+    >
+      <div className="border-b border-dashed border-[#ffa577] px-4 sm:px-8 pt-6 pb-2">
+        <h2 id="reassign-title" className="text-2xl font-bold text-black mb-1">Reasignar Instructor de seguimiento</h2>
+        <p id="reassign-desc" className="text-base text-gray-600">Selecciona un nuevo instructor para el seguimiento del aprendiz</p>
       </div>
 
-      <div className="flex gap-6 px-8 pt-6 pb-4">
-        <div className="flex flex-col gap-4 w-1/2">
+      <div className="flex flex-col sm:flex-row gap-6 px-4 sm:px-8 pt-6 pb-4">
+        <div className="flex flex-col gap-4 w-full sm:w-1/2 min-w-0">
           <div className="border border-dashed border-[#ffa577] rounded-lg p-4">
             <h3 className="text-lg font-semibold text-orange-700 mb-2 flex items-center gap-2">
               <span className="w-5 h-5 bg-[#ffd2a2] rounded-full flex items-center justify-center" />
               Información actual
             </h3>
 
-            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Tipo:</span> {(() => {
+            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Tipo:</span> <span className="block truncate ml-1">{(() => {
               const id = detail?.type_identification ?? (requestRow as any)?.type_identification;
               const found = documentTypes.find(dt => Number(dt.id) === Number(id));
               return found ? found.name : '';
-            })()}</div>
-            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Aprendiz:</span> {detail?.name_apprentice ?? requestRow?.name ?? ''}</div>
-            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Identificación:</span> {detail?.number_identification ?? requestRow?.number_identificacion ?? ''}</div>
-            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Ficha:</span> {detail?.numero_ficha ?? detail?.ficha ?? requestRow?.ficha ?? (requestRow as any)?.file_number ?? ''}</div>
-            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Fecha de solicitud:</span> {detail?.request_date ?? requestRow?.request_date ?? ''}</div>
+            })()}</span></div>
+            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Aprendiz:</span> <span className="block truncate ml-1">{detail?.name_apprentice ?? requestRow?.name ?? ''}</span></div>
+            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Identificación:</span> <span className="block truncate ml-1">{detail?.number_identification ?? requestRow?.number_identificacion ?? ''}</span></div>
+            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Ficha:</span> <span className="block truncate ml-1">{detail?.numero_ficha ?? detail?.ficha ?? (requestRow as any)?.ficha ?? (requestRow as any)?.file_number ?? ''}</span></div>
+            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Fecha de solicitud:</span> <span className="block truncate ml-1">{detail?.request_date ?? requestRow?.request_date ?? ''}</span></div>
            
-            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Instructor actual:</span> {(() => {
+            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Instructor actual:</span> <span className="block truncate ml-1">{(() => {
               const found = instructors.find(i => currentInstructorId !== null && Number(i.id) === Number(currentInstructorId));
               if (found) return found.name;
               if (currentInstructorName) return currentInstructorName;
@@ -171,8 +177,8 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
               if (typeof (requestRow as any)?.instructor_name === 'string') return (requestRow as any).instructor_name;
               if (typeof (requestRow as any)?.instructor === 'string' || typeof (requestRow as any)?.instructor === 'number') return '';
               return '';
-            })()}</div>
-            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Programa:</span> {detail?.program ?? requestRow?.program ?? ''}</div>
+            })()}</span></div>
+            <div className="text-sm text-gray-700 mb-1"><span className="font-semibold">Programa:</span> <span className="block truncate ml-1">{detail?.program ?? (requestRow as any)?.program ?? ''}</span></div>
           </div>
 
           <div className="border border-dashed border-[#ffa577] rounded-lg p-4">
@@ -181,7 +187,7 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 w-1/2">
+        <div className="flex flex-col gap-4 w-full sm:w-1/2 min-w-0">
           <div className="border border-dashed border-[#ffa577] rounded-lg p-4">
             <h3 className="text-lg font-semibold text-black mb-2">Seleccionar instructor</h3>
             <p className="text-sm text-gray-600 mb-4">Busca y selecciona un instructor disponible para el seguimiento</p>
@@ -191,7 +197,7 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
               <FilterBar onFilter={(p) => setParams(p)} inputWidth="100%" searchPlaceholder="Buscar por nombre o número de documento..." />
             </div>
 
-            <div className="flex flex-col gap-3 max-h-[265px] overflow-y-auto pr-2">
+            <div className="flex flex-col gap-3 max-h-[40vh] sm:max-h-[265px] overflow-y-auto pr-2">
               {loading ? (
                 <div className="text-center text-gray-600 py-6">Cargando instructores...</div>
               ) : instructors.length === 0 ? (
@@ -207,19 +213,19 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
                   return (
                     <div
                       key={inst.id}
-                      className={`rounded-lg border p-3 flex items-center justify-between ${isCurrent ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-70' : 'cursor-pointer'} ${isSelected ? 'border-[#ffa577] bg-[#fff7ef] shadow-[0_4px_10px_rgba(255,165,100,0.25)]' : 'border-[#e0e0e0] bg-white'}`}
+                      className={`rounded-lg border p-3 flex items-center justify-between min-w-0 ${isCurrent ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-70' : 'cursor-pointer'} ${isSelected ? 'border-[#ffa577] bg-[#fff7ef] shadow-[0_4px_10px_rgba(255,165,100,0.25)]' : 'border-[#e0e0e0] bg-white'}`}
                       onClick={() => { if (!isCurrent) setSelectedInstructor(inst); }}
                       role="button"
                       tabIndex={isCurrent ? -1 : 0}
                       onKeyDown={(e) => { if (!isCurrent && e.key === 'Enter') setSelectedInstructor(inst); }}
                       aria-disabled={isCurrent}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">{inst.name ? inst.name.charAt(0) : 'U'}</div>
-                        <div>
-                          <p className="font-semibold text-black">{inst.name || inst.first_name}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-black truncate">{inst.name || inst.first_name}</p>
                           
-                          <p className="text-sm text-gray-600">{inst.email || ''}</p>
+                          <p className="text-sm text-gray-600 truncate">{inst.email || ''}</p>
                         </div>
                       </div>
 
@@ -233,16 +239,16 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
         </div>
       </div>
 
-      <div className="flex justify-end gap-4 px-8 pb-6">
+      <div className="flex flex-col sm:flex-row justify-end gap-4 px-4 sm:px-8 pb-6">
         <button
-          className="bg-gray-200 text-black px-6 py-2 rounded-lg font-medium border border-[#ababab]"
+          className="bg-gray-200 text-black px-6 py-2 rounded-lg font-medium border border-[#ababab] w-full sm:w-auto"
           onClick={onCancel}
           type="button"
         >
           Cancelar
         </button>
         <button
-          className="bg-[#ffa577] hover:bg-[#de6b09] text-white px-6 py-2 rounded-lg font-medium border border-[#ffa577] shadow-sm hover:shadow-md transition-colors duration-150"
+          className="bg-[#ffa577] hover:bg-[#de6b09] text-white px-6 py-2 rounded-lg font-medium border border-[#ffa577] shadow-sm hover:shadow-md transition-colors duration-150 w-full sm:w-auto"
           onClick={() => setShowConfirm(true)}
           type="button"
         >
@@ -250,7 +256,7 @@ const ModalReasignarInstructor: React.FC<ModalReasignarInstructorProps> = ({ onC
         </button>
       </div>
 
-      {error && <div className="text-sm text-red-600 px-8 pb-4">{error}</div>}
+      {error && <div className="text-sm text-red-600 px-4 sm:px-8 pb-4">{error}</div>}
 
       <ConfirmModal
         isOpen={showConfirm}

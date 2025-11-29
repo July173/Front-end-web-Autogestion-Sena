@@ -102,50 +102,58 @@ export default function MassRegistration() {
       </div>
 
       {/* Download templates */}
-      <div className="bg-white rounded-[10px] w-full max-w-4xl p-10 flex flex-col gap-5 items-start">
+      <div className="bg-white rounded-[10px] w-full max-w-4xl p-6 sm:p-10 flex flex-col gap-5 items-start">
         <div className="flex gap-2.5 items-center mb-4">
           <img alt="download" className="w-[30px] h-[30px]" src={img6} />
           <span className="font-semibold text-[22px] text-black">Descargar Plantillas</span>
         </div>
-        <div className="flex gap-8 w-full">
-          <TarjetaExcel
+        <div className="flex flex-col sm:flex-row gap-6 w-full items-stretch">
+          <div className="w-full sm:w-1/2 h-full min-h-0 min-w-0">
+            <TarjetaExcel
             variant="instructores"
             isUploading={isDownloading}
             onDownload={handleDownloadInstructorTemplate}
             img5={img5}
             img4={img4}
-          />
-          <TarjetaExcel
+            />
+          </div>
+          <div className="w-full sm:w-1/2 h-full min-h-0 min-w-0">
+            <TarjetaExcel
             variant="aprendices"
             isUploading={isDownloading}
             onDownload={handleDownloadApprenticeTemplate}
             img3={img3}
             img4={img4}
-          />
+            />
+          </div>
         </div>
       </div>
 
       {/* Upload files */}
-      <div className="bg-white rounded-[10px] w-full max-w-4xl p-10 flex flex-col gap-5 items-start">
+      <div className="bg-white rounded-[10px] w-full max-w-4xl p-6 sm:p-10 flex flex-col gap-5 items-start">
         <div className="flex gap-2.5 items-center mb-4">
           <img alt="upload" className="w-[30px] h-[30px]" src={img7} />
           <span className="font-semibold text-[22px] text-black">Subir Archivos con Datos</span>
         </div>
-        <div className="flex gap-8 w-full">
-          <TarjetaExcel
+        <div className="flex flex-col sm:flex-row gap-6 w-full items-stretch">
+          <div className="w-full sm:w-1/2 h-full min-h-0 min-w-0">
+            <TarjetaExcel
             variant="Variant3"
             isUploading={isUploadingInstructor}
             onFileSelect={handleUploadInstructorFile}
             img={img}
             img1={img1}
-          />
-          <TarjetaExcel
+            />
+          </div>
+          <div className="w-full sm:w-1/2 h-full min-h-0 min-w-0">
+            <TarjetaExcel
             variant="Variant4"
             isUploading={isUploadingApprentice}
             onFileSelect={handleUploadApprenticeFile}
             img2={img2}
             img1={img1}
-          />
+            />
+          </div>
         </div>
       </div>
 

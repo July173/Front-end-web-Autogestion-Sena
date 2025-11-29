@@ -161,7 +161,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   return (
     <div className="flex flex-wrap gap-2 mb-6 items-center">
       {/* Search input with search icon */}
-      <div className="relative" style={{ width: inputWidth || '320px' }}>
+      <div className="relative w-full" style={{ maxWidth: inputWidth || '320px' }}>
         <input
           type="text"
           placeholder={searchPlaceholder}
@@ -179,7 +179,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
       {selects.map(sel => (
         sel.name === 'programa' ? (
           // Special handling for program autocomplete
-          <div key={sel.name} style={{ minWidth: sel.minWidth || '320px', maxWidth: sel.maxWidth || '220px', display: 'flex', alignItems: 'center', gap: '0px', width: sel.width || undefined }}>
+          <div key={sel.name} className="w-full sm:w-auto" style={{ minWidth: sel.minWidth || '160px', maxWidth: sel.maxWidth || '220px', display: 'flex', alignItems: 'center', gap: '0px', width: sel.width ? '100%' : undefined }}>
             <ProgramAutocomplete
               value={programOption}
               onChange={handleProgramChange}
@@ -189,7 +189,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
         ) : (
           // Regular select dropdown
-          <div key={sel.name} style={{ minWidth: sel.minWidth || '190px', maxWidth: sel.maxWidth || '220px', width: sel.width || undefined }}>
+          <div key={sel.name} className="w-full sm:w-auto" style={{ minWidth: sel.minWidth || '140px', maxWidth: sel.maxWidth || '220px', width: sel.width ? '100%' : undefined }}>
             {(() => {
               // Build options for the custom select. If the provided options already include
               // a universal choice like 'TODOS' or 'all', don't prepend the default 'all' option
