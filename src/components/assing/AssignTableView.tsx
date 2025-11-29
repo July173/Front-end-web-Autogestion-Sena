@@ -170,11 +170,11 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                                                   if (showReassignForAssigned && backendState === 'ASIGNADO') {
                                                     // Show prominent orange Reasignar button which opens the reassign modal handled by parent
                                                     return (
-                                                      <button
-                                                        className="bg-[#f07a11] hover:bg-[#de6b09] text-white px-4 py-1 rounded-md font-medium shadow-md flex items-center gap-2"
-                                                        onClick={(e) => { e.stopPropagation(); onAction(row); }}
-                                                        aria-label="Reasignar"
-                                                      >
+                                                        <button
+                                                          className="bg-[#f07a11] hover:bg-[#de6b09] text-white px-4 py-2 rounded-md font-medium shadow-md flex items-center gap-2 w-full sm:w-auto justify-center"
+                                                          onClick={(e) => { e.stopPropagation(); onAction(row); }}
+                                                          aria-label="Reasignar"
+                                                        >
                                                         <RefreshCw size={16} strokeWidth={2.5} />
                                                         <span>Reasignar</span>
                                                       </button>
@@ -241,7 +241,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                                   if (showReassignForAssigned && backendState === 'ASIGNADO') {
                                     return (
                                       <button
-                                        className="bg-[#f07a11] hover:bg-[#de6b09] text-white px-4 py-1 rounded-md font-medium shadow-md flex items-center gap-2"
+                                        className="bg-[#f07a11] hover:bg-[#de6b09] text-white px-4 py-2 rounded-md font-medium shadow-md flex items-center gap-2 w-full sm:w-auto justify-center"
                                         onClick={(e) => { e.stopPropagation(); onAction(row); }}
                                         aria-label="Reasignar"
                                       >
@@ -271,7 +271,7 @@ const AssignTableView: React.FC<AssignTableViewProps> = ({
                     </div>
 
                     {expandedIdx === idx && (
-                      <div className="bg-gray-50 px-8 py-6 border-b border-gray-200 animate-fade-in">
+                      <div className="bg-gray-50 px-4 sm:px-8 py-6 border-b border-gray-200 animate-fade-in">
                         {loadingDetail ? (
                           <div className="text-center text-gray-600">
                             Cargando información...

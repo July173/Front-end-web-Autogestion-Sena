@@ -124,7 +124,7 @@ export const Admin = () => {
             </div>
           </div>
         </div>
-          
+            
       </div>
       {loading && <div className="text-gray-500 text-center mt-6">Cargando...</div>}
       {error && <div className="text-red-500 text-center mt-6">{error}</div>}

@@ -114,7 +114,7 @@ const Assign: React.FC = () => {
   };
 
   return (
-    <div className="bg-white relative rounded-[10px] w-full p-6">
+    <div className="bg-white relative rounded-[10px] w-full p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
         <h2 className="text-2xl font-semibold">Asignar seguimiento</h2>
         <div className="flex items-center gap-2">
@@ -129,13 +129,14 @@ const Assign: React.FC = () => {
             value: "",
             options: estadoOptions,
             placeholder: "Todos los Estados",
+            minWidth: '180px',
           },
            {
             name: 'modalidad',
             value: '',
             options: modalityOptions,
             placeholder: 'Modalidad',
-            minWidth: '320px',
+            minWidth: '220px',
             maxWidth: '420px'
           },
            {
@@ -143,9 +144,10 @@ const Assign: React.FC = () => {
             value: "",
             options: programOptions,
             placeholder: "Programa",
+            minWidth: '180px',
           }
         ]}
-        inputWidth="calc(100% - 620px)"
+        inputWidth="100%"
         searchPlaceholder="Buscar por nombre, documento..."
       />
       <AssignTableView

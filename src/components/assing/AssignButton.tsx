@@ -35,7 +35,7 @@ const AssignButton: React.FC<AssignButtonProps> = ({ state = "Asignar", onClick,
   let style = "border-2 border-[#a39f9f] h-8 w-full sm:w-[90px] rounded-[10px] flex items-center justify-center relative cursor-pointer";
   let text = "text-black";
   const bg = "bg-transparent";
-  let label = state;
+  let label: string = state;
 
   if (state === "Asignado") {
     style = "bg-[#7bcc7f] border border-[#c0fbcd] h-8 w-full sm:w-[90px] rounded-[10px] flex items-center justify-center relative cursor-default";
